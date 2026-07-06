@@ -52,99 +52,88 @@
     let isDrawing = false;
 
 
-    // ==========================================
-    // TIMELINE ARCHITECTURE
-    // ==========================================
+    // ==================================================
+    // MASTER TIMELINE
+    // ==================================================
 
-    // Visible capsules
-    const BAR_COUNT = 56;
+    // Approximately 8 seconds from left edge to right edge.
+    const VISIBLE_SECONDS = 8;
 
-    // New stored audio measurement rate.
-    // 56 / 7 = ~8 seconds visible.
-    const HISTORY_FPS = 7;
+    // Audio is analyzed frequently enough to catch transients.
+    const ANALYSIS_HZ = 60;
+    const ANALYSIS_INTERVAL = 1000 / ANALYSIS_HZ;
 
-    const HISTORY_INTERVAL =
-      1000 / HISTORY_FPS;
+    // Visible capsule density.
+    const BAR_COUNT = 60;
 
-    // Visual rendering target.
-    // Motion is interpolated between history pushes.
-    const VISUAL_FPS = 24;
-
-    const VISUAL_INTERVAL =
-      1000 / VISUAL_FPS;
+    // One visual capsule represents this much time.
+    const BAR_DURATION =
+      VISIBLE_SECONDS / BAR_COUNT;
 
 
-    // ==========================================
-    // VISUAL APPEARANCE
-    // ==========================================
+    // ==================================================
+    // APPEARANCE
+    // ==================================================
 
     const CORE_WIDTH = 9;
     const BODY_WIDTH = 17;
 
     const MIN_HEIGHT = 2.5;
-
     const MAX_HEIGHT_RATIO = 0.88;
 
 
-    // ==========================================
-    // DYNAMIC RANGE
-    // ==========================================
+    // ==================================================
+    // DYNAMIC MAPPING
+    // ==================================================
 
-    const INPUT_FLOOR = 0.055;
-    const INPUT_CEILING = 0.42;
+    const INPUT_FLOOR = 0.045;
+    const INPUT_CEILING = 0.40;
 
-    const RESPONSE_CURVE = 1.38;
+    const RESPONSE_CURVE = 1.32;
 
-    const RMS_WEIGHT = 0.78;
-    const PEAK_WEIGHT = 0.22;
-
-
-    // ==========================================
-    // RESPONSE
-    // ==========================================
-
-    const ATTACK = 0.76;
-    const RELEASE = 0.28;
+    const RMS_WEIGHT = 0.72;
+    const PEAK_WEIGHT = 0.28;
 
 
-    // ==========================================
-    // TRANSIENT EMPHASIS
-    // ==========================================
+    // ==================================================
+    // TRANSIENT RESPONSE
+    // ==================================================
 
-    const TRANSIENT_AMOUNT = 0.34;
-    const MAX_TRANSIENT_ADD = 0.28;
+    // Fast attack: hits appear immediately.
+    const ATTACK = 0.88;
 
+    // Faster release than before:
+    // avoids giant sustained plateaus.
+    const RELEASE = 0.18;
+
+    // Additive transient punch.
+    const TRANSIENT_GAIN = 2.8;
+    const MAX_TRANSIENT_ADD = 0.34;
+
+    // Upper-mid transient emphasis.
+    const SNARE_GAIN = 0.22;
+
+
+    // ==================================================
+    // STATE
+    // ==================================================
+
+    let lastAnalysisTime = 0;
+
+    let smoothedLevel = 0;
     let previousRms = 0;
+    let previousUpperMid = 0;
+
+    // High-rate measurements:
+    // { time: audio.currentTime, value: 0..1 }
+    const measurements = [];
 
 
-    // ==========================================
-    // SNARE EMPHASIS
-    // ==========================================
-
-    const SNARE_AMOUNT = 0.10;
-
-
-    // ==========================================
-    // HISTORY STATE
-    // ==========================================
-
-    // One extra value is stored so interpolation
-    // remains smooth at the left edge.
-    const history =
-      new Float32Array(BAR_COUNT + 1);
-
-    let lastHistoryUpdate = 0;
-    let lastVisualUpdate = 0;
-
-    let smoothedAmplitude = 0;
-
-
-    // ==========================================
+    // ==================================================
     // CANVAS
-    // ==========================================
+    // ==================================================
 
     function resizeCanvas() {
-
       const dpr =
         window.devicePixelRatio || 1;
 
@@ -167,12 +156,11 @@
     );
 
 
-    // ==========================================
+    // ==================================================
     // AUDIO INITIALIZATION
-    // ==========================================
+    // ==================================================
 
     function initializeAudio() {
-
       if (audioContext) return;
 
       audioContext =
@@ -183,13 +171,12 @@
 
       analyser.fftSize = 2048;
 
-      analyser.smoothingTimeConstant =
-        0.18;
+      // Low analyser smoothing because
+      // we want actual attacks to survive.
+      analyser.smoothingTimeConstant = 0.08;
 
       source =
-        audioContext.createMediaElementSource(
-          audio
-        );
+        audioContext.createMediaElementSource(audio);
 
       source.connect(analyser);
 
@@ -209,9 +196,9 @@
     }
 
 
-    // ==========================================
+    // ==================================================
     // PLAYBACK
-    // ==========================================
+    // ==================================================
 
     audio.addEventListener(
       "play",
@@ -226,59 +213,51 @@
         }
 
         if (!isDrawing) {
-
           isDrawing = true;
-
-          const now =
-            performance.now();
-
-          lastHistoryUpdate = now;
-          lastVisualUpdate = 0;
-
-          draw(now);
+          lastAnalysisTime = performance.now();
+          draw();
         }
       }
     );
-
 
     audio.addEventListener(
       "pause",
       stopDrawing
     );
 
-
     audio.addEventListener(
       "ended",
       stopDrawing
     );
 
+    audio.addEventListener(
+      "seeking",
+      () => {
+        measurements.length = 0;
+        smoothedLevel = 0;
+        previousRms = 0;
+        previousUpperMid = 0;
+      }
+    );
 
     function stopDrawing() {
-
       isDrawing = false;
 
       if (animationId !== null) {
-
-        cancelAnimationFrame(
-          animationId
-        );
-
+        cancelAnimationFrame(animationId);
         animationId = null;
       }
     }
 
 
-    // ==========================================
+    // ==================================================
     // COLOR
-    // ==========================================
+    // ==================================================
 
     function colorForPosition(
       position,
       alpha = 1
     ) {
-
-      // Clamp because interpolated capsules
-      // can temporarily sit slightly outside.
       position =
         Math.max(
           0,
@@ -288,7 +267,6 @@
       let r;
       let g;
       let b;
-
 
       if (position < 0.33) {
 
@@ -318,7 +296,6 @@
         b = 255 - 35 * t;
       }
 
-
       return (
         "rgba(" +
         Math.round(r) + "," +
@@ -330,11 +307,11 @@
     }
 
 
-    // ==========================================
-    // AUDIO MEASUREMENT
-    // ==========================================
+    // ==================================================
+    // HIGH-RATE AUDIO ANALYSIS
+    // ==================================================
 
-    function measureAudio() {
+    function analyzeAudio() {
 
       analyser.getByteTimeDomainData(
         timeData
@@ -345,20 +322,18 @@
       );
 
 
-      // ----------------------------------------
+      // ------------------------------
       // RMS + PEAK
-      // ----------------------------------------
+      // ------------------------------
 
       let sumSquares = 0;
       let peak = 0;
-
 
       for (
         let i = 0;
         i < timeData.length;
         i++
       ) {
-
         const sample =
           (timeData[i] - 128) / 128;
 
@@ -373,22 +348,19 @@
         }
       }
 
-
       const rms =
         Math.sqrt(
-          sumSquares /
-          timeData.length
+          sumSquares / timeData.length
         );
-
 
       const rawLevel =
         rms * RMS_WEIGHT +
         peak * PEAK_WEIGHT;
 
 
-      // ----------------------------------------
-      // NORMALIZE
-      // ----------------------------------------
+      // ------------------------------
+      // BASE DYNAMIC LEVEL
+      // ------------------------------
 
       let normalized =
         (
@@ -400,13 +372,11 @@
           INPUT_FLOOR
         );
 
-
       normalized =
         Math.max(
           0,
           Math.min(1, normalized)
         );
-
 
       normalized =
         Math.pow(
@@ -415,9 +385,9 @@
         );
 
 
-      // ----------------------------------------
-      // TRANSIENT DETECTION
-      // ----------------------------------------
+      // ------------------------------
+      // BROADBAND TRANSIENT
+      // ------------------------------
 
       const rmsRise =
         Math.max(
@@ -425,12 +395,9 @@
           rms - previousRms
         );
 
-
       let transientAdd =
         rmsRise *
-        TRANSIENT_AMOUNT *
-        10;
-
+        TRANSIENT_GAIN;
 
       transientAdd =
         Math.min(
@@ -438,83 +405,82 @@
           transientAdd
         );
 
-
       previousRms =
-        previousRms * 0.72 +
-        rms * 0.28;
+        previousRms * 0.55 +
+        rms * 0.45;
 
 
-      // ----------------------------------------
-      // UPPER-MID / SNARE ENERGY
-      // ----------------------------------------
+      // ------------------------------
+      // UPPER-MID ENERGY
+      // ------------------------------
 
       const nyquist =
         audioContext.sampleRate / 2;
-
 
       const binHz =
         nyquist /
         frequencyData.length;
 
-
       const lowBin =
-        Math.floor(
-          1800 / binHz
+        Math.max(
+          0,
+          Math.floor(1800 / binHz)
         );
-
 
       const highBin =
         Math.min(
           frequencyData.length - 1,
-          Math.floor(
-            6500 / binHz
-          )
+          Math.floor(7000 / binHz)
         );
 
-
-      let upperMidEnergy = 0;
+      let upperMid = 0;
       let count = 0;
-
 
       for (
         let i = lowBin;
         i <= highBin;
         i++
       ) {
-
-        upperMidEnergy +=
+        upperMid +=
           frequencyData[i] / 255;
 
         count++;
       }
 
-
       if (count > 0) {
-        upperMidEnergy /= count;
+        upperMid /= count;
       }
 
 
-      const snareThreshold =
+      // We care about sudden upper-mid rise,
+      // not constant brightness.
+      const upperMidRise =
         Math.max(
           0,
-          upperMidEnergy - 0.22
+          upperMid - previousUpperMid
         );
 
-
       const snareAdd =
-        snareThreshold *
-        SNARE_AMOUNT;
+        Math.min(
+          0.24,
+          upperMidRise *
+          SNARE_GAIN *
+          5
+        );
+
+      previousUpperMid =
+        previousUpperMid * 0.60 +
+        upperMid * 0.40;
 
 
-      // ----------------------------------------
+      // ------------------------------
       // FINAL TARGET
-      // ----------------------------------------
+      // ------------------------------
 
       let target =
         normalized +
         transientAdd +
         snareAdd;
-
 
       target =
         Math.max(
@@ -523,124 +489,154 @@
         );
 
 
-      // ----------------------------------------
+      // ------------------------------
       // ATTACK / RELEASE
-      // ----------------------------------------
+      // ------------------------------
 
       const response =
-        target > smoothedAmplitude
+        target > smoothedLevel
           ? ATTACK
           : RELEASE;
 
-
-      smoothedAmplitude +=
+      smoothedLevel +=
         (
           target -
-          smoothedAmplitude
+          smoothedLevel
         ) * response;
 
 
       return Math.max(
         0,
-        Math.min(
-          1,
-          smoothedAmplitude
-        )
+        Math.min(1, smoothedLevel)
       );
     }
 
 
-    // ==========================================
-    // HISTORY
-    // ==========================================
+    // ==================================================
+    // STORE HIGH-RATE MEASUREMENT
+    // ==================================================
 
-    function pushHistory(value) {
+    function storeMeasurement() {
 
-      for (
-        let i = 0;
-        i < history.length - 1;
-        i++
+      const value =
+        analyzeAudio();
+
+      measurements.push({
+        time: audio.currentTime,
+        value: value
+      });
+
+
+      // Keep only slightly more history
+      // than is visible.
+      const cutoff =
+        audio.currentTime -
+        VISIBLE_SECONDS -
+        1;
+
+      while (
+        measurements.length > 0 &&
+        measurements[0].time < cutoff
       ) {
-
-        history[i] =
-          history[i + 1];
+        measurements.shift();
       }
-
-
-      history[
-        history.length - 1
-      ] = value;
     }
 
 
-    // ==========================================
-    // DRAW
-    // ==========================================
+    // ==================================================
+    // GET VISUAL VALUE FOR A TIME WINDOW
+    // ==================================================
 
-    function draw(timestamp) {
+    function valueForWindow(
+      startTime,
+      endTime
+    ) {
+
+      let sumSquares = 0;
+      let peak = 0;
+      let count = 0;
+
+      for (
+        let i = measurements.length - 1;
+        i >= 0;
+        i--
+      ) {
+
+        const m =
+          measurements[i];
+
+        if (m.time < startTime) {
+          break;
+        }
+
+        if (
+          m.time >= startTime &&
+          m.time < endTime
+        ) {
+
+          sumSquares +=
+            m.value * m.value;
+
+          if (m.value > peak) {
+            peak = m.value;
+          }
+
+          count++;
+        }
+      }
+
+
+      if (count === 0) {
+        return 0;
+      }
+
+
+      const rms =
+        Math.sqrt(
+          sumSquares / count
+        );
+
+
+      // Preserve narrow hits:
+      // 55% body + 45% local peak.
+      return Math.min(
+        1,
+        rms * 0.55 +
+        peak * 0.45
+      );
+    }
+
+
+    // ==================================================
+    // DRAW
+    // ==================================================
+
+    function draw() {
 
       if (!isDrawing) return;
-
 
       animationId =
         requestAnimationFrame(draw);
 
 
-      // ----------------------------------------
-      // PUSH NEW AUDIO HISTORY
-      // ----------------------------------------
-
-      while (
-        timestamp -
-        lastHistoryUpdate >=
-        HISTORY_INTERVAL
-      ) {
-
-        const amplitude =
-          measureAudio();
-
-        pushHistory(amplitude);
-
-        lastHistoryUpdate +=
-          HISTORY_INTERVAL;
-      }
+      const now =
+        performance.now();
 
 
-      // ----------------------------------------
-      // LIMIT VISUAL REDRAW TO ~24 FPS
-      // ----------------------------------------
+      // ------------------------------
+      // ANALYZE AT ~60 HZ
+      // ------------------------------
 
       if (
-        timestamp -
-        lastVisualUpdate <
-        VISUAL_INTERVAL
+        now -
+        lastAnalysisTime >=
+        ANALYSIS_INTERVAL
       ) {
-        return;
+
+        storeMeasurement();
+
+        lastAnalysisTime = now;
       }
-
-
-      lastVisualUpdate =
-        timestamp;
-
-
-      // ----------------------------------------
-      // INTERPOLATION PROGRESS
-      // ----------------------------------------
-
-      // 0 immediately after a history push
-      // 1 just before the next history push
-      const progress =
-        Math.max(
-          0,
-          Math.min(
-            1,
-            (
-              timestamp -
-              lastHistoryUpdate
-            ) /
-            HISTORY_INTERVAL
-          )
-        );
 
 
       const width =
@@ -656,9 +652,9 @@
         window.devicePixelRatio || 1;
 
 
-      // ----------------------------------------
+      // ------------------------------
       // CLEAR
-      // ----------------------------------------
+      // ------------------------------
 
       ctx.fillStyle =
         "#ffffff";
@@ -671,36 +667,32 @@
       );
 
 
-      // ----------------------------------------
+      // ------------------------------
       // GEOMETRY
-      // ----------------------------------------
+      // ------------------------------
 
       const horizontalPadding =
         20 * dpr;
-
 
       const usableWidth =
         width -
         horizontalPadding * 2;
 
-
       const spacing =
         usableWidth /
         (BAR_COUNT - 1);
-
 
       const maxHalfHeight =
         centerY *
         MAX_HEIGHT_RATIO;
 
-
       ctx.lineCap =
         "round";
 
 
-      // ========================================
-      // DRAW INTERPOLATED CAPSULES
-      // ========================================
+      // ==================================================
+      // DRAW TRUE TIME WINDOWS
+      // ==================================================
 
       for (
         let i = 0;
@@ -708,47 +700,42 @@
         i++
       ) {
 
-        // Move continuously from the current
-        // slot toward the next slot on the left.
-        const x =
-          horizontalPadding +
-          (
-            i - progress
-          ) * spacing;
+        const position =
+          i / (BAR_COUNT - 1);
 
 
-        // Skip capsules fully outside canvas
-        if (
-          x <
-          horizontalPadding -
-          spacing
-        ) {
-          continue;
-        }
+        // Left = oldest
+        // Right = newest
+        const age =
+          VISIBLE_SECONDS *
+          (1 - position);
 
 
-        // Interpolate amplitude too,
-        // preventing sudden shape snapping.
-        const currentValue =
-          history[i + 1];
+        const windowCenter =
+          audio.currentTime -
+          age;
 
 
-        const nextLeftValue =
-          history[i];
+        const startTime =
+          windowCenter -
+          BAR_DURATION / 2;
+
+
+        const endTime =
+          windowCenter +
+          BAR_DURATION / 2;
 
 
         const amplitude =
-          currentValue *
-          (1 - progress) +
-          nextLeftValue *
-          progress;
+          valueForWindow(
+            startTime,
+            endTime
+          );
 
 
-        const position =
-          (
-            x -
-            horizontalPadding
-          ) /
+        const x =
+          horizontalPadding +
+          position *
           usableWidth;
 
 
@@ -770,9 +757,9 @@
           halfHeight;
 
 
-        // --------------------------------------
-        // SOFT OUTER BODY
-        // --------------------------------------
+        // ------------------------------
+        // SOFT BODY
+        // ------------------------------
 
         ctx.beginPath();
 
@@ -798,9 +785,9 @@
         ctx.stroke();
 
 
-        // --------------------------------------
+        // ------------------------------
         // SATURATED CORE
-        // --------------------------------------
+        // ------------------------------
 
         ctx.beginPath();
 
