@@ -53,18 +53,25 @@
 
 
     // ==========================================
-    // TIMELINE
+    // TIMELINE ARCHITECTURE
     // ==========================================
 
-    // Fewer capsules = more physical presence
+    // Visible capsules
     const BAR_COUNT = 56;
 
-    // 7 new samples/sec:
-    // 56 / 7 = about 8 seconds visible
+    // New stored audio measurement rate.
+    // 56 / 7 = ~8 seconds visible.
     const HISTORY_FPS = 7;
 
     const HISTORY_INTERVAL =
       1000 / HISTORY_FPS;
+
+    // Visual rendering target.
+    // Motion is interpolated between history pushes.
+    const VISUAL_FPS = 24;
+
+    const VISUAL_INTERVAL =
+      1000 / VISUAL_FPS;
 
 
     // ==========================================
@@ -74,42 +81,29 @@
     const CORE_WIDTH = 9;
     const BODY_WIDTH = 17;
 
-    // Quiet material can become tiny dots
     const MIN_HEIGHT = 2.5;
 
-    // Strongest events can approach edges
     const MAX_HEIGHT_RATIO = 0.88;
 
 
     // ==========================================
-    // DYNAMIC RANGE MAPPING
+    // DYNAMIC RANGE
     // ==========================================
 
-    // Below this measured level:
-    // visually near silence
     const INPUT_FLOOR = 0.055;
-
-    // At this measured level:
-    // visually near maximum
     const INPUT_CEILING = 0.42;
 
-    // > 1 makes low/mid levels smaller
-    // while preserving strong peaks
     const RESPONSE_CURVE = 1.38;
 
-    // Mix RMS body with instantaneous peak
     const RMS_WEIGHT = 0.78;
     const PEAK_WEIGHT = 0.22;
 
 
     // ==========================================
-    // MOTION RESPONSE
+    // RESPONSE
     // ==========================================
 
-    // Fast response upward
     const ATTACK = 0.76;
-
-    // Moderate release
     const RELEASE = 0.28;
 
 
@@ -117,11 +111,7 @@
     // TRANSIENT EMPHASIS
     // ==========================================
 
-    // Deliberately restrained.
-    // Adds punch without saturating everything.
     const TRANSIENT_AMOUNT = 0.34;
-
-    // Maximum extra normalized height
     const MAX_TRANSIENT_ADD = 0.28;
 
     let previousRms = 0;
@@ -131,7 +121,6 @@
     // SNARE EMPHASIS
     // ==========================================
 
-    // Additive, not multiplicative.
     const SNARE_AMOUNT = 0.10;
 
 
@@ -139,10 +128,14 @@
     // HISTORY STATE
     // ==========================================
 
+    // One extra value is stored so interpolation
+    // remains smooth at the left edge.
     const history =
-      new Float32Array(BAR_COUNT);
+      new Float32Array(BAR_COUNT + 1);
 
     let lastHistoryUpdate = 0;
+    let lastVisualUpdate = 0;
+
     let smoothedAmplitude = 0;
 
 
@@ -151,6 +144,7 @@
     // ==========================================
 
     function resizeCanvas() {
+
       const dpr =
         window.devicePixelRatio || 1;
 
@@ -178,6 +172,7 @@
     // ==========================================
 
     function initializeAudio() {
+
       if (audioContext) return;
 
       audioContext =
@@ -231,28 +226,43 @@
         }
 
         if (!isDrawing) {
+
           isDrawing = true;
-          lastHistoryUpdate = 0;
-          draw(performance.now());
+
+          const now =
+            performance.now();
+
+          lastHistoryUpdate = now;
+          lastVisualUpdate = 0;
+
+          draw(now);
         }
       }
     );
+
 
     audio.addEventListener(
       "pause",
       stopDrawing
     );
 
+
     audio.addEventListener(
       "ended",
       stopDrawing
     );
 
+
     function stopDrawing() {
+
       isDrawing = false;
 
       if (animationId !== null) {
-        cancelAnimationFrame(animationId);
+
+        cancelAnimationFrame(
+          animationId
+        );
+
         animationId = null;
       }
     }
@@ -266,9 +276,19 @@
       position,
       alpha = 1
     ) {
+
+      // Clamp because interpolated capsules
+      // can temporarily sit slightly outside.
+      position =
+        Math.max(
+          0,
+          Math.min(1, position)
+        );
+
       let r;
       let g;
       let b;
+
 
       if (position < 0.33) {
 
@@ -297,6 +317,7 @@
         g = 55 - 35 * t;
         b = 255 - 35 * t;
       }
+
 
       return (
         "rgba(" +
@@ -331,11 +352,13 @@
       let sumSquares = 0;
       let peak = 0;
 
+
       for (
         let i = 0;
         i < timeData.length;
         i++
       ) {
+
         const sample =
           (timeData[i] - 128) / 128;
 
@@ -350,11 +373,13 @@
         }
       }
 
+
       const rms =
         Math.sqrt(
           sumSquares /
           timeData.length
         );
+
 
       const rawLevel =
         rms * RMS_WEIGHT +
@@ -362,7 +387,7 @@
 
 
       // ----------------------------------------
-      // CALIBRATED NORMALIZATION
+      // NORMALIZE
       // ----------------------------------------
 
       let normalized =
@@ -375,6 +400,7 @@
           INPUT_FLOOR
         );
 
+
       normalized =
         Math.max(
           0,
@@ -382,8 +408,6 @@
         );
 
 
-      // Shape the dynamic range.
-      // Keeps ordinary material moderate.
       normalized =
         Math.pow(
           normalized,
@@ -401,10 +425,12 @@
           rms - previousRms
         );
 
+
       let transientAdd =
         rmsRise *
         TRANSIENT_AMOUNT *
         10;
+
 
       transientAdd =
         Math.min(
@@ -412,26 +438,30 @@
           transientAdd
         );
 
+
       previousRms =
         previousRms * 0.72 +
         rms * 0.28;
 
 
       // ----------------------------------------
-      // SNARE / UPPER-MID ENERGY
+      // UPPER-MID / SNARE ENERGY
       // ----------------------------------------
 
       const nyquist =
         audioContext.sampleRate / 2;
 
+
       const binHz =
         nyquist /
         frequencyData.length;
+
 
       const lowBin =
         Math.floor(
           1800 / binHz
         );
+
 
       const highBin =
         Math.min(
@@ -441,31 +471,35 @@
           )
         );
 
+
       let upperMidEnergy = 0;
       let count = 0;
+
 
       for (
         let i = lowBin;
         i <= highBin;
         i++
       ) {
+
         upperMidEnergy +=
           frequencyData[i] / 255;
 
         count++;
       }
 
+
       if (count > 0) {
         upperMidEnergy /= count;
       }
 
-      // Only stronger upper-mid content
-      // receives noticeable extra height.
+
       const snareThreshold =
         Math.max(
           0,
           upperMidEnergy - 0.22
         );
+
 
       const snareAdd =
         snareThreshold *
@@ -480,6 +514,7 @@
         normalized +
         transientAdd +
         snareAdd;
+
 
       target =
         Math.max(
@@ -496,6 +531,7 @@
         target > smoothedAmplitude
           ? ATTACK
           : RELEASE;
+
 
       smoothedAmplitude +=
         (
@@ -522,15 +558,18 @@
 
       for (
         let i = 0;
-        i < BAR_COUNT - 1;
+        i < history.length - 1;
         i++
       ) {
+
         history[i] =
           history[i + 1];
       }
 
-      history[BAR_COUNT - 1] =
-        value;
+
+      history[
+        history.length - 1
+      ] = value;
     }
 
 
@@ -542,23 +581,66 @@
 
       if (!isDrawing) return;
 
+
       animationId =
         requestAnimationFrame(draw);
 
 
-      if (
+      // ----------------------------------------
+      // PUSH NEW AUDIO HISTORY
+      // ----------------------------------------
+
+      while (
         timestamp -
         lastHistoryUpdate >=
         HISTORY_INTERVAL
       ) {
+
         const amplitude =
           measureAudio();
 
         pushHistory(amplitude);
 
-        lastHistoryUpdate =
-          timestamp;
+        lastHistoryUpdate +=
+          HISTORY_INTERVAL;
       }
+
+
+      // ----------------------------------------
+      // LIMIT VISUAL REDRAW TO ~24 FPS
+      // ----------------------------------------
+
+      if (
+        timestamp -
+        lastVisualUpdate <
+        VISUAL_INTERVAL
+      ) {
+        return;
+      }
+
+
+      lastVisualUpdate =
+        timestamp;
+
+
+      // ----------------------------------------
+      // INTERPOLATION PROGRESS
+      // ----------------------------------------
+
+      // 0 immediately after a history push
+      // 1 just before the next history push
+      const progress =
+        Math.max(
+          0,
+          Math.min(
+            1,
+            (
+              timestamp -
+              lastHistoryUpdate
+            ) /
+            HISTORY_INTERVAL
+          )
+        );
 
 
       const width =
@@ -574,6 +656,10 @@
         window.devicePixelRatio || 1;
 
 
+      // ----------------------------------------
+      // CLEAR
+      // ----------------------------------------
+
       ctx.fillStyle =
         "#ffffff";
 
@@ -585,32 +671,36 @@
       );
 
 
-      // ========================================
+      // ----------------------------------------
       // GEOMETRY
-      // ========================================
+      // ----------------------------------------
 
       const horizontalPadding =
         20 * dpr;
+
 
       const usableWidth =
         width -
         horizontalPadding * 2;
 
+
       const spacing =
         usableWidth /
         (BAR_COUNT - 1);
+
 
       const maxHalfHeight =
         centerY *
         MAX_HEIGHT_RATIO;
 
 
-      // ========================================
-      // DRAW CAPSULES
-      // ========================================
+      ctx.lineCap =
+        "round";
 
-      ctx.lineCap = "round";
 
+      // ========================================
+      // DRAW INTERPOLATED CAPSULES
+      // ========================================
 
       for (
         let i = 0;
@@ -618,15 +708,49 @@
         i++
       ) {
 
-        const position =
-          i / (BAR_COUNT - 1);
-
+        // Move continuously from the current
+        // slot toward the next slot on the left.
         const x =
           horizontalPadding +
-          i * spacing;
+          (
+            i - progress
+          ) * spacing;
+
+
+        // Skip capsules fully outside canvas
+        if (
+          x <
+          horizontalPadding -
+          spacing
+        ) {
+          continue;
+        }
+
+
+        // Interpolate amplitude too,
+        // preventing sudden shape snapping.
+        const currentValue =
+          history[i + 1];
+
+
+        const nextLeftValue =
+          history[i];
+
 
         const amplitude =
-          history[i];
+          currentValue *
+          (1 - progress) +
+          nextLeftValue *
+          progress;
+
+
+        const position =
+          (
+            x -
+            horizontalPadding
+          ) /
+          usableWidth;
+
 
         const halfHeight =
           Math.max(
@@ -635,11 +759,15 @@
             maxHalfHeight
           );
 
+
         const yTop =
-          centerY - halfHeight;
+          centerY -
+          halfHeight;
+
 
         const yBottom =
-          centerY + halfHeight;
+          centerY +
+          halfHeight;
 
 
         // --------------------------------------
