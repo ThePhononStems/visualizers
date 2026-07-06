@@ -51,46 +51,62 @@
     let animationId = null;
     let isDrawing = false;
 
+
     // ==========================================
-    // VISUAL SETTINGS
+    // TIMELINE
     // ==========================================
 
-    // Number of vertical strokes across screen
-    const BAR_COUNT = 80;
+    // 100 strokes across the visualizer
+    const BAR_COUNT = 100;
 
-    // New history sample rate.
-    // 30 samples/sec with 80 bars =
-    // about 2.7 seconds visible.
-    const HISTORY_FPS = 30;
+    // 10 new measurements per second
+    // 100 bars / 10 per sec = ~10 sec visible
+    const HISTORY_FPS = 10;
     const HISTORY_INTERVAL = 1000 / HISTORY_FPS;
 
-    // Stroke appearance
-    const LINE_WIDTH = 7;
 
-    // Minimum visible half-height
+    // ==========================================
+    // VISUAL APPEARANCE
+    // ==========================================
+
+    // Thick rounded strokes
+    const LINE_WIDTH = 8;
+
+    // Minimum half-height of quiet bars
     const MIN_HEIGHT = 2;
 
-    // Maximum half-height as fraction
-    // of half the canvas height
+    // Maximum vertical size
     const MAX_HEIGHT_RATIO = 0.88;
 
     // Overall sensitivity
-    const BASE_GAIN = 2.2;
+    const BASE_GAIN = 2.15;
 
-    // Compression:
-    // lower = stronger lift of quieter material
+    // Lift quieter information
     const COMPRESSION = 0.62;
 
-    // Smooth amplitude changes slightly
-    const AMPLITUDE_ATTACK = 0.62;
-    const AMPLITUDE_RELEASE = 0.20;
 
-    // Transient emphasis
-    const TRANSIENT_STRENGTH = 3.2;
-    const MAX_TRANSIENT_BOOST = 1.75;
+    // ==========================================
+    // AMPLITUDE RESPONSE
+    // ==========================================
 
-    // Extra emphasis for upper-mid / snare energy
-    const SNARE_STRENGTH = 1.8;
+    // Fast reaction to louder events
+    const AMPLITUDE_ATTACK = 0.72;
+
+    // Slower fall after event
+    const AMPLITUDE_RELEASE = 0.16;
+
+
+    // ==========================================
+    // TRANSIENT EMPHASIS
+    // ==========================================
+
+    const TRANSIENT_STRENGTH = 4.0;
+
+    const MAX_TRANSIENT_BOOST = 1.95;
+
+    // Upper-mid emphasis for snares/claps
+    const SNARE_STRENGTH = 2.2;
+
 
     // ==========================================
     // STATE
@@ -100,7 +116,9 @@
       new Float32Array(BAR_COUNT);
 
     let lastHistoryUpdate = 0;
+
     let smoothedAmplitude = 0;
+
     let previousEnergy = 0;
 
 
@@ -109,13 +127,18 @@
     // ==========================================
 
     function resizeCanvas() {
-      const dpr = window.devicePixelRatio || 1;
+      const dpr =
+        window.devicePixelRatio || 1;
 
       canvas.width =
-        Math.round(canvas.clientWidth * dpr);
+        Math.round(
+          canvas.clientWidth * dpr
+        );
 
       canvas.height =
-        Math.round(canvas.clientHeight * dpr);
+        Math.round(
+          canvas.clientHeight * dpr
+        );
     }
 
     resizeCanvas();
@@ -133,17 +156,20 @@
     function initializeAudio() {
       if (audioContext) return;
 
-      audioContext = new AudioContext();
+      audioContext =
+        new AudioContext();
 
       analyser =
         audioContext.createAnalyser();
 
       analyser.fftSize = 2048;
 
-      analyser.smoothingTimeConstant = 0.35;
+      analyser.smoothingTimeConstant = 0.30;
 
       source =
-        audioContext.createMediaElementSource(audio);
+        audioContext.createMediaElementSource(
+          audio
+        );
 
       source.connect(analyser);
 
@@ -152,7 +178,9 @@
       );
 
       timeData =
-        new Uint8Array(analyser.fftSize);
+        new Uint8Array(
+          analyser.fftSize
+        );
 
       frequencyData =
         new Uint8Array(
@@ -172,14 +200,17 @@
         initializeAudio();
 
         if (
-          audioContext.state === "suspended"
+          audioContext.state ===
+          "suspended"
         ) {
           await audioContext.resume();
         }
 
         if (!isDrawing) {
           isDrawing = true;
+
           lastHistoryUpdate = 0;
+
           draw(performance.now());
         }
       }
@@ -202,14 +233,17 @@
       isDrawing = false;
 
       if (animationId !== null) {
-        cancelAnimationFrame(animationId);
+        cancelAnimationFrame(
+          animationId
+        );
+
         animationId = null;
       }
     }
 
 
     // ==========================================
-    // MEASURE CURRENT AUDIO
+    // AUDIO MEASUREMENT
     // ==========================================
 
     function measureAudio() {
@@ -224,11 +258,12 @@
 
 
       // ----------------------------------------
-      // RMS ENERGY
+      // RMS + PEAK
       // ----------------------------------------
 
       let sumSquares = 0;
       let peak = 0;
+
 
       for (
         let i = 0;
@@ -245,6 +280,7 @@
         sumSquares +=
           sample * sample;
 
+
         if (absSample > peak) {
           peak = absSample;
         }
@@ -253,17 +289,15 @@
 
       const rms =
         Math.sqrt(
-          sumSquares / timeData.length
+          sumSquares /
+          timeData.length
         );
 
 
-      // ----------------------------------------
-      // HYBRID RMS + PEAK
-      // ----------------------------------------
-
+      // Hybrid loudness measurement
       let amplitude =
-        rms * 0.72 +
-        peak * 0.28;
+        rms * 0.68 +
+        peak * 0.32;
 
 
       // ----------------------------------------
@@ -292,12 +326,12 @@
 
 
       previousEnergy =
-        previousEnergy * 0.78 +
-        rms * 0.22;
+        previousEnergy * 0.80 +
+        rms * 0.20;
 
 
       // ----------------------------------------
-      // SNARE / UPPER-MID EMPHASIS
+      // SNARE / UPPER-MID ENERGY
       // ----------------------------------------
 
       const nyquist =
@@ -309,12 +343,16 @@
 
 
       const lowBin =
-        Math.floor(1800 / binHz);
+        Math.floor(
+          1800 / binHz
+        );
 
       const highBin =
         Math.min(
           frequencyData.length - 1,
-          Math.floor(6500 / binHz)
+          Math.floor(
+            6500 / binHz
+          )
         );
 
 
@@ -361,14 +399,18 @@
       // Soft compression
       amplitude =
         Math.pow(
-          Math.min(amplitude, 1),
+          Math.min(
+            amplitude,
+            1
+          ),
           COMPRESSION
         );
 
 
-      // Attack / release smoothing
-      const smoothing =
-        amplitude > smoothedAmplitude
+      // Attack / release
+      const response =
+        amplitude >
+        smoothedAmplitude
           ? AMPLITUDE_ATTACK
           : AMPLITUDE_RELEASE;
 
@@ -377,7 +419,7 @@
         (
           amplitude -
           smoothedAmplitude
-        ) * smoothing;
+        ) * response;
 
 
       return Math.max(
@@ -391,20 +433,22 @@
 
 
     // ==========================================
-    // ADD NEW SAMPLE TO HISTORY
+    // HISTORY
     // ==========================================
 
     function pushHistory(value) {
 
-      // Move every previous sample left
+      // Move older audio one position left
       for (
         let i = 0;
         i < BAR_COUNT - 1;
         i++
       ) {
+
         history[i] =
           history[i + 1];
       }
+
 
       // Newest audio enters on right
       history[BAR_COUNT - 1] =
@@ -423,10 +467,12 @@
         requestAnimationFrame(draw);
 
 
-      // Add new timeline sample
+      // Add one new timeline measurement
+      // every 100 ms.
       if (
-        timestamp - lastHistoryUpdate
-        >= HISTORY_INTERVAL
+        timestamp -
+        lastHistoryUpdate >=
+        HISTORY_INTERVAL
       ) {
 
         const amplitude =
@@ -439,16 +485,22 @@
       }
 
 
-      const width = canvas.width;
-      const height = canvas.height;
-      const centerY = height / 2;
+      const width =
+        canvas.width;
+
+      const height =
+        canvas.height;
+
+      const centerY =
+        height / 2;
 
       const dpr =
         window.devicePixelRatio || 1;
 
 
       // White background
-      ctx.fillStyle = "#ffffff";
+      ctx.fillStyle =
+        "#ffffff";
 
       ctx.fillRect(
         0,
@@ -459,19 +511,22 @@
 
 
       // ========================================
-      // DRAW HISTORY
+      // DRAW BARS
       // ========================================
 
-      ctx.strokeStyle = "#000000";
+      ctx.strokeStyle =
+        "#000000";
 
       ctx.lineWidth =
         LINE_WIDTH * dpr;
 
-      ctx.lineCap = "round";
+      ctx.lineCap =
+        "round";
 
 
       const horizontalPadding =
-        12 * dpr;
+        14 * dpr;
+
 
       const usableWidth =
         width -
