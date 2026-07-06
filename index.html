@@ -46,65 +46,222 @@
     let analyser;
     let source;
     let dataArray;
-    let animationId;
+    let animationId = null;
+    let isDrawing = false;
+
+    // -----------------------------
+    // VISUAL TUNING
+    // -----------------------------
+
+    const LINE_WIDTH = 3.0;
+
+    // Base waveform enlargement
+    const BASE_GAIN = 1.8;
+
+    // Soft compression:
+    // lower values = stronger compression
+    const COMPRESSION = 0.72;
+
+    // Automatic gain control
+    const TARGET_PEAK = 0.48;
+    const MIN_AUTO_GAIN = 0.75;
+    const MAX_AUTO_GAIN = 3.0;
+
+    // Gain changes slowly so the waveform does not "pump"
+    const GAIN_ATTACK = 0.025;
+    const GAIN_RELEASE = 0.006;
+
+    // Tiny signals become flat
+    const NOISE_FLOOR = 0.006;
+
+    // Vertical safety margin
+    const MAX_AMPLITUDE = 0.88;
+
+    let autoGain = 1.0;
+
 
     function resizeCanvas() {
-      canvas.width = canvas.clientWidth * window.devicePixelRatio;
-      canvas.height = canvas.clientHeight * window.devicePixelRatio;
+      const dpr = window.devicePixelRatio || 1;
+
+      canvas.width = Math.round(canvas.clientWidth * dpr);
+      canvas.height = Math.round(canvas.clientHeight * dpr);
     }
 
     resizeCanvas();
     window.addEventListener("resize", resizeCanvas);
 
-    audio.addEventListener("play", () => {
-      if (!audioContext) {
-        audioContext = new AudioContext();
 
-        analyser = audioContext.createAnalyser();
-        analyser.fftSize = 2048;
-        analyser.smoothingTimeConstant = 0.8;
+    function initializeAudio() {
+      if (audioContext) return;
 
-        source = audioContext.createMediaElementSource(audio);
-        source.connect(analyser);
-        analyser.connect(audioContext.destination);
+      audioContext = new AudioContext();
 
-        dataArray = new Uint8Array(analyser.fftSize);
-      }
+      analyser = audioContext.createAnalyser();
+
+      // Larger buffer gives a smoother, more coherent waveform
+      analyser.fftSize = 4096;
+
+      source = audioContext.createMediaElementSource(audio);
+      source.connect(analyser);
+      analyser.connect(audioContext.destination);
+
+      dataArray = new Uint8Array(analyser.fftSize);
+    }
+
+
+    audio.addEventListener("play", async () => {
+      initializeAudio();
 
       if (audioContext.state === "suspended") {
-        audioContext.resume();
+        await audioContext.resume();
       }
 
-      draw();
+      if (!isDrawing) {
+        isDrawing = true;
+        draw();
+      }
     });
 
+
+    audio.addEventListener("pause", () => {
+      stopDrawing();
+    });
+
+
+    audio.addEventListener("ended", () => {
+      stopDrawing();
+    });
+
+
+    function stopDrawing() {
+      isDrawing = false;
+
+      if (animationId !== null) {
+        cancelAnimationFrame(animationId);
+        animationId = null;
+      }
+    }
+
+
     function draw() {
-      cancelAnimationFrame(animationId);
+      if (!isDrawing) return;
+
       animationId = requestAnimationFrame(draw);
 
       analyser.getByteTimeDomainData(dataArray);
 
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerY = height / 2;
+
+      // White background
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.fillRect(0, 0, width, height);
 
-      ctx.lineWidth = 4 * window.devicePixelRatio;
-      ctx.strokeStyle = "#000000";
-      ctx.beginPath();
 
-      const sliceWidth = canvas.width / dataArray.length;
-      let x = 0;
+      // -----------------------------
+      // MEASURE CURRENT SIGNAL PEAK
+      // -----------------------------
+
+      let currentPeak = 0;
 
       for (let i = 0; i < dataArray.length; i++) {
-        const v = dataArray[i] / 128.0;
-        const y = v * canvas.height / 2;
+        const sample = Math.abs((dataArray[i] - 128) / 128);
+
+        if (sample > currentPeak) {
+          currentPeak = sample;
+        }
+      }
+
+
+      // -----------------------------
+      // AUTOMATIC GAIN CONTROL
+      // -----------------------------
+
+      let desiredGain;
+
+      if (currentPeak > NOISE_FLOOR) {
+        desiredGain = TARGET_PEAK / currentPeak;
+      } else {
+        desiredGain = 1;
+      }
+
+      desiredGain = Math.max(
+        MIN_AUTO_GAIN,
+        Math.min(MAX_AUTO_GAIN, desiredGain)
+      );
+
+      const gainSpeed =
+        desiredGain < autoGain
+          ? GAIN_ATTACK
+          : GAIN_RELEASE;
+
+      autoGain +=
+        (desiredGain - autoGain) * gainSpeed;
+
+
+      // -----------------------------
+      // DRAW WAVEFORM
+      // -----------------------------
+
+      const dpr = window.devicePixelRatio || 1;
+
+      ctx.lineWidth = LINE_WIDTH * dpr;
+      ctx.strokeStyle = "#000000";
+      ctx.lineJoin = "round";
+      ctx.lineCap = "round";
+
+      ctx.beginPath();
+
+      const sliceWidth =
+        width / (dataArray.length - 1);
+
+      for (let i = 0; i < dataArray.length; i++) {
+
+        let sample =
+          (dataArray[i] - 128) / 128;
+
+
+        // Remove tiny near-zero movement
+        if (Math.abs(sample) < NOISE_FLOOR) {
+          sample = 0;
+        }
+
+
+        // Base enlargement + automatic gain
+        sample *= BASE_GAIN * autoGain;
+
+
+        // Soft compression while preserving sign
+        const sign = Math.sign(sample);
+
+        sample =
+          sign *
+          Math.pow(
+            Math.min(Math.abs(sample), 1),
+            COMPRESSION
+          );
+
+
+        // Prevent waveform touching canvas edges
+        sample = Math.max(
+          -MAX_AMPLITUDE,
+          Math.min(MAX_AMPLITUDE, sample)
+        );
+
+
+        const x = i * sliceWidth;
+
+        const y =
+          centerY +
+          sample * centerY;
+
 
         if (i === 0) {
           ctx.moveTo(x, y);
         } else {
           ctx.lineTo(x, y);
         }
-
-        x += sliceWidth;
       }
 
       ctx.stroke();
