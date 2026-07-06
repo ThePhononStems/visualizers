@@ -16,7 +16,7 @@
     #visualizer {
       display: block;
       width: 100%;
-      height: 220px;
+      height: 190px;
       background: white;
     }
 
@@ -46,6 +46,7 @@
     let analyser;
     let source;
     let dataArray;
+
     let animationId = null;
     let isDrawing = false;
 
@@ -53,50 +54,47 @@
     // VISUAL CHARACTER
     // ==========================================
 
-    // Number of points actually drawn.
-    // Lower = calmer / broader shapes.
-    // Higher = more detailed / more frenetic.
     const DISPLAY_POINTS = 320;
 
-    // Line appearance
-    const LINE_WIDTH = 3.0;
+    // How often a genuinely new waveform is captured.
+    // Lower = calmer.
+    // Higher = more immediate.
+    const TARGET_FPS = 12;
+    const TARGET_INTERVAL = 1000 / TARGET_FPS;
 
-    // Overall waveform size
-    const BASE_GAIN = 1.35;
+    // How quickly visible waveform moves toward target.
+    // Lower = slower / calmer.
+    // Higher = faster / more reactive.
+    const EASING = 0.16;
 
-    // Soft compression.
-    // Lower = stronger compression of large peaks.
+    const LINE_WIDTH = 2.5;
+
+    const BASE_GAIN = 1.20;
+
     const COMPRESSION = 0.72;
 
-    // Automatic gain target
-    const TARGET_PEAK = 0.34;
+    const TARGET_PEAK = 0.30;
 
     const MIN_AUTO_GAIN = 0.70;
-    const MAX_AUTO_GAIN = 2.20;
+    const MAX_AUTO_GAIN = 2.00;
 
-    // How quickly auto gain changes
-    const GAIN_ATTACK = 0.018;
-    const GAIN_RELEASE = 0.003;
+    const GAIN_ATTACK = 0.015;
+    const GAIN_RELEASE = 0.0025;
 
-    // Ignore tiny signal movement
     const NOISE_FLOOR = 0.007;
 
-    // Maximum vertical excursion
-    const MAX_AMPLITUDE = 0.72;
+    const MAX_AMPLITUDE = 0.66;
 
-    // Spatial smoothing:
-    // higher = smoother across the width
     const SPATIAL_SMOOTHING = 2;
-
-    // Temporal smoothing:
-    // higher = calmer from frame to frame
-    // 0 = no smoothing
-    // 0.9 = very slow/heavy
-    const TEMPORAL_SMOOTHING = 0.68;
 
     let autoGain = 1.0;
 
-    let previousFrame =
+    let lastTargetUpdate = 0;
+
+    const targetFrame =
+      new Float32Array(DISPLAY_POINTS);
+
+    const visibleFrame =
       new Float32Array(DISPLAY_POINTS);
 
 
@@ -123,7 +121,7 @@
 
 
     // ==========================================
-    // AUDIO INITIALIZATION
+    // AUDIO
     // ==========================================
 
     function initializeAudio() {
@@ -134,7 +132,6 @@
       analyser =
         audioContext.createAnalyser();
 
-      // Keep original-style analysis density
       analyser.fftSize = 2048;
 
       source =
@@ -152,7 +149,7 @@
 
 
     // ==========================================
-    // PLAYBACK EVENTS
+    // PLAYBACK
     // ==========================================
 
     audio.addEventListener(
@@ -169,7 +166,10 @@
 
         if (!isDrawing) {
           isDrawing = true;
-          draw();
+
+          lastTargetUpdate = 0;
+
+          draw(performance.now());
         }
       }
     );
@@ -198,13 +198,14 @@
 
 
     // ==========================================
-    // SAMPLE AUDIO INTO FEWER DISPLAY POINTS
+    // CAPTURE A NEW TARGET WAVEFORM
     // ==========================================
 
-    function createDisplayWaveform() {
+    function updateTargetWaveform() {
 
-      const output =
-        new Float32Array(DISPLAY_POINTS);
+      analyser.getByteTimeDomainData(
+        dataArray
+      );
 
       const samplesPerPoint =
         dataArray.length / DISPLAY_POINTS;
@@ -225,8 +226,6 @@
         let count = 0;
 
 
-        // Average nearby samples.
-        // This removes frantic micro-detail.
         for (
           let offset = -SPATIAL_SMOOTHING;
           offset <= SPATIAL_SMOOTHING;
@@ -249,80 +248,25 @@
         }
 
 
-        output[point] =
+        targetFrame[point] =
           count > 0
             ? total / count
             : 0;
       }
 
 
-      return output;
+      updateAutoGain();
     }
 
 
     // ==========================================
-    // DRAW
+    // AUTOMATIC GAIN
     // ==========================================
 
-    function draw() {
-      if (!isDrawing) return;
-
-      animationId =
-        requestAnimationFrame(draw);
-
-      analyser.getByteTimeDomainData(
-        dataArray
-      );
-
-
-      const width = canvas.width;
-      const height = canvas.height;
-      const centerY = height / 2;
-
-
-      // White background
-      ctx.fillStyle = "#ffffff";
-
-      ctx.fillRect(
-        0,
-        0,
-        width,
-        height
-      );
-
-
-      // Create calmer low-density waveform
-      const currentFrame =
-        createDisplayWaveform();
-
-
-      // ========================================
-      // TEMPORAL SMOOTHING
-      // ========================================
-
-      for (
-        let i = 0;
-        i < DISPLAY_POINTS;
-        i++
-      ) {
-
-        currentFrame[i] =
-          previousFrame[i] *
-            TEMPORAL_SMOOTHING
-          +
-          currentFrame[i] *
-            (1 - TEMPORAL_SMOOTHING);
-
-        previousFrame[i] =
-          currentFrame[i];
-      }
-
-
-      // ========================================
-      // MEASURE SIGNAL PEAK
-      // ========================================
+    function updateAutoGain() {
 
       let currentPeak = 0;
+
 
       for (
         let i = 0;
@@ -331,17 +275,13 @@
       ) {
 
         const amplitude =
-          Math.abs(currentFrame[i]);
+          Math.abs(targetFrame[i]);
 
         if (amplitude > currentPeak) {
           currentPeak = amplitude;
         }
       }
 
-
-      // ========================================
-      // AUTOMATIC GAIN
-      // ========================================
 
       let desiredGain;
 
@@ -371,10 +311,67 @@
       autoGain +=
         (desiredGain - autoGain) *
         gainSpeed;
+    }
+
+
+    // ==========================================
+    // DRAW
+    // ==========================================
+
+    function draw(timestamp) {
+      if (!isDrawing) return;
+
+      animationId =
+        requestAnimationFrame(draw);
+
+
+      // Only capture a genuinely new waveform
+      // 12 times per second.
+      if (
+        timestamp - lastTargetUpdate
+        >= TARGET_INTERVAL
+      ) {
+
+        updateTargetWaveform();
+
+        lastTargetUpdate = timestamp;
+      }
+
+
+      // Smoothly move visible line
+      // toward the newest target.
+      for (
+        let i = 0;
+        i < DISPLAY_POINTS;
+        i++
+      ) {
+
+        visibleFrame[i] +=
+          (
+            targetFrame[i] -
+            visibleFrame[i]
+          ) * EASING;
+      }
+
+
+      const width = canvas.width;
+      const height = canvas.height;
+      const centerY = height / 2;
+
+
+      // White background
+      ctx.fillStyle = "#ffffff";
+
+      ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+      );
 
 
       // ========================================
-      // DRAW WAVEFORM
+      // DRAW LINE
       // ========================================
 
       const dpr =
@@ -403,7 +400,7 @@
       ) {
 
         let sample =
-          currentFrame[i];
+          visibleFrame[i];
 
 
         // Remove tiny movement
@@ -415,7 +412,7 @@
         }
 
 
-        // Base gain + auto gain
+        // Gain
         sample *=
           BASE_GAIN * autoGain;
 
@@ -435,7 +432,7 @@
           );
 
 
-        // Vertical safety limit
+        // Vertical limit
         sample = Math.max(
           -MAX_AMPLITUDE,
           Math.min(
