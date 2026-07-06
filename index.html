@@ -9,14 +9,14 @@
     html, body {
       margin: 0;
       padding: 0;
-      background: white;
       width: 100%;
+      background: white;
     }
 
     #visualizer {
       display: block;
       width: 100%;
-      height: 300px;
+      height: 220px;
       background: white;
     }
 
@@ -49,88 +49,142 @@
     let animationId = null;
     let isDrawing = false;
 
-    // -----------------------------
-    // VISUAL TUNING
-    // -----------------------------
+    // ==========================================
+    // VISUAL CHARACTER
+    // ==========================================
 
+    // Number of points actually drawn.
+    // Lower = calmer / broader shapes.
+    // Higher = more detailed / more frenetic.
+    const DISPLAY_POINTS = 320;
+
+    // Line appearance
     const LINE_WIDTH = 3.0;
 
-    // Base waveform enlargement
-    const BASE_GAIN = 1.8;
+    // Overall waveform size
+    const BASE_GAIN = 1.35;
 
-    // Soft compression:
-    // lower values = stronger compression
+    // Soft compression.
+    // Lower = stronger compression of large peaks.
     const COMPRESSION = 0.72;
 
-    // Automatic gain control
-    const TARGET_PEAK = 0.48;
-    const MIN_AUTO_GAIN = 0.75;
-    const MAX_AUTO_GAIN = 3.0;
+    // Automatic gain target
+    const TARGET_PEAK = 0.34;
 
-    // Gain changes slowly so the waveform does not "pump"
-    const GAIN_ATTACK = 0.025;
-    const GAIN_RELEASE = 0.006;
+    const MIN_AUTO_GAIN = 0.70;
+    const MAX_AUTO_GAIN = 2.20;
 
-    // Tiny signals become flat
-    const NOISE_FLOOR = 0.006;
+    // How quickly auto gain changes
+    const GAIN_ATTACK = 0.018;
+    const GAIN_RELEASE = 0.003;
 
-    // Vertical safety margin
-    const MAX_AMPLITUDE = 0.88;
+    // Ignore tiny signal movement
+    const NOISE_FLOOR = 0.007;
+
+    // Maximum vertical excursion
+    const MAX_AMPLITUDE = 0.72;
+
+    // Spatial smoothing:
+    // higher = smoother across the width
+    const SPATIAL_SMOOTHING = 2;
+
+    // Temporal smoothing:
+    // higher = calmer from frame to frame
+    // 0 = no smoothing
+    // 0.9 = very slow/heavy
+    const TEMPORAL_SMOOTHING = 0.68;
 
     let autoGain = 1.0;
 
+    let previousFrame =
+      new Float32Array(DISPLAY_POINTS);
+
+
+    // ==========================================
+    // CANVAS
+    // ==========================================
 
     function resizeCanvas() {
       const dpr = window.devicePixelRatio || 1;
 
-      canvas.width = Math.round(canvas.clientWidth * dpr);
-      canvas.height = Math.round(canvas.clientHeight * dpr);
+      canvas.width =
+        Math.round(canvas.clientWidth * dpr);
+
+      canvas.height =
+        Math.round(canvas.clientHeight * dpr);
     }
 
     resizeCanvas();
-    window.addEventListener("resize", resizeCanvas);
 
+    window.addEventListener(
+      "resize",
+      resizeCanvas
+    );
+
+
+    // ==========================================
+    // AUDIO INITIALIZATION
+    // ==========================================
 
     function initializeAudio() {
       if (audioContext) return;
 
       audioContext = new AudioContext();
 
-      analyser = audioContext.createAnalyser();
+      analyser =
+        audioContext.createAnalyser();
 
-      // Larger buffer gives a smoother, more coherent waveform
-      analyser.fftSize = 4096;
+      // Keep original-style analysis density
+      analyser.fftSize = 2048;
 
-      source = audioContext.createMediaElementSource(audio);
+      source =
+        audioContext.createMediaElementSource(audio);
+
       source.connect(analyser);
-      analyser.connect(audioContext.destination);
 
-      dataArray = new Uint8Array(analyser.fftSize);
+      analyser.connect(
+        audioContext.destination
+      );
+
+      dataArray =
+        new Uint8Array(analyser.fftSize);
     }
 
 
-    audio.addEventListener("play", async () => {
-      initializeAudio();
+    // ==========================================
+    // PLAYBACK EVENTS
+    // ==========================================
 
-      if (audioContext.state === "suspended") {
-        await audioContext.resume();
+    audio.addEventListener(
+      "play",
+      async () => {
+
+        initializeAudio();
+
+        if (
+          audioContext.state === "suspended"
+        ) {
+          await audioContext.resume();
+        }
+
+        if (!isDrawing) {
+          isDrawing = true;
+          draw();
+        }
       }
-
-      if (!isDrawing) {
-        isDrawing = true;
-        draw();
-      }
-    });
+    );
 
 
-    audio.addEventListener("pause", () => {
-      stopDrawing();
-    });
+    audio.addEventListener(
+      "pause",
+      stopDrawing
+    );
 
 
-    audio.addEventListener("ended", () => {
-      stopDrawing();
-    });
+    audio.addEventListener(
+      "ended",
+      stopDrawing
+    );
 
 
     function stopDrawing() {
@@ -143,114 +197,256 @@
     }
 
 
+    // ==========================================
+    // SAMPLE AUDIO INTO FEWER DISPLAY POINTS
+    // ==========================================
+
+    function createDisplayWaveform() {
+
+      const output =
+        new Float32Array(DISPLAY_POINTS);
+
+      const samplesPerPoint =
+        dataArray.length / DISPLAY_POINTS;
+
+
+      for (
+        let point = 0;
+        point < DISPLAY_POINTS;
+        point++
+      ) {
+
+        const centerIndex =
+          Math.floor(
+            point * samplesPerPoint
+          );
+
+        let total = 0;
+        let count = 0;
+
+
+        // Average nearby samples.
+        // This removes frantic micro-detail.
+        for (
+          let offset = -SPATIAL_SMOOTHING;
+          offset <= SPATIAL_SMOOTHING;
+          offset++
+        ) {
+
+          const index =
+            centerIndex + offset;
+
+          if (
+            index >= 0 &&
+            index < dataArray.length
+          ) {
+
+            total +=
+              (dataArray[index] - 128) / 128;
+
+            count++;
+          }
+        }
+
+
+        output[point] =
+          count > 0
+            ? total / count
+            : 0;
+      }
+
+
+      return output;
+    }
+
+
+    // ==========================================
+    // DRAW
+    // ==========================================
+
     function draw() {
       if (!isDrawing) return;
 
-      animationId = requestAnimationFrame(draw);
+      animationId =
+        requestAnimationFrame(draw);
 
-      analyser.getByteTimeDomainData(dataArray);
+      analyser.getByteTimeDomainData(
+        dataArray
+      );
+
 
       const width = canvas.width;
       const height = canvas.height;
       const centerY = height / 2;
 
+
       // White background
       ctx.fillStyle = "#ffffff";
-      ctx.fillRect(0, 0, width, height);
+
+      ctx.fillRect(
+        0,
+        0,
+        width,
+        height
+      );
 
 
-      // -----------------------------
-      // MEASURE CURRENT SIGNAL PEAK
-      // -----------------------------
+      // Create calmer low-density waveform
+      const currentFrame =
+        createDisplayWaveform();
+
+
+      // ========================================
+      // TEMPORAL SMOOTHING
+      // ========================================
+
+      for (
+        let i = 0;
+        i < DISPLAY_POINTS;
+        i++
+      ) {
+
+        currentFrame[i] =
+          previousFrame[i] *
+            TEMPORAL_SMOOTHING
+          +
+          currentFrame[i] *
+            (1 - TEMPORAL_SMOOTHING);
+
+        previousFrame[i] =
+          currentFrame[i];
+      }
+
+
+      // ========================================
+      // MEASURE SIGNAL PEAK
+      // ========================================
 
       let currentPeak = 0;
 
-      for (let i = 0; i < dataArray.length; i++) {
-        const sample = Math.abs((dataArray[i] - 128) / 128);
+      for (
+        let i = 0;
+        i < DISPLAY_POINTS;
+        i++
+      ) {
 
-        if (sample > currentPeak) {
-          currentPeak = sample;
+        const amplitude =
+          Math.abs(currentFrame[i]);
+
+        if (amplitude > currentPeak) {
+          currentPeak = amplitude;
         }
       }
 
 
-      // -----------------------------
-      // AUTOMATIC GAIN CONTROL
-      // -----------------------------
+      // ========================================
+      // AUTOMATIC GAIN
+      // ========================================
 
       let desiredGain;
 
       if (currentPeak > NOISE_FLOOR) {
-        desiredGain = TARGET_PEAK / currentPeak;
+        desiredGain =
+          TARGET_PEAK / currentPeak;
       } else {
         desiredGain = 1;
       }
 
+
       desiredGain = Math.max(
         MIN_AUTO_GAIN,
-        Math.min(MAX_AUTO_GAIN, desiredGain)
+        Math.min(
+          MAX_AUTO_GAIN,
+          desiredGain
+        )
       );
+
 
       const gainSpeed =
         desiredGain < autoGain
           ? GAIN_ATTACK
           : GAIN_RELEASE;
 
+
       autoGain +=
-        (desiredGain - autoGain) * gainSpeed;
+        (desiredGain - autoGain) *
+        gainSpeed;
 
 
-      // -----------------------------
+      // ========================================
       // DRAW WAVEFORM
-      // -----------------------------
+      // ========================================
 
-      const dpr = window.devicePixelRatio || 1;
+      const dpr =
+        window.devicePixelRatio || 1;
 
-      ctx.lineWidth = LINE_WIDTH * dpr;
+      ctx.lineWidth =
+        LINE_WIDTH * dpr;
+
       ctx.strokeStyle = "#000000";
+
       ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
       ctx.beginPath();
 
-      const sliceWidth =
-        width / (dataArray.length - 1);
 
-      for (let i = 0; i < dataArray.length; i++) {
+      const sliceWidth =
+        width /
+        (DISPLAY_POINTS - 1);
+
+
+      for (
+        let i = 0;
+        i < DISPLAY_POINTS;
+        i++
+      ) {
 
         let sample =
-          (dataArray[i] - 128) / 128;
+          currentFrame[i];
 
 
-        // Remove tiny near-zero movement
-        if (Math.abs(sample) < NOISE_FLOOR) {
+        // Remove tiny movement
+        if (
+          Math.abs(sample) <
+          NOISE_FLOOR
+        ) {
           sample = 0;
         }
 
 
-        // Base enlargement + automatic gain
-        sample *= BASE_GAIN * autoGain;
+        // Base gain + auto gain
+        sample *=
+          BASE_GAIN * autoGain;
 
 
-        // Soft compression while preserving sign
-        const sign = Math.sign(sample);
+        // Soft compression
+        const sign =
+          Math.sign(sample);
 
         sample =
           sign *
           Math.pow(
-            Math.min(Math.abs(sample), 1),
+            Math.min(
+              Math.abs(sample),
+              1
+            ),
             COMPRESSION
           );
 
 
-        // Prevent waveform touching canvas edges
+        // Vertical safety limit
         sample = Math.max(
           -MAX_AMPLITUDE,
-          Math.min(MAX_AMPLITUDE, sample)
+          Math.min(
+            MAX_AMPLITUDE,
+            sample
+          )
         );
 
 
-        const x = i * sliceWidth;
+        const x =
+          i * sliceWidth;
 
         const y =
           centerY +
@@ -263,6 +459,7 @@
           ctx.lineTo(x, y);
         }
       }
+
 
       ctx.stroke();
     }
