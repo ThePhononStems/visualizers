@@ -45,78 +45,63 @@
     let audioContext;
     let analyser;
     let source;
-    let dataArray;
+    let timeData;
+    let frequencyData;
 
     let animationId = null;
     let isDrawing = false;
 
-
     // ==========================================
-    // VISUAL CHARACTER
-    // ==========================================
-
-    const DISPLAY_POINTS = 320;
-
-    // New waveform target captures per second
-    const TARGET_FPS = 12;
-    const TARGET_INTERVAL = 1000 / TARGET_FPS;
-
-    // Visible line eases toward each target
-    const EASING = 0.14;
-
-    // Thicker line
-    const LINE_WIDTH = 4.0;
-
-    // Overall amplitude
-    const BASE_GAIN = 1.10;
-
-    // Shape compression
-    const COMPRESSION = 0.74;
-
-    // Automatic gain
-    const TARGET_PEAK = 0.28;
-    const MIN_AUTO_GAIN = 0.70;
-    const MAX_AUTO_GAIN = 1.90;
-
-    const GAIN_ATTACK = 0.015;
-    const GAIN_RELEASE = 0.0025;
-
-    const NOISE_FLOOR = 0.006;
-
-    const MAX_AMPLITUDE = 0.68;
-
-
-    // ==========================================
-    // TRANSIENT EMPHASIS
+    // VISUAL SETTINGS
     // ==========================================
 
-    // How strongly sudden energy increases
-    // affect waveform size.
-    const TRANSIENT_STRENGTH = 2.4;
+    // Number of vertical strokes across screen
+    const BAR_COUNT = 80;
 
-    // Maximum temporary transient boost.
-    const MAX_TRANSIENT_BOOST = 1.65;
+    // New history sample rate.
+    // 30 samples/sec with 80 bars =
+    // about 2.7 seconds visible.
+    const HISTORY_FPS = 30;
+    const HISTORY_INTERVAL = 1000 / HISTORY_FPS;
 
-    // How quickly hit emphasis disappears.
-    // Lower = longer visible hit.
-    const TRANSIENT_DECAY = 0.88;
+    // Stroke appearance
+    const LINE_WIDTH = 7;
 
-    let previousEnergy = 0;
-    let transientBoost = 1.0;
+    // Minimum visible half-height
+    const MIN_HEIGHT = 2;
 
+    // Maximum half-height as fraction
+    // of half the canvas height
+    const MAX_HEIGHT_RATIO = 0.88;
+
+    // Overall sensitivity
+    const BASE_GAIN = 2.2;
+
+    // Compression:
+    // lower = stronger lift of quieter material
+    const COMPRESSION = 0.62;
+
+    // Smooth amplitude changes slightly
+    const AMPLITUDE_ATTACK = 0.62;
+    const AMPLITUDE_RELEASE = 0.20;
+
+    // Transient emphasis
+    const TRANSIENT_STRENGTH = 3.2;
+    const MAX_TRANSIENT_BOOST = 1.75;
+
+    // Extra emphasis for upper-mid / snare energy
+    const SNARE_STRENGTH = 1.8;
 
     // ==========================================
     // STATE
     // ==========================================
 
-    let autoGain = 1.0;
-    let lastTargetUpdate = 0;
+    const history =
+      new Float32Array(BAR_COUNT);
 
-    const targetFrame =
-      new Float32Array(DISPLAY_POINTS);
-
-    const visibleFrame =
-      new Float32Array(DISPLAY_POINTS);
+    let lastHistoryUpdate = 0;
+    let smoothedAmplitude = 0;
+    let previousEnergy = 0;
 
 
     // ==========================================
@@ -153,9 +138,9 @@
       analyser =
         audioContext.createAnalyser();
 
-      // About 4x more timeline than 2048.
-      // Roughly 170–186 ms at common sample rates.
-      analyser.fftSize = 8192;
+      analyser.fftSize = 2048;
+
+      analyser.smoothingTimeConstant = 0.35;
 
       source =
         audioContext.createMediaElementSource(audio);
@@ -166,8 +151,13 @@
         audioContext.destination
       );
 
-      dataArray =
+      timeData =
         new Uint8Array(analyser.fftSize);
+
+      frequencyData =
+        new Uint8Array(
+          analyser.frequencyBinCount
+        );
     }
 
 
@@ -189,7 +179,7 @@
 
         if (!isDrawing) {
           isDrawing = true;
-          lastTargetUpdate = 0;
+          lastHistoryUpdate = 0;
           draw(performance.now());
         }
       }
@@ -219,175 +209,206 @@
 
 
     // ==========================================
-    // CAPTURE WIDER TIME WINDOW
+    // MEASURE CURRENT AUDIO
     // ==========================================
 
-    function updateTargetWaveform() {
+    function measureAudio() {
 
       analyser.getByteTimeDomainData(
-        dataArray
+        timeData
       );
 
-      const samplesPerPoint =
-        dataArray.length / DISPLAY_POINTS;
+      analyser.getByteFrequencyData(
+        frequencyData
+      );
 
 
       // ----------------------------------------
-      // MEASURE CURRENT RMS ENERGY
+      // RMS ENERGY
       // ----------------------------------------
 
-      let energySum = 0;
+      let sumSquares = 0;
+      let peak = 0;
 
       for (
         let i = 0;
-        i < dataArray.length;
+        i < timeData.length;
         i++
       ) {
-        const sample =
-          (dataArray[i] - 128) / 128;
 
-        energySum += sample * sample;
+        const sample =
+          (timeData[i] - 128) / 128;
+
+        const absSample =
+          Math.abs(sample);
+
+        sumSquares +=
+          sample * sample;
+
+        if (absSample > peak) {
+          peak = absSample;
+        }
       }
 
-      const currentEnergy =
+
+      const rms =
         Math.sqrt(
-          energySum / dataArray.length
+          sumSquares / timeData.length
         );
 
 
       // ----------------------------------------
-      // DETECT SUDDEN ENERGY INCREASE
+      // HYBRID RMS + PEAK
+      // ----------------------------------------
+
+      let amplitude =
+        rms * 0.72 +
+        peak * 0.28;
+
+
+      // ----------------------------------------
+      // TRANSIENT DETECTION
       // ----------------------------------------
 
       const energyRise =
         Math.max(
           0,
-          currentEnergy - previousEnergy
+          rms - previousEnergy
         );
 
-      const detectedBoost =
+
+      let transientBoost =
         1 +
         energyRise *
         TRANSIENT_STRENGTH *
-        10;
+        12;
 
 
-      if (detectedBoost > transientBoost) {
-        transientBoost =
-          Math.min(
-            MAX_TRANSIENT_BOOST,
-            detectedBoost
-          );
-      }
+      transientBoost =
+        Math.min(
+          MAX_TRANSIENT_BOOST,
+          transientBoost
+        );
 
 
       previousEnergy =
-        previousEnergy * 0.72 +
-        currentEnergy * 0.28;
+        previousEnergy * 0.78 +
+        rms * 0.22;
 
 
       // ----------------------------------------
-      // REDUCE 8192 SAMPLES TO 320 POINTS
+      // SNARE / UPPER-MID EMPHASIS
       // ----------------------------------------
+
+      const nyquist =
+        audioContext.sampleRate / 2;
+
+      const binHz =
+        nyquist /
+        frequencyData.length;
+
+
+      const lowBin =
+        Math.floor(1800 / binHz);
+
+      const highBin =
+        Math.min(
+          frequencyData.length - 1,
+          Math.floor(6500 / binHz)
+        );
+
+
+      let snareEnergy = 0;
+      let snareCount = 0;
+
 
       for (
-        let point = 0;
-        point < DISPLAY_POINTS;
-        point++
+        let i = lowBin;
+        i <= highBin;
+        i++
       ) {
 
-        const startIndex =
-          Math.floor(
-            point * samplesPerPoint
-          );
+        snareEnergy +=
+          frequencyData[i] / 255;
 
-        const endIndex =
-          Math.min(
-            dataArray.length,
-            Math.floor(
-              (point + 1) * samplesPerPoint
-            )
-          );
-
-
-        let sum = 0;
-        let count = 0;
-
-
-        for (
-          let i = startIndex;
-          i < endIndex;
-          i++
-        ) {
-          sum +=
-            (dataArray[i] - 128) / 128;
-
-          count++;
-        }
-
-
-        targetFrame[point] =
-          count > 0
-            ? sum / count
-            : 0;
+        snareCount++;
       }
 
 
-      updateAutoGain();
+      if (snareCount > 0) {
+        snareEnergy /=
+          snareCount;
+      }
+
+
+      const snareBoost =
+        1 +
+        snareEnergy *
+        SNARE_STRENGTH *
+        0.35;
+
+
+      // ----------------------------------------
+      // FINAL AMPLITUDE
+      // ----------------------------------------
+
+      amplitude *=
+        transientBoost *
+        snareBoost *
+        BASE_GAIN;
+
+
+      // Soft compression
+      amplitude =
+        Math.pow(
+          Math.min(amplitude, 1),
+          COMPRESSION
+        );
+
+
+      // Attack / release smoothing
+      const smoothing =
+        amplitude > smoothedAmplitude
+          ? AMPLITUDE_ATTACK
+          : AMPLITUDE_RELEASE;
+
+
+      smoothedAmplitude +=
+        (
+          amplitude -
+          smoothedAmplitude
+        ) * smoothing;
+
+
+      return Math.max(
+        0,
+        Math.min(
+          1,
+          smoothedAmplitude
+        )
+      );
     }
 
 
     // ==========================================
-    // AUTOMATIC GAIN
+    // ADD NEW SAMPLE TO HISTORY
     // ==========================================
 
-    function updateAutoGain() {
+    function pushHistory(value) {
 
-      let currentPeak = 0;
-
-
+      // Move every previous sample left
       for (
         let i = 0;
-        i < DISPLAY_POINTS;
+        i < BAR_COUNT - 1;
         i++
       ) {
-        const amplitude =
-          Math.abs(targetFrame[i]);
-
-        if (amplitude > currentPeak) {
-          currentPeak = amplitude;
-        }
+        history[i] =
+          history[i + 1];
       }
 
-
-      let desiredGain;
-
-      if (currentPeak > NOISE_FLOOR) {
-        desiredGain =
-          TARGET_PEAK / currentPeak;
-      } else {
-        desiredGain = 1;
-      }
-
-
-      desiredGain = Math.max(
-        MIN_AUTO_GAIN,
-        Math.min(
-          MAX_AUTO_GAIN,
-          desiredGain
-        )
-      );
-
-
-      const gainSpeed =
-        desiredGain < autoGain
-          ? GAIN_ATTACK
-          : GAIN_RELEASE;
-
-
-      autoGain +=
-        (desiredGain - autoGain) *
-        gainSpeed;
+      // Newest audio enters on right
+      history[BAR_COUNT - 1] =
+        value;
     }
 
 
@@ -402,43 +423,31 @@
         requestAnimationFrame(draw);
 
 
-      // Capture a genuinely new target
-      // only 12 times per second.
+      // Add new timeline sample
       if (
-        timestamp - lastTargetUpdate
-        >= TARGET_INTERVAL
+        timestamp - lastHistoryUpdate
+        >= HISTORY_INTERVAL
       ) {
-        updateTargetWaveform();
-        lastTargetUpdate = timestamp;
+
+        const amplitude =
+          measureAudio();
+
+        pushHistory(amplitude);
+
+        lastHistoryUpdate =
+          timestamp;
       }
-
-
-      // Ease visible waveform toward target.
-      for (
-        let i = 0;
-        i < DISPLAY_POINTS;
-        i++
-      ) {
-        visibleFrame[i] +=
-          (
-            targetFrame[i] -
-            visibleFrame[i]
-          ) * EASING;
-      }
-
-
-      // Let transient emphasis decay smoothly.
-      transientBoost =
-        1 +
-        (transientBoost - 1) *
-        TRANSIENT_DECAY;
 
 
       const width = canvas.width;
       const height = canvas.height;
       const centerY = height / 2;
 
+      const dpr =
+        window.devicePixelRatio || 1;
 
+
+      // White background
       ctx.fillStyle = "#ffffff";
 
       ctx.fillRect(
@@ -450,96 +459,72 @@
 
 
       // ========================================
-      // DRAW LINE
+      // DRAW HISTORY
       // ========================================
 
-      const dpr =
-        window.devicePixelRatio || 1;
+      ctx.strokeStyle = "#000000";
 
       ctx.lineWidth =
         LINE_WIDTH * dpr;
 
-      ctx.strokeStyle = "#000000";
-
-      ctx.lineJoin = "round";
       ctx.lineCap = "round";
 
-      ctx.beginPath();
+
+      const horizontalPadding =
+        12 * dpr;
+
+      const usableWidth =
+        width -
+        horizontalPadding * 2;
 
 
-      const sliceWidth =
-        width /
-        (DISPLAY_POINTS - 1);
+      const spacing =
+        usableWidth /
+        (BAR_COUNT - 1);
+
+
+      const maxHalfHeight =
+        centerY *
+        MAX_HEIGHT_RATIO;
 
 
       for (
         let i = 0;
-        i < DISPLAY_POINTS;
+        i < BAR_COUNT;
         i++
       ) {
 
-        let sample =
-          visibleFrame[i];
+        const x =
+          horizontalPadding +
+          i * spacing;
 
 
-        if (
-          Math.abs(sample) <
-          NOISE_FLOOR
-        ) {
-          sample = 0;
-        }
+        const amplitude =
+          history[i];
 
 
-        // Normal gain plus temporary
-        // emphasis for sudden hits.
-        sample *=
-          BASE_GAIN *
-          autoGain *
-          transientBoost;
-
-
-        // Soft compression
-        const sign =
-          Math.sign(sample);
-
-        sample =
-          sign *
-          Math.pow(
-            Math.min(
-              Math.abs(sample),
-              1
-            ),
-            COMPRESSION
+        const halfHeight =
+          Math.max(
+            MIN_HEIGHT * dpr,
+            amplitude *
+            maxHalfHeight
           );
 
 
-        // Vertical safety limit
-        sample = Math.max(
-          -MAX_AMPLITUDE,
-          Math.min(
-            MAX_AMPLITUDE,
-            sample
-          )
+        ctx.beginPath();
+
+        ctx.moveTo(
+          x,
+          centerY - halfHeight
         );
 
+        ctx.lineTo(
+          x,
+          centerY + halfHeight
+        );
 
-        const x =
-          i * sliceWidth;
-
-        const y =
-          centerY +
-          sample * centerY;
-
-
-        if (i === 0) {
-          ctx.moveTo(x, y);
-        } else {
-          ctx.lineTo(x, y);
-        }
+        ctx.stroke();
       }
-
-
-      ctx.stroke();
     }
   </script>
 
