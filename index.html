@@ -16,7 +16,7 @@
     #visualizer {
       display: block;
       width: 100%;
-      height: 190px;
+      height: 220px;
       background: white;
     }
 
@@ -38,13 +38,20 @@
   </audio>
 
   <script>
-    const audio = document.getElementById("audio");
-    const canvas = document.getElementById("visualizer");
-    const ctx = canvas.getContext("2d");
+    const audio =
+      document.getElementById("audio");
+
+    const canvas =
+      document.getElementById("visualizer");
+
+    const ctx =
+      canvas.getContext("2d");
+
 
     let audioContext;
     let analyser;
     let source;
+
     let timeData;
     let frequencyData;
 
@@ -56,60 +63,65 @@
     // TIMELINE
     // ==========================================
 
-    // 100 strokes across the visualizer
-    const BAR_COUNT = 100;
+    // Number of visible capsules
+    const BAR_COUNT = 64;
 
-    // 10 new measurements per second
-    // 100 bars / 10 per sec = ~10 sec visible
-    const HISTORY_FPS = 10;
-    const HISTORY_INTERVAL = 1000 / HISTORY_FPS;
+    // 8 new measurements per second.
+    // 64 / 8 = about 8 seconds visible.
+    const HISTORY_FPS = 8;
+
+    const HISTORY_INTERVAL =
+      1000 / HISTORY_FPS;
 
 
     // ==========================================
     // VISUAL APPEARANCE
     // ==========================================
 
-    // Thick rounded strokes
-    const LINE_WIDTH = 8;
+    // Crisp central capsule
+    const CORE_WIDTH = 7;
 
-    // Minimum half-height of quiet bars
-    const MIN_HEIGHT = 2;
+    // Broad translucent body underneath
+    const BODY_WIDTH = 15;
 
-    // Maximum vertical size
-    const MAX_HEIGHT_RATIO = 0.88;
+    // Quiet sounds become small dots/capsules
+    const MIN_HEIGHT = 2.5;
+
+    // Maximum half-height
+    const MAX_HEIGHT_RATIO = 0.84;
 
     // Overall sensitivity
-    const BASE_GAIN = 2.15;
+    const BASE_GAIN = 2.35;
 
-    // Lift quieter information
-    const COMPRESSION = 0.62;
+    // Lower values lift quieter detail
+    const COMPRESSION = 0.58;
 
 
     // ==========================================
-    // AMPLITUDE RESPONSE
+    // RESPONSE
     // ==========================================
 
-    // Fast reaction to louder events
-    const AMPLITUDE_ATTACK = 0.72;
+    // Fast rise on hits
+    const ATTACK = 0.82;
 
-    // Slower fall after event
-    const AMPLITUDE_RELEASE = 0.16;
+    // Controlled decay
+    const RELEASE = 0.24;
 
 
     // ==========================================
     // TRANSIENT EMPHASIS
     // ==========================================
 
-    const TRANSIENT_STRENGTH = 4.0;
+    const TRANSIENT_STRENGTH = 4.8;
 
-    const MAX_TRANSIENT_BOOST = 1.95;
+    const MAX_TRANSIENT_BOOST = 2.15;
 
-    // Upper-mid emphasis for snares/claps
-    const SNARE_STRENGTH = 2.2;
+    // Upper-mid emphasis
+    const SNARE_STRENGTH = 2.6;
 
 
     // ==========================================
-    // STATE
+    // HISTORY STATE
     // ==========================================
 
     const history =
@@ -127,6 +139,7 @@
     // ==========================================
 
     function resizeCanvas() {
+
       const dpr =
         window.devicePixelRatio || 1;
 
@@ -141,7 +154,9 @@
         );
     }
 
+
     resizeCanvas();
+
 
     window.addEventListener(
       "resize",
@@ -154,22 +169,29 @@
     // ==========================================
 
     function initializeAudio() {
+
       if (audioContext) return;
+
 
       audioContext =
         new AudioContext();
 
+
       analyser =
         audioContext.createAnalyser();
 
+
       analyser.fftSize = 2048;
 
-      analyser.smoothingTimeConstant = 0.30;
+      analyser.smoothingTimeConstant =
+        0.25;
+
 
       source =
         audioContext.createMediaElementSource(
           audio
         );
+
 
       source.connect(analyser);
 
@@ -177,10 +199,12 @@
         audioContext.destination
       );
 
+
       timeData =
         new Uint8Array(
           analyser.fftSize
         );
+
 
       frequencyData =
         new Uint8Array(
@@ -199,6 +223,7 @@
 
         initializeAudio();
 
+
         if (
           audioContext.state ===
           "suspended"
@@ -206,7 +231,9 @@
           await audioContext.resume();
         }
 
+
         if (!isDrawing) {
+
           isDrawing = true;
 
           lastHistoryUpdate = 0;
@@ -230,15 +257,94 @@
 
 
     function stopDrawing() {
+
       isDrawing = false;
 
+
       if (animationId !== null) {
+
         cancelAnimationFrame(
           animationId
         );
 
         animationId = null;
       }
+    }
+
+
+    // ==========================================
+    // COLOR
+    // ==========================================
+
+    function colorForPosition(
+      position,
+      alpha = 1
+    ) {
+
+      // position = 0 at left
+      // position = 1 at right
+
+      let r;
+      let g;
+      let b;
+
+
+      if (position < 0.33) {
+
+        // Cyan -> blue
+
+        const t =
+          position / 0.33;
+
+        r =
+          0 + (45 * t);
+
+        g =
+          220 - (110 * t);
+
+        b = 255;
+
+      } else if (position < 0.66) {
+
+        // Blue -> violet
+
+        const t =
+          (position - 0.33) / 0.33;
+
+        r =
+          45 + (115 * t);
+
+        g =
+          110 - (55 * t);
+
+        b = 255;
+
+      } else {
+
+        // Violet -> magenta
+
+        const t =
+          (position - 0.66) / 0.34;
+
+        r =
+          160 + (95 * t);
+
+        g =
+          55 - (35 * t);
+
+        b =
+          255 - (35 * t);
+      }
+
+
+      return (
+        "rgba(" +
+        Math.round(r) + "," +
+        Math.round(g) + "," +
+        Math.round(b) + "," +
+        alpha +
+        ")"
+      );
     }
 
 
@@ -252,6 +358,7 @@
         timeData
       );
 
+
       analyser.getByteFrequencyData(
         frequencyData
       );
@@ -262,6 +369,7 @@
       // ----------------------------------------
 
       let sumSquares = 0;
+
       let peak = 0;
 
 
@@ -274,8 +382,10 @@
         const sample =
           (timeData[i] - 128) / 128;
 
+
         const absSample =
           Math.abs(sample);
+
 
         sumSquares +=
           sample * sample;
@@ -294,10 +404,10 @@
         );
 
 
-      // Hybrid loudness measurement
+      // Hybrid energy measurement
       let amplitude =
-        rms * 0.68 +
-        peak * 0.32;
+        rms * 0.62 +
+        peak * 0.38;
 
 
       // ----------------------------------------
@@ -326,16 +436,17 @@
 
 
       previousEnergy =
-        previousEnergy * 0.80 +
-        rms * 0.20;
+        previousEnergy * 0.82 +
+        rms * 0.18;
 
 
       // ----------------------------------------
-      // SNARE / UPPER-MID ENERGY
+      // UPPER-MID / SNARE ENERGY
       // ----------------------------------------
 
       const nyquist =
         audioContext.sampleRate / 2;
+
 
       const binHz =
         nyquist /
@@ -344,19 +455,21 @@
 
       const lowBin =
         Math.floor(
-          1800 / binHz
+          1700 / binHz
         );
+
 
       const highBin =
         Math.min(
           frequencyData.length - 1,
           Math.floor(
-            6500 / binHz
+            7000 / binHz
           )
         );
 
 
       let snareEnergy = 0;
+
       let snareCount = 0;
 
 
@@ -374,6 +487,7 @@
 
 
       if (snareCount > 0) {
+
         snareEnergy /=
           snareCount;
       }
@@ -383,11 +497,11 @@
         1 +
         snareEnergy *
         SNARE_STRENGTH *
-        0.35;
+        0.42;
 
 
       // ----------------------------------------
-      // FINAL AMPLITUDE
+      // FINAL ENERGY
       // ----------------------------------------
 
       amplitude *=
@@ -396,7 +510,7 @@
         BASE_GAIN;
 
 
-      // Soft compression
+      // Compression
       amplitude =
         Math.pow(
           Math.min(
@@ -409,10 +523,9 @@
 
       // Attack / release
       const response =
-        amplitude >
-        smoothedAmplitude
-          ? AMPLITUDE_ATTACK
-          : AMPLITUDE_RELEASE;
+        amplitude > smoothedAmplitude
+          ? ATTACK
+          : RELEASE;
 
 
       smoothedAmplitude +=
@@ -438,7 +551,6 @@
 
     function pushHistory(value) {
 
-      // Move older audio one position left
       for (
         let i = 0;
         i < BAR_COUNT - 1;
@@ -450,7 +562,7 @@
       }
 
 
-      // Newest audio enters on right
+      // Newest sound enters at right
       history[BAR_COUNT - 1] =
         value;
     }
@@ -461,14 +573,15 @@
     // ==========================================
 
     function draw(timestamp) {
+
       if (!isDrawing) return;
+
 
       animationId =
         requestAnimationFrame(draw);
 
 
-      // Add one new timeline measurement
-      // every 100 ms.
+      // Add new musical measurement
       if (
         timestamp -
         lastHistoryUpdate >=
@@ -478,7 +591,9 @@
         const amplitude =
           measureAudio();
 
+
         pushHistory(amplitude);
+
 
         lastHistoryUpdate =
           timestamp;
@@ -488,11 +603,14 @@
       const width =
         canvas.width;
 
+
       const height =
         canvas.height;
 
+
       const centerY =
         height / 2;
+
 
       const dpr =
         window.devicePixelRatio || 1;
@@ -501,6 +619,7 @@
       // White background
       ctx.fillStyle =
         "#ffffff";
+
 
       ctx.fillRect(
         0,
@@ -511,21 +630,11 @@
 
 
       // ========================================
-      // DRAW BARS
+      // GEOMETRY
       // ========================================
 
-      ctx.strokeStyle =
-        "#000000";
-
-      ctx.lineWidth =
-        LINE_WIDTH * dpr;
-
-      ctx.lineCap =
-        "round";
-
-
       const horizontalPadding =
-        14 * dpr;
+        18 * dpr;
 
 
       const usableWidth =
@@ -543,11 +652,22 @@
         MAX_HEIGHT_RATIO;
 
 
+      // ========================================
+      // DRAW CAPSULES
+      // ========================================
+
+      ctx.lineCap = "round";
+
+
       for (
         let i = 0;
         i < BAR_COUNT;
         i++
       ) {
+
+        const position =
+          i / (BAR_COUNT - 1);
+
 
         const x =
           horizontalPadding +
@@ -566,17 +686,76 @@
           );
 
 
+        const yTop =
+          centerY - halfHeight;
+
+
+        const yBottom =
+          centerY + halfHeight;
+
+
+        // --------------------------------------
+        // OUTER BODY
+        // --------------------------------------
+
         ctx.beginPath();
+
+
+        ctx.strokeStyle =
+          colorForPosition(
+            position,
+            0.20
+          );
+
+
+        ctx.lineWidth =
+          BODY_WIDTH * dpr;
+
 
         ctx.moveTo(
           x,
-          centerY - halfHeight
+          yTop
         );
+
 
         ctx.lineTo(
           x,
-          centerY + halfHeight
+          yBottom
         );
+
+
+        ctx.stroke();
+
+
+        // --------------------------------------
+        // SATURATED CORE
+        // --------------------------------------
+
+        ctx.beginPath();
+
+
+        ctx.strokeStyle =
+          colorForPosition(
+            position,
+            0.96
+          );
+
+
+        ctx.lineWidth =
+          CORE_WIDTH * dpr;
+
+
+        ctx.moveTo(
+          x,
+          yTop
+        );
+
+
+        ctx.lineTo(
+          x,
+          yBottom
+        );
+
 
         ctx.stroke();
       }
