@@ -50,45 +50,66 @@
     let animationId = null;
     let isDrawing = false;
 
+
     // ==========================================
     // VISUAL CHARACTER
     // ==========================================
 
     const DISPLAY_POINTS = 320;
 
-    // How often a genuinely new waveform is captured.
-    // Lower = calmer.
-    // Higher = more immediate.
+    // New waveform target captures per second
     const TARGET_FPS = 12;
     const TARGET_INTERVAL = 1000 / TARGET_FPS;
 
-    // How quickly visible waveform moves toward target.
-    // Lower = slower / calmer.
-    // Higher = faster / more reactive.
-    const EASING = 0.16;
+    // Visible line eases toward each target
+    const EASING = 0.14;
 
-    const LINE_WIDTH = 2.5;
+    // Thicker line
+    const LINE_WIDTH = 4.0;
 
-    const BASE_GAIN = 1.20;
+    // Overall amplitude
+    const BASE_GAIN = 1.10;
 
-    const COMPRESSION = 0.72;
+    // Shape compression
+    const COMPRESSION = 0.74;
 
-    const TARGET_PEAK = 0.30;
-
+    // Automatic gain
+    const TARGET_PEAK = 0.28;
     const MIN_AUTO_GAIN = 0.70;
-    const MAX_AUTO_GAIN = 2.00;
+    const MAX_AUTO_GAIN = 1.90;
 
     const GAIN_ATTACK = 0.015;
     const GAIN_RELEASE = 0.0025;
 
-    const NOISE_FLOOR = 0.007;
+    const NOISE_FLOOR = 0.006;
 
-    const MAX_AMPLITUDE = 0.66;
+    const MAX_AMPLITUDE = 0.68;
 
-    const SPATIAL_SMOOTHING = 2;
+
+    // ==========================================
+    // TRANSIENT EMPHASIS
+    // ==========================================
+
+    // How strongly sudden energy increases
+    // affect waveform size.
+    const TRANSIENT_STRENGTH = 2.4;
+
+    // Maximum temporary transient boost.
+    const MAX_TRANSIENT_BOOST = 1.65;
+
+    // How quickly hit emphasis disappears.
+    // Lower = longer visible hit.
+    const TRANSIENT_DECAY = 0.88;
+
+    let previousEnergy = 0;
+    let transientBoost = 1.0;
+
+
+    // ==========================================
+    // STATE
+    // ==========================================
 
     let autoGain = 1.0;
-
     let lastTargetUpdate = 0;
 
     const targetFrame =
@@ -121,7 +142,7 @@
 
 
     // ==========================================
-    // AUDIO
+    // AUDIO INITIALIZATION
     // ==========================================
 
     function initializeAudio() {
@@ -132,7 +153,9 @@
       analyser =
         audioContext.createAnalyser();
 
-      analyser.fftSize = 2048;
+      // About 4x more timeline than 2048.
+      // Roughly 170–186 ms at common sample rates.
+      analyser.fftSize = 8192;
 
       source =
         audioContext.createMediaElementSource(audio);
@@ -166,9 +189,7 @@
 
         if (!isDrawing) {
           isDrawing = true;
-
           lastTargetUpdate = 0;
-
           draw(performance.now());
         }
       }
@@ -198,7 +219,7 @@
 
 
     // ==========================================
-    // CAPTURE A NEW TARGET WAVEFORM
+    // CAPTURE WIDER TIME WINDOW
     // ==========================================
 
     function updateTargetWaveform() {
@@ -211,46 +232,103 @@
         dataArray.length / DISPLAY_POINTS;
 
 
+      // ----------------------------------------
+      // MEASURE CURRENT RMS ENERGY
+      // ----------------------------------------
+
+      let energySum = 0;
+
+      for (
+        let i = 0;
+        i < dataArray.length;
+        i++
+      ) {
+        const sample =
+          (dataArray[i] - 128) / 128;
+
+        energySum += sample * sample;
+      }
+
+      const currentEnergy =
+        Math.sqrt(
+          energySum / dataArray.length
+        );
+
+
+      // ----------------------------------------
+      // DETECT SUDDEN ENERGY INCREASE
+      // ----------------------------------------
+
+      const energyRise =
+        Math.max(
+          0,
+          currentEnergy - previousEnergy
+        );
+
+      const detectedBoost =
+        1 +
+        energyRise *
+        TRANSIENT_STRENGTH *
+        10;
+
+
+      if (detectedBoost > transientBoost) {
+        transientBoost =
+          Math.min(
+            MAX_TRANSIENT_BOOST,
+            detectedBoost
+          );
+      }
+
+
+      previousEnergy =
+        previousEnergy * 0.72 +
+        currentEnergy * 0.28;
+
+
+      // ----------------------------------------
+      // REDUCE 8192 SAMPLES TO 320 POINTS
+      // ----------------------------------------
+
       for (
         let point = 0;
         point < DISPLAY_POINTS;
         point++
       ) {
 
-        const centerIndex =
+        const startIndex =
           Math.floor(
             point * samplesPerPoint
           );
 
-        let total = 0;
+        const endIndex =
+          Math.min(
+            dataArray.length,
+            Math.floor(
+              (point + 1) * samplesPerPoint
+            )
+          );
+
+
+        let sum = 0;
         let count = 0;
 
 
         for (
-          let offset = -SPATIAL_SMOOTHING;
-          offset <= SPATIAL_SMOOTHING;
-          offset++
+          let i = startIndex;
+          i < endIndex;
+          i++
         ) {
+          sum +=
+            (dataArray[i] - 128) / 128;
 
-          const index =
-            centerIndex + offset;
-
-          if (
-            index >= 0 &&
-            index < dataArray.length
-          ) {
-
-            total +=
-              (dataArray[index] - 128) / 128;
-
-            count++;
-          }
+          count++;
         }
 
 
         targetFrame[point] =
           count > 0
-            ? total / count
+            ? sum / count
             : 0;
       }
 
@@ -273,7 +351,6 @@
         i < DISPLAY_POINTS;
         i++
       ) {
-
         const amplitude =
           Math.abs(targetFrame[i]);
 
@@ -325,27 +402,23 @@
         requestAnimationFrame(draw);
 
 
-      // Only capture a genuinely new waveform
-      // 12 times per second.
+      // Capture a genuinely new target
+      // only 12 times per second.
       if (
         timestamp - lastTargetUpdate
         >= TARGET_INTERVAL
       ) {
-
         updateTargetWaveform();
-
         lastTargetUpdate = timestamp;
       }
 
 
-      // Smoothly move visible line
-      // toward the newest target.
+      // Ease visible waveform toward target.
       for (
         let i = 0;
         i < DISPLAY_POINTS;
         i++
       ) {
-
         visibleFrame[i] +=
           (
             targetFrame[i] -
@@ -354,12 +427,18 @@
       }
 
 
+      // Let transient emphasis decay smoothly.
+      transientBoost =
+        1 +
+        (transientBoost - 1) *
+        TRANSIENT_DECAY;
+
+
       const width = canvas.width;
       const height = canvas.height;
       const centerY = height / 2;
 
 
-      // White background
       ctx.fillStyle = "#ffffff";
 
       ctx.fillRect(
@@ -403,7 +482,6 @@
           visibleFrame[i];
 
 
-        // Remove tiny movement
         if (
           Math.abs(sample) <
           NOISE_FLOOR
@@ -412,9 +490,12 @@
         }
 
 
-        // Gain
+        // Normal gain plus temporary
+        // emphasis for sudden hits.
         sample *=
-          BASE_GAIN * autoGain;
+          BASE_GAIN *
+          autoGain *
+          transientBoost;
 
 
         // Soft compression
@@ -432,7 +513,7 @@
           );
 
 
-        // Vertical limit
+        // Vertical safety limit
         sample = Math.max(
           -MAX_AMPLITUDE,
           Math.min(
