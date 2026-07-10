@@ -1,146 +1,209 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-  <meta charset="UTF-8">
-  <meta
+
+<meta charset="UTF-8">
+
+<meta
     name="viewport"
-    content="width=device-width, initial-scale=1.0"
-  >
+    content="width=device-width, initial-scale=1.0">
 
-  <title>Video Player</title>
+<title>Video Player</title>
 
-  <style>
-    html,
-    body {
-      margin: 0;
-      width: 100%;
-      height: 100%;
-      background: transparent;
-      overflow: hidden;
-      font-family: Arial, sans-serif;
-    }
+<style>
 
-    .player {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      background: #000;
-    }
+*{
+    box-sizing:border-box;
+}
 
-    .video-area {
-      flex: 1;
-      min-height: 0;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #000;
-      cursor: pointer;
-    }
+html,
+body{
 
-    video {
-      width: 100%;
-      height: 100%;
-      object-fit: contain;
-      background: #000;
-    }
+    margin:0;
+    width:100%;
+    height:100%;
 
-    .controls {
-      box-sizing: border-box;
-      width: 100%;
-      padding: 12px 16px 16px;
-      background: #000;
-    }
+    background:transparent;
 
-    .timeline {
-      width: 100%;
-      margin: 0;
-      cursor: pointer;
-    }
-  </style>
+    overflow:hidden;
+
+    font-family:Arial,Helvetica,sans-serif;
+
+}
+
+.player{
+
+    width:100%;
+    height:100%;
+
+    display:flex;
+    flex-direction:column;
+
+    justify-content:center;
+
+    background:#000;
+
+}
+
+.video-area{
+
+    flex:1;
+
+    display:flex;
+
+    justify-content:center;
+
+    align-items:center;
+
+    overflow:hidden;
+
+    background:#000;
+
+    cursor:pointer;
+
+}
+
+video{
+
+    width:100%;
+    height:100%;
+
+    object-fit:contain;
+
+    background:#000;
+
+}
+
+.controls{
+
+    padding:14px 18px 18px;
+
+    background:#000;
+
+}
+
+.timeline{
+
+    width:100%;
+
+    cursor:pointer;
+
+}
+
+</style>
+
 </head>
 
 <body>
 
-  <div class="player">
+<div class="player">
 
-    <div class="video-area" id="videoArea">
-      <video
-        id="video"
-        preload="metadata"
-        playsinline
-      >
-        <source
-  id="videoSource"
-  src=""
-  type="video/mp4"
->
-      </video>
+    <div
+        class="video-area"
+        id="videoArea">
+
+        <video
+            id="video"
+            preload="metadata"
+            playsinline>
+
+            <source
+                id="videoSource"
+                src=""
+                type="video/mp4">
+
+        </video>
+
     </div>
 
     <div class="controls">
-      <input
-        id="timeline"
-        class="timeline"
-        type="range"
-        min="0"
-        max="1000"
-        value="0"
-        step="1"
-        aria-label="Video timeline"
-      >
+
+        <input
+            id="timeline"
+            class="timeline"
+            type="range"
+            min="0"
+            max="1000"
+            value="0"
+            step="1">
+
     </div>
 
-  </div>
+</div>
 
- const videos = {
-  palestina: "../Palestina-94mb.mp4",
-  portada: "../FINAL WEB PORTADA VIDEO SQUARE_1.mp4"
+<script>
+
+const videos={
+
+    portada:"videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
+
+    palestina:"videos/Palestina-94mb.mp4"
+
 };
 
-const params = new URLSearchParams(window.location.search);
+const params=new URLSearchParams(window.location.search);
 
-const id = params.get("id") || "palestina";
+const id=params.get("id") || "portada";
 
-const video = document.getElementById("video");
-const source = document.getElementById("videoSource");
+const video=document.getElementById("video");
 
-source.src = videos[id];
+const source=document.getElementById("videoSource");
+
+source.src=videos[id];
 
 video.load();
 
-const videoArea = document.getElementById("videoArea");
-const timeline = document.getElementById("timeline");
+const videoArea=document.getElementById("videoArea");
 
-let seeking = false;
+const timeline=document.getElementById("timeline");
 
-videoArea.addEventListener("click", () => {
-  if (video.paused) {
-    video.play();
-  } else {
-    video.pause();
-  }
+let seeking=false;
+
+videoArea.onclick=()=>{
+
+    if(video.paused){
+
+        video.play();
+
+    }else{
+
+        video.pause();
+
+    }
+
+};
+
+video.addEventListener("timeupdate",()=>{
+
+    if(!seeking && Number.isFinite(video.duration)){
+
+        timeline.value=(video.currentTime/video.duration)*1000;
+
+    }
+
 });
 
-video.addEventListener("timeupdate", () => {
-  if (!seeking && Number.isFinite(video.duration)) {
-    timeline.value =
-      (video.currentTime / video.duration) * 1000;
-  }
+timeline.addEventListener("input",()=>{
+
+    seeking=true;
+
+    if(Number.isFinite(video.duration)){
+
+        video.currentTime=(timeline.value/1000)*video.duration;
+
+    }
+
 });
 
-timeline.addEventListener("input", () => {
-  seeking = true;
+timeline.addEventListener("change",()=>{
 
-  if (Number.isFinite(video.duration)) {
-    video.currentTime =
-      (timeline.value / 1000) * video.duration;
-  }
+    seeking=false;
+
 });
 
-timeline.addEventListener("change", () => {
-  seeking = false;
-});
+</script>
 
 </body>
+
 </html>
