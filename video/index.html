@@ -71,9 +71,10 @@
         playsinline
       >
         <source
-          src="../Palestina-94mb.mp4"
-          type="video/mp4"
-        >
+  id="videoSource"
+  src=""
+  type="video/mp4"
+>
       </video>
     </div>
 
@@ -92,41 +93,54 @@
 
   </div>
 
-  <script>
-    const video = document.getElementById("video");
-    const videoArea = document.getElementById("videoArea");
-    const timeline = document.getElementById("timeline");
+ const videos = {
+  palestina: "../Palestina-94mb.mp4",
+  portada: "../FINAL WEB PORTADA VIDEO SQUARE_1.mp4"
+};
 
-    let seeking = false;
+const params = new URLSearchParams(window.location.search);
 
-    videoArea.addEventListener("click", () => {
-      if (video.paused) {
-        video.play();
-      } else {
-        video.pause();
-      }
-    });
+const id = params.get("id") || "palestina";
 
-    video.addEventListener("timeupdate", () => {
-      if (!seeking && Number.isFinite(video.duration)) {
-        timeline.value =
-          (video.currentTime / video.duration) * 1000;
-      }
-    });
+const video = document.getElementById("video");
+const source = document.getElementById("videoSource");
 
-    timeline.addEventListener("input", () => {
-      seeking = true;
+source.src = videos[id];
 
-      if (Number.isFinite(video.duration)) {
-        video.currentTime =
-          (timeline.value / 1000) * video.duration;
-      }
-    });
+video.load();
 
-    timeline.addEventListener("change", () => {
-      seeking = false;
-    });
-  </script>
+const videoArea = document.getElementById("videoArea");
+const timeline = document.getElementById("timeline");
+
+let seeking = false;
+
+videoArea.addEventListener("click", () => {
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+  }
+});
+
+video.addEventListener("timeupdate", () => {
+  if (!seeking && Number.isFinite(video.duration)) {
+    timeline.value =
+      (video.currentTime / video.duration) * 1000;
+  }
+});
+
+timeline.addEventListener("input", () => {
+  seeking = true;
+
+  if (Number.isFinite(video.duration)) {
+    video.currentTime =
+      (timeline.value / 1000) * video.duration;
+  }
+});
+
+timeline.addEventListener("change", () => {
+  seeking = false;
+});
 
 </body>
 </html>
