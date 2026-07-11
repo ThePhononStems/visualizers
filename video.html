@@ -29,7 +29,15 @@ body{
 
 <div class="layout" id="layout">
 
-  <div class="title-list" id="titleList"></div>
+  <div class="title-list-wrap">
+    <input
+      id="searchBox"
+      class="search-box"
+      type="text"
+      placeholder="Search videos..."
+      autocomplete="off">
+    <div class="title-list" id="titleList"></div>
+  </div>
 
   <div class="player-col" id="playerCol">
     <div class="player">
@@ -55,16 +63,45 @@ body{
   height:100vh;
   background:#111;
 }
-.title-list{
+.title-list-wrap{
   flex:0 0 30%;
   min-width:260px;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  background:#1b1b1b;
+}
+.search-box{
+  flex:none;
+  margin:30px 30px 0;
+  padding:10px 14px;
+  border-radius:12px;
+  border:1px solid #2a2a2a;
+  background:#242424;
+  color:#fff;
+  font-size:14px;
+  font-family:inherit;
+  outline:none;
+  transition:border-color .25s;
+}
+.search-box::placeholder{
+  color:#8a8a8a;
+}
+.search-box:focus{
+  border-color:#5ec8ff;
+}
+.no-results{
+  color:#8a8a8a;
+  font-size:14px;
+  padding:14px 18px;
+}
+.title-list{
+  flex:1;
   display:flex;
   flex-direction:column;
   gap:12px;
-  height:100%;
   overflow-y:auto;
-  background:#1b1b1b;
-  padding:30px;
+  padding:14px 30px 30px;
 }
 .player-col{
   flex:1;
@@ -203,18 +240,22 @@ video{
     flex-direction:column;
     height:auto;
   }
-  .title-list{
+  .title-list-wrap{
     flex:none;
     width:100%;
     height:auto;
+  }
+  .title-list{
+    height:auto;
     overflow-y:visible;
+    padding:14px 20px 20px;
+  }
+  .search-box{
+    margin:20px 20px 0;
   }
   .player-col{
     height:auto;
     display:block;
-    padding:20px;
-  }
-  .title-list{
     padding:20px;
   }
 }
@@ -250,6 +291,7 @@ const videos = [
 const MOBILE_BREAKPOINT = 700;
 
 const titleList = document.getElementById("titleList");
+const searchBox = document.getElementById("searchBox");
 const playerCol = document.getElementById("playerCol");
 const video = document.getElementById("video");
 const videoArea = document.getElementById("videoArea");
@@ -290,9 +332,32 @@ function maybeScrollToPlayer(){
   }
 }
 
+function matchesSearch(item, query){
+  if (!query) return true;
+  const haystack = (
+    item.title + " " +
+    item.description + " " +
+    item.tags.join(" ")
+  ).toLowerCase();
+  return haystack.indexOf(query) !== -1;
+}
+
 function renderList(){
   titleList.innerHTML = "";
-  videos.forEach(function(item){
+  const query = searchBox.value.trim().toLowerCase();
+  const visible = videos.filter(function(item){
+    return matchesSearch(item, query);
+  });
+
+  if (visible.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "no-results";
+    empty.textContent = "No videos match your search.";
+    titleList.appendChild(empty);
+    return;
+  }
+
+  visible.forEach(function(item){
     const wrap = document.createElement("div");
     wrap.className = "title-wrap";
 
@@ -319,6 +384,10 @@ function renderList(){
     titleList.appendChild(wrap);
   });
 }
+
+searchBox.addEventListener("input", function(){
+  renderList();
+});
 
 videoArea.addEventListener("click", function(){
   if (video.paused) {
