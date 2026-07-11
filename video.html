@@ -1,209 +1,361 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
-
 <meta charset="UTF-8">
-
-<meta
-    name="viewport"
-    content="width=device-width, initial-scale=1.0">
-
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Video Player</title>
-
 <style>
-
 *{
-    box-sizing:border-box;
+  box-sizing:border-box;
 }
-
 html,
 body{
-
-    margin:0;
-    width:100%;
-    height:100%;
-
-    background:transparent;
-
-    overflow:hidden;
-
-    font-family:Arial,Helvetica,sans-serif;
-
+  margin:0;
+  width:100%;
+  height:100%;
+  background:transparent;
+  font-family:Arial,Helvetica,sans-serif;
+  overflow:hidden;
 }
 
-.player{
-
-    width:100%;
-    height:100%;
-
-    display:flex;
-    flex-direction:column;
-
-    justify-content:center;
-
-    background:#000;
-
-}
-
-.video-area{
-
-    flex:1;
-
-    display:flex;
-
-    justify-content:center;
-
-    align-items:center;
-
-    overflow:hidden;
-
-    background:#000;
-
-    cursor:pointer;
-
-}
-
-video{
-
-    width:100%;
-    height:100%;
-
-    object-fit:contain;
-
-    background:#000;
-
-}
-
-.controls{
-
-    padding:14px 18px 18px;
-
-    background:#000;
-
-}
-
-.timeline{
-
-    width:100%;
-
-    cursor:pointer;
-
-}
-
+/* ============================================================
+   EDIT HERE: video list, stills, and info-panel text.
+   To add a video: add an entry below, add its file to /videos,
+   and add a still to /posters (or point "poster" at any image URL).
+   ============================================================ */
 </style>
-
 </head>
-
 <body>
 
-<div class="player">
+<div class="layout" id="layout">
 
-    <div
-        class="video-area"
-        id="videoArea">
+  <div class="title-list" id="titleList"></div>
 
-        <video
-            id="video"
-            preload="metadata"
-            playsinline>
-
-            <source
-                id="videoSource"
-                src=""
-                type="video/mp4">
-
-        </video>
-
+  <div class="player-col" id="playerCol">
+    <div class="player">
+      <div class="video-area" id="videoArea">
+        <video id="video" preload="metadata" playsinline></video>
+        <div class="play-badge" id="playBadge">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff">
+            <path d="M8 5v14l11-7z"></path>
+          </svg>
+        </div>
+      </div>
+      <div class="controls">
+        <input id="timeline" class="timeline" type="range" min="0" max="1000" value="0" step="1">
+      </div>
     </div>
-
-    <div class="controls">
-
-        <input
-            id="timeline"
-            class="timeline"
-            type="range"
-            min="0"
-            max="1000"
-            value="0"
-            step="1">
-
-    </div>
+  </div>
 
 </div>
 
+<style>
+.layout{
+  display:flex;
+  height:100vh;
+  background:#111;
+}
+.title-list{
+  flex:0 0 30%;
+  min-width:260px;
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  height:100%;
+  overflow-y:auto;
+  background:#1b1b1b;
+  padding:30px;
+}
+.player-col{
+  flex:1;
+  min-width:0;
+  height:100%;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:#0b0b0b;
+  padding:60px;
+}
+.player-col .player{
+  width:min(1000px,100%);
+}
+
+.title-btn{
+  display:block;
+  width:100%;
+  text-align:left;
+  padding:14px 18px;
+  border:1px solid transparent;
+  border-radius:12px;
+  background:#242424;
+  color:#fff;
+  font-size:15px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:background .25s, border-color .25s, transform .15s, color .25s;
+}
+.title-btn:hover{
+  background:#303030;
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+  transform:translateX(6px);
+}
+.title-btn.active{
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+}
+.title-wrap{
+  border-radius:12px;
+}
+.info-panel{
+  padding:14px 18px 18px;
+  margin-top:6px;
+  background:#151515;
+  border:1px solid #2a2a2a;
+  border-radius:12px;
+  color:#c9c9c9;
+  font-size:13px;
+  line-height:1.5;
+}
+.info-panel p{
+  margin:0 0 10px;
+}
+.info-meta{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  color:#9a9a9a;
+  margin-bottom:8px;
+}
+.info-tags{
+  display:flex;
+  gap:6px;
+  flex-wrap:wrap;
+}
+.tag{
+  background:#242424;
+  color:#5ec8ff;
+  padding:3px 9px;
+  border-radius:6px;
+  font-size:12px;
+}
+
+.player{
+  display:flex;
+  flex-direction:column;
+  background:#000;
+  border-radius:16px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.65);
+}
+.video-area{
+  position:relative;
+  aspect-ratio:16/9;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  overflow:hidden;
+  background:#000;
+  cursor:pointer;
+}
+video{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#000;
+}
+.play-badge{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  pointer-events:none;
+}
+.play-badge svg{
+  width:56px;
+  height:56px;
+  padding:16px;
+  background:rgba(0,0,0,0.35);
+  border:1.5px solid rgba(255,255,255,0.7);
+  border-radius:50%;
+  box-sizing:border-box;
+}
+.play-badge.hidden{
+  display:none;
+}
+.controls{
+  padding:14px 18px 18px;
+  background:#000;
+}
+.timeline{
+  width:100%;
+  cursor:pointer;
+}
+
+@media (max-width:700px){
+  html,
+  body{
+    height:auto;
+    overflow:visible;
+  }
+  .layout{
+    flex-direction:column;
+    height:auto;
+  }
+  .title-list{
+    flex:none;
+    width:100%;
+    height:auto;
+    overflow-y:visible;
+  }
+  .player-col{
+    height:auto;
+    display:block;
+    padding:20px;
+  }
+  .title-list{
+    padding:20px;
+  }
+}
+</style>
+
 <script>
+/* ============================================================
+   EDIT HERE: this is the full list of videos shown in the
+   left column. "poster" is the still shown before playback.
+   Runtime and tags are free text -- update as needed.
+   ============================================================ */
+const videos = [
+  {
+    id: "portada",
+    title: "Portada",
+    src: "videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
+    poster: "posters/webportada-still.png",
+    runtime: "--:--",
+    tags: ["Intro"],
+    description: "Placeholder description for Portada. Replace this text with the real summary of the video's content."
+  },
+  {
+    id: "palestina",
+    title: "Palestina",
+    src: "videos/Palestina-94mb.mp4",
+    poster: "posters/Palestina-still.png",
+    runtime: "--:--",
+    tags: ["Documentary"],
+    description: "Placeholder description for Palestina. Replace this text with the real summary of the video's content."
+  }
+];
 
-const videos={
+const MOBILE_BREAKPOINT = 700;
 
-    portada:"videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
+const titleList = document.getElementById("titleList");
+const playerCol = document.getElementById("playerCol");
+const video = document.getElementById("video");
+const videoArea = document.getElementById("videoArea");
+const playBadge = document.getElementById("playBadge");
+const timeline = document.getElementById("timeline");
 
-    palestina:"videos/Palestina-94mb.mp4"
+const params = new URLSearchParams(window.location.search);
+const startId = params.get("id") || videos[0].id;
 
-};
+let activeId = null;
+let openId = null;
+let seeking = false;
 
-const params=new URLSearchParams(window.location.search);
+function loadVideo(item, autoplay){
+  video.pause();
+  video.poster = item.poster;
+  video.src = item.src;
+  video.load();
+  if (autoplay) {
+    video.play();
+  }
+}
 
-const id=params.get("id") || "portada";
+function selectTitle(item, opts){
+  opts = opts || {};
+  activeId = item.id;
+  openId = (openId === item.id) ? null : item.id;
+  loadVideo(item, false);
+  renderList();
+  if (opts.scroll) {
+    maybeScrollToPlayer();
+  }
+}
 
-const video=document.getElementById("video");
+function maybeScrollToPlayer(){
+  if (window.innerWidth <= MOBILE_BREAKPOINT) {
+    playerCol.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+}
 
-const source=document.getElementById("videoSource");
+function renderList(){
+  titleList.innerHTML = "";
+  videos.forEach(function(item){
+    const wrap = document.createElement("div");
+    wrap.className = "title-wrap";
 
-source.src=videos[id];
+    const btn = document.createElement("button");
+    btn.className = "title-btn" + (activeId === item.id ? " active" : "");
+    btn.textContent = item.title;
+    btn.addEventListener("click", function(){
+      selectTitle(item, { scroll: true });
+    });
+    wrap.appendChild(btn);
 
-video.load();
-
-const videoArea=document.getElementById("videoArea");
-
-const timeline=document.getElementById("timeline");
-
-let seeking=false;
-
-videoArea.onclick=()=>{
-
-    if(video.paused){
-
-        video.play();
-
-    }else{
-
-        video.pause();
-
+    if (openId === item.id) {
+      const panel = document.createElement("div");
+      panel.className = "info-panel";
+      panel.innerHTML =
+        '<p>' + item.description + '</p>' +
+        '<div class="info-meta">' + item.runtime + '</div>' +
+        '<div class="info-tags">' +
+        item.tags.map(function(t){ return '<span class="tag">' + t + '</span>'; }).join("") +
+        '</div>';
+      wrap.appendChild(panel);
     }
 
-};
+    titleList.appendChild(wrap);
+  });
+}
 
-video.addEventListener("timeupdate",()=>{
-
-    if(!seeking && Number.isFinite(video.duration)){
-
-        timeline.value=(video.currentTime/video.duration)*1000;
-
-    }
-
+videoArea.addEventListener("click", function(){
+  if (video.paused) {
+    video.play();
+  } else {
+    video.pause();
+  }
 });
 
-timeline.addEventListener("input",()=>{
-
-    seeking=true;
-
-    if(Number.isFinite(video.duration)){
-
-        video.currentTime=(timeline.value/1000)*video.duration;
-
-    }
-
+video.addEventListener("play", function(){
+  playBadge.classList.add("hidden");
+});
+video.addEventListener("pause", function(){
+  playBadge.classList.remove("hidden");
+});
+video.addEventListener("ended", function(){
+  playBadge.classList.remove("hidden");
 });
 
-timeline.addEventListener("change",()=>{
-
-    seeking=false;
-
+video.addEventListener("timeupdate", function(){
+  if (!seeking && Number.isFinite(video.duration)) {
+    timeline.value = (video.currentTime / video.duration) * 1000;
+  }
+});
+timeline.addEventListener("input", function(){
+  seeking = true;
+  if (Number.isFinite(video.duration)) {
+    video.currentTime = (timeline.value / 1000) * video.duration;
+  }
+});
+timeline.addEventListener("change", function(){
+  seeking = false;
 });
 
+const initial = videos.find(function(v){ return v.id === startId; }) || videos[0];
+selectTitle(initial, { scroll: false });
 </script>
 
 </body>
-
 </html>
