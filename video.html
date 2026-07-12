@@ -96,12 +96,28 @@ body{
 <div class="layout" id="layout">
 
   <div class="title-list-wrap">
-    <input
-      id="searchBox"
-      class="search-box"
-      type="text"
-      placeholder="Search videos..."
-      autocomplete="off">
+    <div class="search-wrap">
+      <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
+        <defs>
+          <clipPath id="lensClip">
+            <circle cx="10.5" cy="10.5" r="6.5"></circle>
+          </clipPath>
+        </defs>
+        <g class="lens-group">
+          <g clip-path="url(#lensClip)">
+            <rect class="glass-shine" x="2" y="-2" width="4" height="26" fill="#ffffff" opacity="0.275"></rect>
+          </g>
+          <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
+        </g>
+        <line class="handle" x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
+      </svg>
+      <input
+        id="searchBox"
+        class="search-box"
+        type="text"
+        placeholder="Search videos..."
+        autocomplete="off">
+    </div>
     <div class="title-list" id="titleList"></div>
   </div>
 
@@ -141,10 +157,39 @@ body{
   flex-direction:column;
   background:#1b1b1b;
 }
+.search-wrap{
+  position:relative;
+  margin:30px 30px 0;
+}
+.search-icon{
+  position:absolute;
+  left:14px;
+  top:50%;
+  transform:translateY(-50%);
+  color:#8a8a8a;
+  pointer-events:none;
+  transition:color .25s;
+}
+.handle{
+  transform-box:fill-box;
+  transform-origin:center;
+}
+.glass-shine{
+  transform:rotate(20deg);
+  transform-origin:10.5px 10.5px;
+  animation:shineSweep 3s ease-in-out infinite;
+}
+@keyframes shineSweep{
+  0%{ transform:rotate(20deg) translateX(-14px); opacity:0; }
+  15%{ opacity:0.275; }
+  45%{ opacity:0.275; }
+  60%{ transform:rotate(20deg) translateX(14px); opacity:0; }
+  100%{ transform:rotate(20deg) translateX(14px); opacity:0; }
+}
 .search-box{
   flex:none;
-  margin:30px 30px 0;
-  padding:10px 14px;
+  width:100%;
+  padding:10px 14px 10px 38px;
   border-radius:12px;
   border:1px solid #2a2a2a;
   background:#242424;
@@ -159,6 +204,9 @@ body{
 }
 .search-box:focus{
   border-color:#5ec8ff;
+}
+.search-wrap:focus-within .search-icon{
+  color:#5ec8ff;
 }
 .no-results{
   color:#8a8a8a;
@@ -386,7 +434,7 @@ video{
     overflow-y:visible;
     padding:14px 20px 20px;
   }
-  .search-box{
+  .search-wrap{
     margin:20px 20px 0;
   }
   .player-col{
