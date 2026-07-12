@@ -211,6 +211,11 @@ body{
   border-color:#5ec8ff;
   color:#5ec8ff;
 }
+.title-note{
+  font-style:italic;
+  font-size:0.8em;
+  color:#4caf7d;
+}
 .title-wrap{
   border-radius:12px;
 }
@@ -419,7 +424,7 @@ const videos = [
   },
   {
     id: "crematorium",
-    title: "The Crematorium",
+    title: "Excerpt: The Crematorium / Mountain Top Removal",
     src: "videos/(Excerpt) The Crematorium (BW).mp4",
     poster: "posters/CremaBWstill.jpg",
     runtime: "--:--",
@@ -428,7 +433,7 @@ const videos = [
   },
   {
     id: "crematorium-abridged",
-    title: "The Crematorium (Abridged)",
+    title: "The Crematorium",
     src: "videos/CREMA-ABRIDGED-072023a-2160-YT-FINAL1-103x-pitch_2.mp4",
     poster: "posters/CrematoriumStill.jpg",
     runtime: "--:--",
@@ -437,7 +442,8 @@ const videos = [
   },
   {
     id: "e3-excerpt",
-    title: "E3 (Excerpt)",
+    title: "Carlos Yescas @ World Cheese Awards",
+    titleNote: "(spanish)",
     src: "videos/E3-under3 MIN EXCERPT for YTshortsAndSWT-lumetri_downsizeforGithub.mp4",
     poster: "posters/CarlosBern.png",
     runtime: "--:--",
@@ -510,6 +516,7 @@ function matchesSearch(item, query){
   if (!query) return true;
   const haystack = (
     item.title + " " +
+    (item.titleNote || "") + " " +
     item.description + " " +
     item.tags.join(" ")
   ).toLowerCase();
@@ -537,7 +544,8 @@ function renderList(){
 
     const btn = document.createElement("button");
     btn.className = "title-btn" + (activeId === item.id ? " active" : "");
-    btn.textContent = item.title;
+    btn.innerHTML = item.title +
+      (item.titleNote ? ' <span class="title-note">' + item.titleNote + '</span>' : '');
     btn.addEventListener("click", function(){
       selectTitle(item, { scroll: true });
     });
