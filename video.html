@@ -3,10 +3,66 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Video Player</title>
+
+<!-- ============================================================
+     EDIT HERE: replace every placeholder below with real text.
+     This is what Google shows in search results and what it
+     uses to understand/index this page and its videos.
+     ============================================================ -->
+<title>Portada &amp; Palestina — SWT Media Video Library</title>
+<meta name="description" content="Watch Portada and Palestina, two short videos from SWT Media.">
+<link rel="canonical" href="https://thephononstems.github.io/visualizers/video.html">
+
+<meta property="og:type" content="video.other">
+<meta property="og:title" content="Portada &amp; Palestina — SWT Media Video Library">
+<meta property="og:description" content="Watch Portada and Palestina, two short videos from SWT Media.">
+<meta property="og:image" content="https://thephononstems.github.io/visualizers/posters/webportada-still.png">
+<meta property="og:url" content="https://thephononstems.github.io/visualizers/video.html">
+
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Portada &amp; Palestina — SWT Media Video Library">
+<meta name="twitter:description" content="Watch Portada and Palestina, two short videos from SWT Media.">
+<meta name="twitter:image" content="https://thephononstems.github.io/visualizers/posters/webportada-still.png">
+
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@graph": [
+    {
+      "@type": "VideoObject",
+      "name": "Portada",
+      "description": "Placeholder description for Portada. Replace this text with the real summary of the video's content.",
+      "thumbnailUrl": "https://thephononstems.github.io/visualizers/posters/webportada-still.png",
+      "contentUrl": "https://thephononstems.github.io/visualizers/videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
+      "uploadDate": "2026-01-01"
+    },
+    {
+      "@type": "VideoObject",
+      "name": "Palestina",
+      "description": "Placeholder description for Palestina. Replace this text with the real summary of the video's content.",
+      "thumbnailUrl": "https://thephononstems.github.io/visualizers/posters/Palestina-still.png",
+      "contentUrl": "https://thephononstems.github.io/visualizers/videos/Palestina-94mb.mp4",
+      "uploadDate": "2026-01-01"
+    }
+  ]
+}
+</script>
+<!-- ============================================================ -->
+
 <style>
 *{
   box-sizing:border-box;
+}
+.sr-only{
+  position:absolute;
+  width:1px;
+  height:1px;
+  padding:0;
+  margin:-1px;
+  overflow:hidden;
+  clip:rect(0,0,0,0);
+  white-space:nowrap;
+  border:0;
 }
 html,
 body{
@@ -26,6 +82,16 @@ body{
 </style>
 </head>
 <body>
+
+<h1 class="sr-only">Portada &amp; Palestina — SWT Media Video Library</h1>
+
+<noscript>
+  <p>This page requires JavaScript to play videos. Direct links:</p>
+  <ul>
+    <li><a href="videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4">Portada</a></li>
+    <li><a href="videos/Palestina-94mb.mp4">Palestina</a></li>
+  </ul>
+</noscript>
 
 <div class="layout" id="layout">
 
@@ -226,8 +292,40 @@ video{
   background:#000;
 }
 .timeline{
+  -webkit-appearance:none;
+  appearance:none;
   width:100%;
+  height:4px;
+  border-radius:2px;
+  background:#333333;
   cursor:pointer;
+  outline:none;
+}
+.timeline::-webkit-slider-thumb{
+  -webkit-appearance:none;
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:#1f6f6b;
+  cursor:pointer;
+}
+.timeline::-moz-range-thumb{
+  width:13px;
+  height:13px;
+  border-radius:50%;
+  background:#1f6f6b;
+  border:none;
+  cursor:pointer;
+}
+.timeline::-moz-range-track{
+  height:4px;
+  border-radius:2px;
+  background:#333333;
+}
+.timeline::-moz-range-progress{
+  height:4px;
+  border-radius:2px;
+  background:#1f6f6b;
 }
 
 @media (max-width:700px){
@@ -310,6 +408,8 @@ function loadVideo(item, autoplay){
   video.poster = item.poster;
   video.src = item.src;
   video.load();
+  timeline.value = 0;
+  paintTimeline();
   if (autoplay) {
     video.play();
   }
@@ -318,7 +418,11 @@ function loadVideo(item, autoplay){
 function selectTitle(item, opts){
   opts = opts || {};
   activeId = item.id;
-  openId = (openId === item.id) ? null : item.id;
+  if (opts.toggle === false) {
+    openId = null;
+  } else {
+    openId = (openId === item.id) ? null : item.id;
+  }
   loadVideo(item, false);
   renderList();
   if (opts.scroll) {
@@ -407,9 +511,16 @@ video.addEventListener("ended", function(){
   playBadge.classList.remove("hidden");
 });
 
+function paintTimeline(){
+  const pct = (timeline.value / timeline.max) * 100;
+  timeline.style.background =
+    "linear-gradient(to right, #1f6f6b 0%, #1f6f6b " + pct + "%, #333333 " + pct + "%, #333333 100%)";
+}
+
 video.addEventListener("timeupdate", function(){
   if (!seeking && Number.isFinite(video.duration)) {
     timeline.value = (video.currentTime / video.duration) * 1000;
+    paintTimeline();
   }
 });
 timeline.addEventListener("input", function(){
@@ -417,13 +528,16 @@ timeline.addEventListener("input", function(){
   if (Number.isFinite(video.duration)) {
     video.currentTime = (timeline.value / 1000) * video.duration;
   }
+  paintTimeline();
 });
 timeline.addEventListener("change", function(){
   seeking = false;
 });
 
+paintTimeline();
+
 const initial = videos.find(function(v){ return v.id === startId; }) || videos[0];
-selectTitle(initial, { scroll: false });
+selectTitle(initial, { scroll: false, toggle: false });
 </script>
 
 </body>
