@@ -31,13 +31,15 @@ body{
 
 <div class="wrap">
   <div class="stage" id="stage">
-    <div class="layer" id="layerA">
-      <img class="sub" id="a1">
-      <img class="sub" id="a2">
-    </div>
-    <div class="layer" id="layerB">
-      <img class="sub" id="b1">
-      <img class="sub" id="b2">
+    <div class="stageInner" id="stageInner">
+      <div class="layer" id="layerA">
+        <img class="sub" id="a1">
+        <img class="sub" id="a2">
+      </div>
+      <div class="layer" id="layerB">
+        <img class="sub" id="b1">
+        <img class="sub" id="b2">
+      </div>
     </div>
     <div class="flash" id="flash"></div>
   </div>
@@ -59,6 +61,10 @@ body{
       <option value="color">Color</option>
       <option value="luminosity">Luminosity</option>
     </select>
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="autoBalance" checked>
+      Auto-balance exposure
+    </label>
     <span class="hint">Press <kbd>C</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -81,6 +87,11 @@ body{
   background:#000;
   border-radius:12px;
   overflow:hidden;
+}
+.stageInner{
+  position:absolute;
+  inset:0;
+  transition:filter 1s ease;
 }
 .layer{
   position:absolute;
@@ -129,6 +140,12 @@ select{
   border-radius:8px;
   padding:8px 10px;
   font-size:14px;
+}
+.toggleLabel{
+  display:flex;
+  align-items:center;
+  gap:6px;
+  cursor:pointer;
 }
 .hint{
   font-size:12px;
@@ -179,16 +196,26 @@ const INTERVAL_A = 3500;
 const INTERVAL_B = 5200;
 
 const stage = document.getElementById("stage");
+const stageInner = document.getElementById("stageInner");
 const layerB = document.getElementById("layerB");
 const blendSelect = document.getElementById("blendSelect");
+const autoBalance = document.getElementById("autoBalance");
 const flash = document.getElementById("flash");
 const logEl = document.getElementById("log");
 const captureCountEl = document.getElementById("captureCount");
 
 function applyBlend(){
   layerB.style.mixBlendMode = blendSelect.value === "vivid-light" ? "hard-light" : blendSelect.value;
+  scheduleAnalysis();
 }
 blendSelect.addEventListener("change", applyBlend);
+autoBalance.addEventListener("change", function(){
+  if (!autoBalance.checked) {
+    stageInner.style.filter = "none";
+  } else {
+    scheduleAnalysis();
+  }
+});
 applyBlend();
 
 async function loadManifest(path, folder){
@@ -203,7 +230,7 @@ async function loadManifest(path, folder){
     .map(function(name){ return folder + name; });
 }
 
-function makeCycler(prefix, list, intervalMs){
+function makeCycler(prefix, list, intervalMs, onChange){
   const el1 = document.getElementById(prefix + "1");
   const el2 = document.getElementById(prefix + "2");
   let index = 0;
@@ -222,6 +249,7 @@ function makeCycler(prefix, list, intervalMs){
     incoming.classList.add("visible");
     outgoing.classList.remove("visible");
     showingFirst = !showingFirst;
+    onChange();
   }
 
   setInterval(advance, intervalMs);
@@ -241,8 +269,9 @@ Promise.all([
     stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">One of the manifest files is empty. Add filenames to photos/list.txt and photosB/list.txt.</div>';
     return;
   }
-  getCurrentA = makeCycler("a", listA, INTERVAL_A);
-  getCurrentB = makeCycler("b", listB, INTERVAL_B);
+  getCurrentA = makeCycler("a", listA, INTERVAL_A, scheduleAnalysis);
+  getCurrentB = makeCycler("b", listB, INTERVAL_B, scheduleAnalysis);
+  scheduleAnalysis();
 }).catch(function(err){
   stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load the photo lists. This page needs to run over http/https (Live Server or your live site) — opening it directly as a file:// path will not work.</div>';
 });
@@ -253,6 +282,87 @@ try {
   captures = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
 } catch (e) {
   captures = [];
+}
+
+const analysisCanvas = document.createElement("canvas");
+analysisCanvas.width = 40;
+analysisCanvas.height = 40;
+const actx = analysisCanvas.getContext("2d", { willReadFrequently: true });
+
+let analysisTimer = null;
+function scheduleAnalysis(){
+  if (!autoBalance.checked) return;
+  clearTimeout(analysisTimer);
+  analysisTimer = setTimeout(analyzeAndCorrect, 150);
+}
+
+function canvasBlendName(v){
+  return v === "vivid-light" ? "hard-light" : v;
+}
+
+function analyzeAndCorrect(){
+  const urlA = getCurrentA();
+  const urlB = getCurrentB();
+  if (!urlA || !urlB) return;
+
+  const imgA = new Image();
+  const imgB = new Image();
+  let loaded = 0;
+
+  function onBothLoaded(){
+    actx.clearRect(0, 0, 40, 40);
+    actx.globalCompositeOperation = "source-over";
+    actx.drawImage(imgA, 0, 0, 40, 40);
+    actx.globalCompositeOperation = canvasBlendName(blendSelect.value);
+    actx.drawImage(imgB, 0, 0, 40, 40);
+    actx.globalCompositeOperation = "source-over";
+
+    let data;
+    try {
+      data = actx.getImageData(0, 0, 40, 40).data;
+    } catch (e) {
+      return;
+    }
+
+    let sum = 0;
+    let sumSq = 0;
+    let n = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+      sum += lum;
+      sumSq += lum * lum;
+      n++;
+    }
+    const mean = sum / n;
+    const variance = Math.max(sumSq / n - mean * mean, 0);
+    const std = Math.sqrt(variance);
+
+    applyCorrection(mean, std);
+  }
+
+  imgA.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
+  imgB.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
+  imgA.src = urlA;
+  imgB.src = urlB;
+}
+
+function applyCorrection(mean, std){
+  const lowBand = 95;
+  const highBand = 160;
+
+  let brightness = 1;
+  if (mean < lowBand) {
+    brightness = Math.min(2.2, lowBand / Math.max(mean, 8));
+  } else if (mean > highBand) {
+    brightness = Math.max(0.45, highBand / Math.min(mean, 247));
+  }
+
+  let contrast = 1;
+  if (std < 28) {
+    contrast = 1 + ((28 - std) / 28) * 0.6;
+  }
+
+  stageInner.style.filter = "brightness(" + brightness.toFixed(2) + ") contrast(" + contrast.toFixed(2) + ")";
 }
 
 function renderLog(){
