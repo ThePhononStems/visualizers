@@ -1,0 +1,9 @@
+# Add filenames here, one per line, for photos placed in the photosB folder.
+# Lines starting with # are ignored.
+
+MaiteMarshallBeach.jpg
+RaccoonsLegionOfHonor.jpg
+TheRainInSpainFallsPlainlyOnTheDame.jpg
+USPSBombogenesis.jpg
+ValenciaMuseoCienciasSunset.jpg
+YesseniaRenfeReflection.jpg

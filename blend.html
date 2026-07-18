@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Blend Projector</title>
+<style>
+*{
+  box-sizing:border-box;
+}
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#111;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+
+/* ============================================================
+   The two photo sequences are no longer listed in this file.
+   Add or remove photos by editing:
+     photos/list.txt   (one filename per line, Layer A)
+     photosB/list.txt  (one filename per line, Layer B)
+   Blank lines and lines starting with # are ignored.
+   ============================================================ */
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="stage" id="stage">
+    <div class="layer" id="layerA">
+      <img class="sub" id="a1">
+      <img class="sub" id="a2">
+    </div>
+    <div class="layer" id="layerB">
+      <img class="sub" id="b1">
+      <img class="sub" id="b2">
+    </div>
+    <div class="flash" id="flash"></div>
+  </div>
+
+  <div class="controls">
+    <label class="ctrlLabel" for="blendSelect">Blend mode</label>
+    <select id="blendSelect">
+      <option value="multiply">Multiply</option>
+      <option value="screen">Screen</option>
+      <option value="overlay" selected>Overlay</option>
+      <option value="color-dodge">Color dodge</option>
+      <option value="hard-light">Hard light</option>
+      <option value="soft-light">Soft light</option>
+      <option value="vivid-light">Vivid light (approx.)</option>
+      <option value="difference">Difference</option>
+      <option value="exclusion">Exclusion</option>
+      <option value="hue">Hue</option>
+      <option value="saturation">Saturation</option>
+      <option value="color">Color</option>
+      <option value="luminosity">Luminosity</option>
+    </select>
+    <span class="hint">Press <kbd>C</kbd> to capture this pairing</span>
+    <span class="hint" id="captureCount">0 captured</span>
+    <button id="downloadBtn" class="btn">Download captures</button>
+    <button id="clearBtn" class="btn">Clear</button>
+  </div>
+
+  <div class="log" id="log"></div>
+</div>
+
+<style>
+.wrap{
+  max-width:800px;
+  margin:0 auto;
+  padding:40px 20px;
+}
+.stage{
+  position:relative;
+  width:100%;
+  aspect-ratio:1/1;
+  background:#000;
+  border-radius:12px;
+  overflow:hidden;
+}
+.layer{
+  position:absolute;
+  inset:0;
+}
+.sub{
+  position:absolute;
+  inset:0;
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  opacity:0;
+  transition:opacity 1.2s ease;
+}
+.sub.visible{
+  opacity:1;
+}
+.flash{
+  position:absolute;
+  inset:0;
+  background:#5ec8ff;
+  opacity:0;
+  pointer-events:none;
+  transition:opacity .08s ease;
+}
+.flash.on{
+  opacity:0.35;
+  transition:opacity 0s;
+}
+
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  gap:12px;
+  margin-top:20px;
+}
+.ctrlLabel{
+  font-size:13px;
+  color:#9a9a9a;
+}
+select{
+  background:#242424;
+  color:#fff;
+  border:1px solid #2a2a2a;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:14px;
+}
+.hint{
+  font-size:12px;
+  color:#8a8a8a;
+}
+kbd{
+  background:#242424;
+  border:1px solid #2a2a2a;
+  border-radius:4px;
+  padding:1px 6px;
+  font-family:inherit;
+}
+.btn{
+  background:#242424;
+  color:#fff;
+  border:1px solid #2a2a2a;
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:13px;
+  cursor:pointer;
+}
+.btn:hover{
+  background:#303030;
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+}
+
+.log{
+  margin-top:20px;
+  max-height:200px;
+  overflow-y:auto;
+  font-size:12px;
+  color:#9a9a9a;
+}
+.log div{
+  padding:6px 0;
+  border-bottom:1px solid #1e1e1e;
+}
+</style>
+
+<script>
+const MANIFEST_A = "photos/list.txt";
+const MANIFEST_B = "photosB/list.txt";
+const FOLDER_A = "photos/";
+const FOLDER_B = "photosB/";
+
+const INTERVAL_A = 3500;
+const INTERVAL_B = 5200;
+
+const stage = document.getElementById("stage");
+const layerB = document.getElementById("layerB");
+const blendSelect = document.getElementById("blendSelect");
+const flash = document.getElementById("flash");
+const logEl = document.getElementById("log");
+const captureCountEl = document.getElementById("captureCount");
+
+function applyBlend(){
+  layerB.style.mixBlendMode = blendSelect.value === "vivid-light" ? "hard-light" : blendSelect.value;
+}
+blendSelect.addEventListener("change", applyBlend);
+applyBlend();
+
+async function loadManifest(path, folder){
+  const res = await fetch(path);
+  if (!res.ok) {
+    throw new Error("Could not load " + path);
+  }
+  const text = await res.text();
+  return text.split("\n")
+    .map(function(line){ return line.trim(); })
+    .filter(function(line){ return line.length > 0 && line[0] !== "#"; })
+    .map(function(name){ return folder + name; });
+}
+
+function makeCycler(prefix, list, intervalMs){
+  const el1 = document.getElementById(prefix + "1");
+  const el2 = document.getElementById(prefix + "2");
+  let index = 0;
+  let showingFirst = true;
+  let current = list[0];
+
+  el1.src = list[0];
+  el1.classList.add("visible");
+
+  function advance(){
+    index = (index + 1) % list.length;
+    current = list[index];
+    const incoming = showingFirst ? el2 : el1;
+    const outgoing = showingFirst ? el1 : el2;
+    incoming.src = current;
+    incoming.classList.add("visible");
+    outgoing.classList.remove("visible");
+    showingFirst = !showingFirst;
+  }
+
+  setInterval(advance, intervalMs);
+  return function getCurrent(){ return current; };
+}
+
+let getCurrentA = function(){ return ""; };
+let getCurrentB = function(){ return ""; };
+
+Promise.all([
+  loadManifest(MANIFEST_A, FOLDER_A),
+  loadManifest(MANIFEST_B, FOLDER_B)
+]).then(function(results){
+  const listA = results[0];
+  const listB = results[1];
+  if (listA.length === 0 || listB.length === 0) {
+    stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">One of the manifest files is empty. Add filenames to photos/list.txt and photosB/list.txt.</div>';
+    return;
+  }
+  getCurrentA = makeCycler("a", listA, INTERVAL_A);
+  getCurrentB = makeCycler("b", listB, INTERVAL_B);
+}).catch(function(err){
+  stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load the photo lists. This page needs to run over http/https (Live Server or your live site) — opening it directly as a file:// path will not work.</div>';
+});
+
+const STORAGE_KEY = "blendCaptures";
+let captures = [];
+try {
+  captures = JSON.parse(localStorage.getItem(STORAGE_KEY)) || [];
+} catch (e) {
+  captures = [];
+}
+
+function renderLog(){
+  captureCountEl.textContent = captures.length + " captured";
+  logEl.innerHTML = captures.slice().reverse().map(function(c){
+    return '<div>' + c.a + '  +  ' + c.b + '  (' + c.blend + ')</div>';
+  }).join("");
+}
+renderLog();
+
+function capture(){
+  const entry = {
+    a: getCurrentA(),
+    b: getCurrentB(),
+    blend: blendSelect.value,
+    time: new Date().toISOString()
+  };
+  captures.push(entry);
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
+  renderLog();
+
+  flash.classList.add("on");
+  setTimeout(function(){ flash.classList.remove("on"); }, 80);
+}
+
+document.addEventListener("keydown", function(e){
+  if (e.target.tagName === "SELECT") return;
+  if (e.key.toLowerCase() === "c") {
+    capture();
+  }
+});
+
+document.getElementById("downloadBtn").addEventListener("click", function(){
+  const blob = new Blob([JSON.stringify(captures, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "blend-captures.json";
+  a.click();
+  URL.revokeObjectURL(url);
+});
+
+document.getElementById("clearBtn").addEventListener("click", function(){
+  captures = [];
+  localStorage.removeItem(STORAGE_KEY);
+  renderLog();
+});
+</script>
+
+</body>
+</html>
