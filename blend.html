@@ -33,12 +33,10 @@ body{
   <div class="stage" id="stage">
     <div class="stageInner" id="stageInner">
       <div class="layer" id="layerA">
-        <img class="sub" id="a1">
-        <img class="sub" id="a2">
+        <img class="sub" id="imgA">
       </div>
       <div class="layer" id="layerB">
-        <img class="sub" id="b1">
-        <img class="sub" id="b2">
+        <img class="sub" id="imgB">
       </div>
     </div>
     <div class="flash" id="flash"></div>
@@ -47,24 +45,30 @@ body{
   <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
     <select id="blendSelect">
-      <option value="multiply">Multiply</option>
-      <option value="screen">Screen</option>
-      <option value="overlay" selected>Overlay</option>
-      <option value="color-dodge">Color dodge</option>
-      <option value="hard-light">Hard light</option>
-      <option value="soft-light">Soft light</option>
+      <option value="multiply" selected>Multiply</option>
       <option value="vivid-light">Vivid light (approx.)</option>
-      <option value="difference">Difference</option>
+      <option value="color-dodge">Color dodge</option>
       <option value="exclusion">Exclusion</option>
-      <option value="hue">Hue</option>
-      <option value="saturation">Saturation</option>
-      <option value="color">Color</option>
-      <option value="luminosity">Luminosity</option>
+      <option value="difference">Difference</option>
+      <option value="hard-light">Hard light</option>
+      <option value="screen">Screen</option>
     </select>
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="blendCycleToggle">
+      Cycle blend modes (7s)
+    </label>
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="autoBalance" checked>
       Auto-balance exposure
     </label>
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="compareToggle">
+      Pause and compare
+    </label>
+    <span class="hint" id="compareButtons" style="display:none;">
+      <button id="preBtn" class="btn btnSmall">Pre-balance</button>
+      <button id="postBtn" class="btn btnSmall">Post-balance</button>
+    </span>
     <span class="hint">Press <kbd>C</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -103,11 +107,6 @@ body{
   width:100%;
   height:100%;
   object-fit:cover;
-  opacity:0;
-  transition:opacity 1.2s ease;
-}
-.sub.visible{
-  opacity:1;
 }
 .flash{
   position:absolute;
@@ -172,6 +171,13 @@ kbd{
   border-color:#5ec8ff;
   color:#5ec8ff;
 }
+.btnSmall{
+  padding:6px 10px;
+  font-size:12px;
+}
+select:disabled{
+  opacity:0.5;
+}
 
 .log{
   margin-top:20px;
@@ -192,31 +198,32 @@ const MANIFEST_B = "photosB/list.txt";
 const FOLDER_A = "photos/";
 const FOLDER_B = "photosB/";
 
-const INTERVAL_A = 3500;
-const INTERVAL_B = 5200;
+const INTERVAL_MS = 2000;
+const BLEND_CYCLE_MODES = ["multiply", "vivid-light", "color-dodge", "exclusion", "difference", "hard-light", "screen"];
+const BLEND_CYCLE_STEP_MS = 1000;
 
 const stage = document.getElementById("stage");
 const stageInner = document.getElementById("stageInner");
 const layerB = document.getElementById("layerB");
 const blendSelect = document.getElementById("blendSelect");
+const blendCycleToggle = document.getElementById("blendCycleToggle");
 const autoBalance = document.getElementById("autoBalance");
+const compareToggle = document.getElementById("compareToggle");
+const compareButtons = document.getElementById("compareButtons");
+const preBtn = document.getElementById("preBtn");
+const postBtn = document.getElementById("postBtn");
 const flash = document.getElementById("flash");
 const logEl = document.getElementById("log");
 const captureCountEl = document.getElementById("captureCount");
 
-function applyBlend(){
-  layerB.style.mixBlendMode = blendSelect.value === "vivid-light" ? "hard-light" : blendSelect.value;
-  scheduleAnalysis();
+let currentBlendValue = blendSelect.value;
+
+function setBlendMode(value){
+  currentBlendValue = value;
+  blendSelect.value = value;
+  layerB.style.mixBlendMode = value === "vivid-light" ? "hard-light" : value;
 }
-blendSelect.addEventListener("change", applyBlend);
-autoBalance.addEventListener("change", function(){
-  if (!autoBalance.checked) {
-    stageInner.style.filter = "none";
-  } else {
-    scheduleAnalysis();
-  }
-});
-applyBlend();
+setBlendMode(currentBlendValue);
 
 async function loadManifest(path, folder){
   const res = await fetch(path);
@@ -230,34 +237,109 @@ async function loadManifest(path, folder){
     .map(function(name){ return folder + name; });
 }
 
-function makeCycler(prefix, list, intervalMs, onChange){
-  const el1 = document.getElementById(prefix + "1");
-  const el2 = document.getElementById(prefix + "2");
+function makeCycler(id, list){
+  const el = document.getElementById(id);
   let index = 0;
-  let showingFirst = true;
   let current = list[0];
 
-  el1.src = list[0];
-  el1.classList.add("visible");
+  el.src = list[0];
 
   function advance(){
     index = (index + 1) % list.length;
     current = list[index];
-    const incoming = showingFirst ? el2 : el1;
-    const outgoing = showingFirst ? el1 : el2;
-    incoming.src = current;
-    incoming.classList.add("visible");
-    outgoing.classList.remove("visible");
-    showingFirst = !showingFirst;
-    onChange();
+    el.src = current;
   }
 
-  setInterval(advance, intervalMs);
-  return function getCurrent(){ return current; };
+  return { advance: advance, getCurrent: function(){ return current; } };
 }
 
 let getCurrentA = function(){ return ""; };
 let getCurrentB = function(){ return ""; };
+let cyclerA = null;
+let cyclerB = null;
+
+let mode = "normal";
+let paused = false;
+let mainTimerId = null;
+let blendCycleIndex = 0;
+
+function stopTimer(){
+  clearInterval(mainTimerId);
+  mainTimerId = null;
+}
+
+function startNormalMode(){
+  stopTimer();
+  if (paused || !cyclerA) return;
+  mainTimerId = setInterval(function(){
+    cyclerA.advance();
+    cyclerB.advance();
+    scheduleAnalysis();
+  }, INTERVAL_MS);
+}
+
+function startBlendCycleMode(){
+  stopTimer();
+  if (paused || !cyclerA) return;
+  blendCycleIndex = 0;
+  setBlendMode(BLEND_CYCLE_MODES[blendCycleIndex]);
+  scheduleAnalysis();
+  mainTimerId = setInterval(function(){
+    blendCycleIndex++;
+    if (blendCycleIndex >= BLEND_CYCLE_MODES.length) {
+      blendCycleIndex = 0;
+      cyclerA.advance();
+      cyclerB.advance();
+    }
+    setBlendMode(BLEND_CYCLE_MODES[blendCycleIndex]);
+    scheduleAnalysis();
+  }, BLEND_CYCLE_STEP_MS);
+}
+
+function startCurrentMode(){
+  if (mode === "blendcycle") {
+    startBlendCycleMode();
+  } else {
+    startNormalMode();
+  }
+}
+
+blendSelect.addEventListener("change", function(){
+  setBlendMode(blendSelect.value);
+  scheduleAnalysis();
+});
+
+blendCycleToggle.addEventListener("change", function(){
+  if (blendCycleToggle.checked) {
+    mode = "blendcycle";
+    blendSelect.disabled = true;
+  } else {
+    mode = "normal";
+    blendSelect.disabled = false;
+    setBlendMode(blendSelect.value);
+  }
+  startCurrentMode();
+});
+
+compareToggle.addEventListener("change", function(){
+  paused = compareToggle.checked;
+  if (paused) {
+    stopTimer();
+    compareButtons.style.display = "inline-flex";
+    stageInner.style.filter = "none";
+  } else {
+    compareButtons.style.display = "none";
+    startCurrentMode();
+    scheduleAnalysisNow();
+  }
+});
+
+preBtn.addEventListener("click", function(){
+  stageInner.style.filter = "none";
+});
+postBtn.addEventListener("click", function(){
+  scheduleAnalysisNow();
+});
 
 Promise.all([
   loadManifest(MANIFEST_A, FOLDER_A),
@@ -269,8 +351,11 @@ Promise.all([
     stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">One of the manifest files is empty. Add filenames to photos/list.txt and photosB/list.txt.</div>';
     return;
   }
-  getCurrentA = makeCycler("a", listA, INTERVAL_A, scheduleAnalysis);
-  getCurrentB = makeCycler("b", listB, INTERVAL_B, scheduleAnalysis);
+  cyclerA = makeCycler("imgA", listA);
+  cyclerB = makeCycler("imgB", listB);
+  getCurrentA = cyclerA.getCurrent;
+  getCurrentB = cyclerB.getCurrent;
+  startCurrentMode();
   scheduleAnalysis();
 }).catch(function(err){
   stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load the photo lists. This page needs to run over http/https (Live Server or your live site) — opening it directly as a file:// path will not work.</div>';
@@ -295,6 +380,10 @@ function scheduleAnalysis(){
   clearTimeout(analysisTimer);
   analysisTimer = setTimeout(analyzeAndCorrect, 150);
 }
+function scheduleAnalysisNow(){
+  clearTimeout(analysisTimer);
+  analyzeAndCorrect();
+}
 
 function canvasBlendName(v){
   return v === "vivid-light" ? "hard-light" : v;
@@ -313,7 +402,7 @@ function analyzeAndCorrect(){
     actx.clearRect(0, 0, 40, 40);
     actx.globalCompositeOperation = "source-over";
     actx.drawImage(imgA, 0, 0, 40, 40);
-    actx.globalCompositeOperation = canvasBlendName(blendSelect.value);
+    actx.globalCompositeOperation = canvasBlendName(currentBlendValue);
     actx.drawImage(imgB, 0, 0, 40, 40);
     actx.globalCompositeOperation = "source-over";
 
@@ -377,7 +466,7 @@ function capture(){
   const entry = {
     a: getCurrentA(),
     b: getCurrentB(),
-    blend: blendSelect.value,
+    blend: currentBlendValue,
     time: new Date().toISOString()
   };
   captures.push(entry);
