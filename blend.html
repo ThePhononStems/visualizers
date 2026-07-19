@@ -488,12 +488,14 @@ function capture(){
     a: getCurrentA(),
     b: getCurrentB(),
     blend: currentBlendValue,
+    cropped: cropToggle.checked,
+    fullRes: fullResToggle.checked,
+    filter: stageInner.style.filter || "none",
     time: new Date().toISOString()
   };
   captures.push(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
   renderLog();
-  downloadCaptureImage(entry);
 
   flash.classList.add("on");
   setTimeout(function(){ flash.classList.remove("on"); }, 80);
@@ -552,12 +554,12 @@ function downloadCaptureImage(entry){
     const bigger = areaA >= areaB ? imgA : imgB;
 
     let canvasW, canvasH;
-    if (cropToggle.checked) {
+    if (entry.cropped) {
       const maxNative = Math.max(bigger.naturalWidth, bigger.naturalHeight);
-      const size = fullResToggle.checked ? maxNative : FIXED_SIZE;
+      const size = entry.fullRes ? maxNative : FIXED_SIZE;
       canvasW = size;
       canvasH = size;
-    } else if (fullResToggle.checked) {
+    } else if (entry.fullRes) {
       canvasW = bigger.naturalWidth;
       canvasH = bigger.naturalHeight;
     } else {
@@ -571,11 +573,11 @@ function downloadCaptureImage(entry){
     canvas.height = canvasH;
     const ctx = canvas.getContext("2d");
     ctx.globalCompositeOperation = "source-over";
-    if (cropToggle.checked) {
+    if (entry.cropped) {
       drawCover(ctx, imgA, canvasW, canvasH);
       ctx.globalCompositeOperation = canvasBlendName(entry.blend);
       drawCover(ctx, imgB, canvasW, canvasH);
-    } else if (fullResToggle.checked) {
+    } else if (entry.fullRes) {
       drawCenteredNative(ctx, imgA, canvasW, canvasH);
       ctx.globalCompositeOperation = canvasBlendName(entry.blend);
       drawCenteredNative(ctx, imgB, canvasW, canvasH);
@@ -586,7 +588,7 @@ function downloadCaptureImage(entry){
     }
     ctx.globalCompositeOperation = "source-over";
 
-    const activeFilter = stageInner.style.filter;
+    const activeFilter = entry.filter;
     let finalCanvas = canvas;
     if (activeFilter && activeFilter !== "none") {
       const filtered = document.createElement("canvas");
@@ -630,6 +632,10 @@ document.getElementById("downloadBtn").addEventListener("click", function(){
   a.download = "blend-captures.json";
   a.click();
   URL.revokeObjectURL(url);
+
+  captures.forEach(function(entry){
+    downloadCaptureImage(entry);
+  });
 });
 
 document.getElementById("clearBtn").addEventListener("click", function(){
