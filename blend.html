@@ -48,6 +48,7 @@ body{
       <option value="multiply" selected>Multiply</option>
       <option value="vivid-light">Vivid light (approx.)</option>
       <option value="color-dodge">Color dodge</option>
+      <option value="color-burn">Color burn</option>
       <option value="exclusion">Exclusion</option>
       <option value="difference">Difference</option>
       <option value="hard-light">Hard light</option>
@@ -69,6 +70,10 @@ body{
       <button id="preBtn" class="btn btnSmall">Pre-balance</button>
       <button id="postBtn" class="btn btnSmall">Post-balance</button>
     </span>
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="fullResToggle">
+      Full-resolution captures
+    </label>
     <span class="hint">Press <kbd>C</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -212,6 +217,7 @@ const compareToggle = document.getElementById("compareToggle");
 const compareButtons = document.getElementById("compareButtons");
 const preBtn = document.getElementById("preBtn");
 const postBtn = document.getElementById("postBtn");
+const fullResToggle = document.getElementById("fullResToggle");
 const flash = document.getElementById("flash");
 const logEl = document.getElementById("log");
 const captureCountEl = document.getElementById("captureCount");
@@ -472,9 +478,102 @@ function capture(){
   captures.push(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
   renderLog();
+  downloadCaptureImage(entry);
 
   flash.classList.add("on");
   setTimeout(function(){ flash.classList.remove("on"); }, 80);
+}
+
+function drawCover(ctx, img, w, h){
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  const canvasRatio = w / h;
+  const imgRatio = iw / ih;
+  let sx, sy, sw, sh;
+  if (imgRatio > canvasRatio) {
+    sh = ih;
+    sw = ih * canvasRatio;
+    sx = (iw - sw) / 2;
+    sy = 0;
+  } else {
+    sw = iw;
+    sh = iw / canvasRatio;
+    sx = 0;
+    sy = (ih - sh) / 2;
+  }
+  ctx.drawImage(img, sx, sy, sw, sh, 0, 0, w, h);
+}
+
+function drawCenteredNative(ctx, img, canvasW, canvasH){
+  const x = (canvasW - img.naturalWidth) / 2;
+  const y = (canvasH - img.naturalHeight) / 2;
+  ctx.drawImage(img, x, y, img.naturalWidth, img.naturalHeight);
+}
+
+function baseName(path){
+  return path.split("/").pop().replace(/\.[^/.]+$/, "");
+}
+
+function downloadCaptureImage(entry){
+  const FIXED_SIZE = 1600;
+  const imgA = new Image();
+  const imgB = new Image();
+  let loaded = 0;
+
+  function onBothLoaded(){
+    let canvasW = FIXED_SIZE;
+    let canvasH = FIXED_SIZE;
+    if (fullResToggle.checked) {
+      const areaA = imgA.naturalWidth * imgA.naturalHeight;
+      const areaB = imgB.naturalWidth * imgB.naturalHeight;
+      const bigger = areaA >= areaB ? imgA : imgB;
+      canvasW = bigger.naturalWidth;
+      canvasH = bigger.naturalHeight;
+    }
+
+    const canvas = document.createElement("canvas");
+    canvas.width = canvasW;
+    canvas.height = canvasH;
+    const ctx = canvas.getContext("2d");
+    ctx.globalCompositeOperation = "source-over";
+    if (fullResToggle.checked) {
+      drawCenteredNative(ctx, imgA, canvasW, canvasH);
+      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
+      drawCenteredNative(ctx, imgB, canvasW, canvasH);
+    } else {
+      drawCover(ctx, imgA, canvasW, canvasH);
+      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
+      drawCover(ctx, imgB, canvasW, canvasH);
+    }
+    ctx.globalCompositeOperation = "source-over";
+
+    const activeFilter = stageInner.style.filter;
+    let finalCanvas = canvas;
+    if (activeFilter && activeFilter !== "none") {
+      const filtered = document.createElement("canvas");
+      filtered.width = canvasW;
+      filtered.height = canvasH;
+      const fctx = filtered.getContext("2d");
+      fctx.filter = activeFilter;
+      fctx.drawImage(canvas, 0, 0);
+      finalCanvas = filtered;
+    }
+
+    finalCanvas.toBlob(function(blob){
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      const stamp = entry.time.replace(/[:.]/g, "-");
+      link.href = url;
+      link.download = "blend_" + baseName(entry.a) + "_" + baseName(entry.b) + "_" + entry.blend + "_" + stamp + ".png";
+      link.click();
+      URL.revokeObjectURL(url);
+    }, "image/png");
+  }
+
+  imgA.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
+  imgB.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
+  imgA.src = entry.a;
+  imgB.src = entry.b;
 }
 
 document.addEventListener("keydown", function(e){
