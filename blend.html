@@ -78,6 +78,7 @@ body{
       <input type="checkbox" id="fullResToggle">
       Full-resolution captures
     </label>
+    <button id="fullscreenBtn" class="btn">Fullscreen</button>
     <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -100,6 +101,17 @@ body{
   background:#000;
   border-radius:12px;
   overflow:hidden;
+}
+.stage:fullscreen{
+  width:100vw;
+  height:100vh;
+  aspect-ratio:auto;
+  border-radius:0;
+}
+.stage:-webkit-full-screen{
+  width:100vw;
+  height:100vh;
+  border-radius:0;
 }
 .stageInner{
   position:absolute;
@@ -226,6 +238,7 @@ const preBtn = document.getElementById("preBtn");
 const postBtn = document.getElementById("postBtn");
 const fullResToggle = document.getElementById("fullResToggle");
 const cropToggle = document.getElementById("cropToggle");
+const fullscreenBtn = document.getElementById("fullscreenBtn");
 const imgAEl = document.getElementById("imgA");
 const imgBEl = document.getElementById("imgB");
 
@@ -233,6 +246,33 @@ cropToggle.addEventListener("change", function(){
   imgAEl.classList.toggle("cropFill", cropToggle.checked);
   imgBEl.classList.toggle("cropFill", cropToggle.checked);
 });
+
+function toggleFullscreen(){
+  const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
+  if (!fsElement) {
+    if (stage.requestFullscreen) {
+      stage.requestFullscreen();
+    } else if (stage.webkitRequestFullscreen) {
+      stage.webkitRequestFullscreen();
+    }
+  } else {
+    if (document.exitFullscreen) {
+      document.exitFullscreen();
+    } else if (document.webkitExitFullscreen) {
+      document.webkitExitFullscreen();
+    }
+  }
+}
+
+fullscreenBtn.addEventListener("click", toggleFullscreen);
+stage.addEventListener("dblclick", toggleFullscreen);
+
+function updateFullscreenLabel(){
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  fullscreenBtn.textContent = isFs ? "Exit fullscreen" : "Fullscreen";
+}
+document.addEventListener("fullscreenchange", updateFullscreenLabel);
+document.addEventListener("webkitfullscreenchange", updateFullscreenLabel);
 const flash = document.getElementById("flash");
 const logEl = document.getElementById("log");
 const captureCountEl = document.getElementById("captureCount");
