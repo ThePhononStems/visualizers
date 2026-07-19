@@ -79,6 +79,7 @@ body{
       Full-resolution captures
     </label>
     <button id="fullscreenBtn" class="btn">Fullscreen</button>
+    <a id="newTabLink" class="btn" target="_blank" rel="noopener" style="text-decoration:none;">Open in new tab</a>
     <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -199,6 +200,10 @@ kbd{
   padding:6px 10px;
   font-size:12px;
 }
+.btn:disabled{
+  opacity:0.5;
+  cursor:default;
+}
 select:disabled{
   opacity:0.5;
 }
@@ -239,6 +244,8 @@ const postBtn = document.getElementById("postBtn");
 const fullResToggle = document.getElementById("fullResToggle");
 const cropToggle = document.getElementById("cropToggle");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
+const newTabLink = document.getElementById("newTabLink");
+newTabLink.href = window.location.href;
 const imgAEl = document.getElementById("imgA");
 const imgBEl = document.getElementById("imgB");
 
@@ -250,10 +257,11 @@ cropToggle.addEventListener("change", function(){
 function toggleFullscreen(){
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
   if (!fsElement) {
-    if (stage.requestFullscreen) {
-      stage.requestFullscreen();
-    } else if (stage.webkitRequestFullscreen) {
-      stage.webkitRequestFullscreen();
+    const request = stage.requestFullscreen ? stage.requestFullscreen() : (stage.webkitRequestFullscreen ? stage.webkitRequestFullscreen() : null);
+    if (request && request.catch) {
+      request.catch(function(){
+        alert("Fullscreen isn't allowed inside this embedded view. Use \"Open in new tab\" instead, then Fullscreen will work normally.");
+      });
     }
   } else {
     if (document.exitFullscreen) {
@@ -266,6 +274,11 @@ function toggleFullscreen(){
 
 fullscreenBtn.addEventListener("click", toggleFullscreen);
 stage.addEventListener("dblclick", toggleFullscreen);
+
+if (document.fullscreenEnabled === false) {
+  fullscreenBtn.textContent = "Fullscreen unavailable here";
+  fullscreenBtn.disabled = true;
+}
 
 function updateFullscreenLabel(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
