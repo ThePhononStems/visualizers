@@ -78,7 +78,7 @@ body{
       <input type="checkbox" id="fullResToggle">
       Full-resolution captures
     </label>
-    <span class="hint">Press <kbd>Space</kbd> to capture this pairing</span>
+    <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
     <button id="clearBtn" class="btn">Clear</button>
@@ -616,7 +616,7 @@ function downloadCaptureImage(entry){
 }
 
 document.addEventListener("keydown", function(e){
-  if (e.code === "Space" || e.key === " ") {
+  if (e.key.toLowerCase() === "i") {
     e.preventDefault();
     capture();
   }
