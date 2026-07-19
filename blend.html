@@ -71,6 +71,10 @@ body{
       <button id="postBtn" class="btn btnSmall">Post-balance</button>
     </span>
     <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="cropToggle">
+      Crop to fill (square)
+    </label>
+    <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="fullResToggle">
       Full-resolution captures
     </label>
@@ -112,6 +116,9 @@ body{
   width:100%;
   height:100%;
   object-fit:contain;
+}
+.sub.cropFill{
+  object-fit:cover;
 }
 .flash{
   position:absolute;
@@ -218,6 +225,14 @@ const compareButtons = document.getElementById("compareButtons");
 const preBtn = document.getElementById("preBtn");
 const postBtn = document.getElementById("postBtn");
 const fullResToggle = document.getElementById("fullResToggle");
+const cropToggle = document.getElementById("cropToggle");
+const imgAEl = document.getElementById("imgA");
+const imgBEl = document.getElementById("imgB");
+
+cropToggle.addEventListener("change", function(){
+  imgAEl.classList.toggle("cropFill", cropToggle.checked);
+  imgBEl.classList.toggle("cropFill", cropToggle.checked);
+});
 const flash = document.getElementById("flash");
 const logEl = document.getElementById("log");
 const captureCountEl = document.getElementById("captureCount");
@@ -510,6 +525,17 @@ function drawCenteredNative(ctx, img, canvasW, canvasH){
   ctx.drawImage(img, x, y, img.naturalWidth, img.naturalHeight);
 }
 
+function drawContain(ctx, img, w, h){
+  const iw = img.naturalWidth;
+  const ih = img.naturalHeight;
+  const scale = Math.min(w / iw, h / ih);
+  const dw = iw * scale;
+  const dh = ih * scale;
+  const dx = (w - dw) / 2;
+  const dy = (h - dh) / 2;
+  ctx.drawImage(img, dx, dy, dw, dh);
+}
+
 function baseName(path){
   return path.split("/").pop().replace(/\.[^/.]+$/, "");
 }
@@ -521,14 +547,23 @@ function downloadCaptureImage(entry){
   let loaded = 0;
 
   function onBothLoaded(){
-    let canvasW = FIXED_SIZE;
-    let canvasH = FIXED_SIZE;
-    if (fullResToggle.checked) {
-      const areaA = imgA.naturalWidth * imgA.naturalHeight;
-      const areaB = imgB.naturalWidth * imgB.naturalHeight;
-      const bigger = areaA >= areaB ? imgA : imgB;
+    const areaA = imgA.naturalWidth * imgA.naturalHeight;
+    const areaB = imgB.naturalWidth * imgB.naturalHeight;
+    const bigger = areaA >= areaB ? imgA : imgB;
+
+    let canvasW, canvasH;
+    if (cropToggle.checked) {
+      const maxNative = Math.max(bigger.naturalWidth, bigger.naturalHeight);
+      const size = fullResToggle.checked ? maxNative : FIXED_SIZE;
+      canvasW = size;
+      canvasH = size;
+    } else if (fullResToggle.checked) {
       canvasW = bigger.naturalWidth;
       canvasH = bigger.naturalHeight;
+    } else {
+      const scale = FIXED_SIZE / Math.max(bigger.naturalWidth, bigger.naturalHeight);
+      canvasW = Math.round(bigger.naturalWidth * scale);
+      canvasH = Math.round(bigger.naturalHeight * scale);
     }
 
     const canvas = document.createElement("canvas");
@@ -536,14 +571,18 @@ function downloadCaptureImage(entry){
     canvas.height = canvasH;
     const ctx = canvas.getContext("2d");
     ctx.globalCompositeOperation = "source-over";
-    if (fullResToggle.checked) {
+    if (cropToggle.checked) {
+      drawCover(ctx, imgA, canvasW, canvasH);
+      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
+      drawCover(ctx, imgB, canvasW, canvasH);
+    } else if (fullResToggle.checked) {
       drawCenteredNative(ctx, imgA, canvasW, canvasH);
       ctx.globalCompositeOperation = canvasBlendName(entry.blend);
       drawCenteredNative(ctx, imgB, canvasW, canvasH);
     } else {
-      drawCover(ctx, imgA, canvasW, canvasH);
+      drawContain(ctx, imgA, canvasW, canvasH);
       ctx.globalCompositeOperation = canvasBlendName(entry.blend);
-      drawCover(ctx, imgB, canvasW, canvasH);
+      drawContain(ctx, imgB, canvasW, canvasH);
     }
     ctx.globalCompositeOperation = "source-over";
 
