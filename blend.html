@@ -19,11 +19,14 @@ body{
 }
 
 /* ============================================================
-   The two photo sequences are no longer listed in this file.
+   The photo sequences are no longer listed in this file.
    Add or remove photos by editing:
-     photos/list.txt   (one filename per line, Layer A)
-     photosB/list.txt  (one filename per line, Layer B)
+     photos/list.txt    (one filename per line, Layer A)
+     photosB/list.txt   (one filename per line, Layer B)
+     photosC/list.txt   (optional, one filename per line, Layer C)
    Blank lines and lines starting with # are ignored.
+   Layer C is optional -- if photosC/list.txt doesn't exist,
+   the page still works fine with just Layer A and Layer B.
    ============================================================ */
 </style>
 </head>
@@ -38,25 +41,55 @@ body{
       <div class="layer" id="layerB">
         <img class="sub" id="imgB">
       </div>
+      <div class="layer" id="layerC">
+        <img class="sub" id="imgC">
+      </div>
     </div>
     <div class="flash" id="flash"></div>
   </div>
 
   <div class="controls">
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="layerAToggle" checked>
+      Layer A
+    </label>
+    <button id="skipBackA" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdA" class="btn btnSmall">&#9654;</button>
+
+    <label class="ctrlLabel toggleLabel">
+      <input type="checkbox" id="layerBToggle" checked>
+      Layer B
+    </label>
+    <button id="skipBackB" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdB" class="btn btnSmall">&#9654;</button>
+
+    <label class="ctrlLabel toggleLabel" id="layerCLabel">
+      <input type="checkbox" id="layerCToggle">
+      Layer C
+    </label>
+    <button id="skipBackC" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdC" class="btn btnSmall">&#9654;</button>
+  </div>
+
+  <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
     <select id="blendSelect">
-      <option value="multiply" selected>Multiply</option>
+      <option value="overlay" selected>Overlay</option>
+      <option value="multiply">Multiply</option>
+      <option value="screen">Screen</option>
+      <option value="soft-light">Soft light</option>
+      <option value="hard-light">Hard light</option>
       <option value="vivid-light">Vivid light (approx.)</option>
+      <option value="pin-light">Pin light (approx.)</option>
       <option value="color-dodge">Color dodge</option>
       <option value="color-burn">Color burn</option>
       <option value="exclusion">Exclusion</option>
       <option value="difference">Difference</option>
-      <option value="hard-light">Hard light</option>
-      <option value="screen">Screen</option>
+      <option value="lighter-color">Lighter color (approx.)</option>
     </select>
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="blendCycleToggle">
-      Cycle blend modes (7s)
+      Cycle blend modes
     </label>
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="autoBalance" checked>
@@ -70,6 +103,9 @@ body{
       <button id="preBtn" class="btn btnSmall">Pre-balance</button>
       <button id="postBtn" class="btn btnSmall">Post-balance</button>
     </span>
+  </div>
+
+  <div class="controls">
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="cropToggle">
       Crop to fill (square)
@@ -91,7 +127,7 @@ body{
 
 <style>
 .wrap{
-  max-width:800px;
+  max-width:900px;
   margin:0 auto;
   padding:40px 20px;
 }
@@ -151,7 +187,7 @@ body{
   flex-wrap:wrap;
   align-items:center;
   gap:12px;
-  margin-top:20px;
+  margin-top:16px;
 }
 .ctrlLabel{
   font-size:13px;
@@ -201,11 +237,19 @@ kbd{
   font-size:12px;
 }
 .btn:disabled{
-  opacity:0.5;
+  opacity:0.4;
   cursor:default;
+}
+.btn:disabled:hover{
+  background:#242424;
+  border-color:#2a2a2a;
+  color:#fff;
 }
 select:disabled{
   opacity:0.5;
+}
+.toggleLabel.disabledLabel{
+  opacity:0.4;
 }
 
 .log{
@@ -224,16 +268,20 @@ select:disabled{
 <script>
 const MANIFEST_A = "photos/list.txt";
 const MANIFEST_B = "photosB/list.txt";
+const MANIFEST_C = "photosC/list.txt";
 const FOLDER_A = "photos/";
 const FOLDER_B = "photosB/";
+const FOLDER_C = "photosC/";
 
 const INTERVAL_MS = 2000;
-const BLEND_CYCLE_MODES = ["multiply", "vivid-light", "color-dodge", "exclusion", "difference", "hard-light", "screen"];
+const BLEND_CYCLE_MODES = ["overlay", "multiply", "vivid-light", "color-dodge", "color-burn", "exclusion", "difference", "hard-light", "screen", "soft-light", "lighter-color", "pin-light"];
 const BLEND_CYCLE_STEP_MS = 2000;
 
 const stage = document.getElementById("stage");
 const stageInner = document.getElementById("stageInner");
+const layerA = document.getElementById("layerA");
 const layerB = document.getElementById("layerB");
+const layerC = document.getElementById("layerC");
 const blendSelect = document.getElementById("blendSelect");
 const blendCycleToggle = document.getElementById("blendCycleToggle");
 const autoBalance = document.getElementById("autoBalance");
@@ -248,10 +296,26 @@ const newTabLink = document.getElementById("newTabLink");
 newTabLink.href = window.location.href;
 const imgAEl = document.getElementById("imgA");
 const imgBEl = document.getElementById("imgB");
+const imgCEl = document.getElementById("imgC");
+const flash = document.getElementById("flash");
+const logEl = document.getElementById("log");
+const captureCountEl = document.getElementById("captureCount");
+
+const layerAToggle = document.getElementById("layerAToggle");
+const layerBToggle = document.getElementById("layerBToggle");
+const layerCToggle = document.getElementById("layerCToggle");
+const layerCLabel = document.getElementById("layerCLabel");
+const skipBackA = document.getElementById("skipBackA");
+const skipFwdA = document.getElementById("skipFwdA");
+const skipBackB = document.getElementById("skipBackB");
+const skipFwdB = document.getElementById("skipFwdB");
+const skipBackC = document.getElementById("skipBackC");
+const skipFwdC = document.getElementById("skipFwdC");
 
 cropToggle.addEventListener("change", function(){
   imgAEl.classList.toggle("cropFill", cropToggle.checked);
   imgBEl.classList.toggle("cropFill", cropToggle.checked);
+  imgCEl.classList.toggle("cropFill", cropToggle.checked);
 });
 
 function toggleFullscreen(){
@@ -286,16 +350,41 @@ function updateFullscreenLabel(){
 }
 document.addEventListener("fullscreenchange", updateFullscreenLabel);
 document.addEventListener("webkitfullscreenchange", updateFullscreenLabel);
-const flash = document.getElementById("flash");
-const logEl = document.getElementById("log");
-const captureCountEl = document.getElementById("captureCount");
 
 let currentBlendValue = blendSelect.value;
+
+/* Maps approximated Photoshop-only modes to the closest real
+   browser/canvas blend mode. Used for both the live CSS view
+   and the exported canvas capture, so they always match. */
+function canvasBlendName(v){
+  if (v === "vivid-light") return "hard-light";
+  if (v === "pin-light") return "overlay";
+  if (v === "lighter-color") return "lighten";
+  return v;
+}
+
+function updateLayerStack(){
+  const candidates = [
+    { el: layerA, enabled: layerAToggle.checked },
+    { el: layerB, enabled: layerBToggle.checked },
+    { el: layerC, enabled: layerCToggle.checked && !!cyclerC }
+  ];
+  let first = true;
+  candidates.forEach(function(item){
+    if (item.enabled) {
+      item.el.style.display = "block";
+      item.el.style.mixBlendMode = first ? "normal" : canvasBlendName(currentBlendValue);
+      first = false;
+    } else {
+      item.el.style.display = "none";
+    }
+  });
+}
 
 function setBlendMode(value){
   currentBlendValue = value;
   blendSelect.value = value;
-  layerB.style.mixBlendMode = value === "vivid-light" ? "hard-light" : value;
+  updateLayerStack();
 }
 setBlendMode(currentBlendValue);
 
@@ -316,21 +405,37 @@ function makeCycler(id, list){
   let index = 0;
   let current = list[0];
 
+  function preload(src){
+    const img = new Image();
+    img.src = src;
+  }
+
   el.src = list[0];
+  preload(list[1 % list.length]);
 
   function advance(){
     index = (index + 1) % list.length;
     current = list[index];
     el.src = current;
+    preload(list[(index + 1) % list.length]);
   }
 
-  return { advance: advance, getCurrent: function(){ return current; } };
+  function back(){
+    index = (index - 1 + list.length) % list.length;
+    current = list[index];
+    el.src = current;
+    preload(list[(index + 1) % list.length]);
+  }
+
+  return { advance: advance, back: back, getCurrent: function(){ return current; } };
 }
 
 let getCurrentA = function(){ return ""; };
 let getCurrentB = function(){ return ""; };
+let getCurrentC = function(){ return ""; };
 let cyclerA = null;
 let cyclerB = null;
+let cyclerC = null;
 
 let mode = "normal";
 let paused = false;
@@ -348,6 +453,7 @@ function startNormalMode(){
   mainTimerId = setInterval(function(){
     cyclerA.advance();
     cyclerB.advance();
+    if (cyclerC) cyclerC.advance();
     scheduleAnalysis();
   }, INTERVAL_MS);
 }
@@ -364,6 +470,7 @@ function startBlendCycleMode(){
       blendCycleIndex = 0;
       cyclerA.advance();
       cyclerB.advance();
+      if (cyclerC) cyclerC.advance();
     }
     setBlendMode(BLEND_CYCLE_MODES[blendCycleIndex]);
     scheduleAnalysis();
@@ -415,6 +522,35 @@ postBtn.addEventListener("click", function(){
   scheduleAnalysisNow();
 });
 
+layerAToggle.addEventListener("change", function(){
+  updateLayerStack();
+  scheduleAnalysis();
+});
+layerBToggle.addEventListener("change", function(){
+  updateLayerStack();
+  scheduleAnalysis();
+});
+layerCToggle.addEventListener("change", function(){
+  updateLayerStack();
+  scheduleAnalysis();
+});
+
+skipBackA.addEventListener("click", function(){ if (cyclerA) { cyclerA.back(); scheduleAnalysis(); } });
+skipFwdA.addEventListener("click", function(){ if (cyclerA) { cyclerA.advance(); scheduleAnalysis(); } });
+skipBackB.addEventListener("click", function(){ if (cyclerB) { cyclerB.back(); scheduleAnalysis(); } });
+skipFwdB.addEventListener("click", function(){ if (cyclerB) { cyclerB.advance(); scheduleAnalysis(); } });
+skipBackC.addEventListener("click", function(){ if (cyclerC) { cyclerC.back(); scheduleAnalysis(); } });
+skipFwdC.addEventListener("click", function(){ if (cyclerC) { cyclerC.advance(); scheduleAnalysis(); } });
+
+function disableLayerC(){
+  layerCToggle.checked = false;
+  layerCToggle.disabled = true;
+  layerCLabel.classList.add("disabledLabel");
+  skipBackC.disabled = true;
+  skipFwdC.disabled = true;
+  updateLayerStack();
+}
+
 Promise.all([
   loadManifest(MANIFEST_A, FOLDER_A),
   loadManifest(MANIFEST_B, FOLDER_B)
@@ -433,6 +569,18 @@ Promise.all([
   scheduleAnalysis();
 }).catch(function(err){
   stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load the photo lists. This page needs to run over http/https (Live Server or your live site) — opening it directly as a file:// path will not work.</div>';
+});
+
+loadManifest(MANIFEST_C, FOLDER_C).then(function(listC){
+  if (listC.length === 0) {
+    disableLayerC();
+    return;
+  }
+  cyclerC = makeCycler("imgC", listC);
+  getCurrentC = cyclerC.getCurrent;
+  updateLayerStack();
+}).catch(function(){
+  disableLayerC();
 });
 
 const STORAGE_KEY = "blendCaptures";
@@ -459,25 +607,27 @@ function scheduleAnalysisNow(){
   analyzeAndCorrect();
 }
 
-function canvasBlendName(v){
-  return v === "vivid-light" ? "hard-light" : v;
+function activeLayerSources(){
+  const arr = [];
+  if (layerAToggle.checked) arr.push(getCurrentA());
+  if (layerBToggle.checked) arr.push(getCurrentB());
+  if (layerCToggle.checked && cyclerC) arr.push(getCurrentC());
+  return arr.filter(function(s){ return !!s; });
 }
 
 function analyzeAndCorrect(){
-  const urlA = getCurrentA();
-  const urlB = getCurrentB();
-  if (!urlA || !urlB) return;
+  const sources = activeLayerSources();
+  if (sources.length === 0) return;
 
-  const imgA = new Image();
-  const imgB = new Image();
+  const imgs = sources.map(function(){ return new Image(); });
   let loaded = 0;
 
-  function onBothLoaded(){
+  function onAllLoaded(){
     actx.clearRect(0, 0, 40, 40);
-    actx.globalCompositeOperation = "source-over";
-    actx.drawImage(imgA, 0, 0, 40, 40);
-    actx.globalCompositeOperation = canvasBlendName(currentBlendValue);
-    actx.drawImage(imgB, 0, 0, 40, 40);
+    imgs.forEach(function(im, i){
+      actx.globalCompositeOperation = i === 0 ? "source-over" : canvasBlendName(currentBlendValue);
+      actx.drawImage(im, 0, 0, 40, 40);
+    });
     actx.globalCompositeOperation = "source-over";
 
     let data;
@@ -503,10 +653,10 @@ function analyzeAndCorrect(){
     applyCorrection(mean, std);
   }
 
-  imgA.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
-  imgB.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
-  imgA.src = urlA;
-  imgB.src = urlB;
+  imgs.forEach(function(im, i){
+    im.onload = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
+    im.src = sources[i];
+  });
 }
 
 function applyCorrection(mean, std){
@@ -531,21 +681,21 @@ function applyCorrection(mean, std){
 function renderLog(){
   captureCountEl.textContent = captures.length + " captured";
   logEl.innerHTML = captures.slice().reverse().map(function(c){
-    return '<div>' + c.a + '  +  ' + c.b + '  (' + c.blend + ')</div>';
+    return '<div>' + c.sources.join("  +  ") + '  (' + c.blend + ')</div>';
   }).join("");
 }
 renderLog();
 
 function capture(){
   const entry = {
-    a: getCurrentA(),
-    b: getCurrentB(),
+    sources: activeLayerSources(),
     blend: currentBlendValue,
     cropped: cropToggle.checked,
     fullRes: fullResToggle.checked,
     filter: stageInner.style.filter || "none",
     time: new Date().toISOString()
   };
+  if (entry.sources.length === 0) return;
   captures.push(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
   renderLog();
@@ -597,48 +747,46 @@ function baseName(path){
 
 function downloadCaptureImage(entry){
   const FIXED_SIZE = 1600;
-  const imgA = new Image();
-  const imgB = new Image();
+  const imgs = entry.sources.map(function(){ return new Image(); });
   let loaded = 0;
 
-  function onBothLoaded(){
-    const areaA = imgA.naturalWidth * imgA.naturalHeight;
-    const areaB = imgB.naturalWidth * imgB.naturalHeight;
-    const bigger = areaA >= areaB ? imgA : imgB;
+  function onAllLoaded(){
+    let biggest = imgs[0];
+    imgs.forEach(function(im){
+      if (im.naturalWidth * im.naturalHeight > biggest.naturalWidth * biggest.naturalHeight) {
+        biggest = im;
+      }
+    });
 
     let canvasW, canvasH;
     if (entry.cropped) {
-      const maxNative = Math.max(bigger.naturalWidth, bigger.naturalHeight);
+      const maxNative = Math.max(biggest.naturalWidth, biggest.naturalHeight);
       const size = entry.fullRes ? maxNative : FIXED_SIZE;
       canvasW = size;
       canvasH = size;
     } else if (entry.fullRes) {
-      canvasW = bigger.naturalWidth;
-      canvasH = bigger.naturalHeight;
+      canvasW = biggest.naturalWidth;
+      canvasH = biggest.naturalHeight;
     } else {
-      const scale = FIXED_SIZE / Math.max(bigger.naturalWidth, bigger.naturalHeight);
-      canvasW = Math.round(bigger.naturalWidth * scale);
-      canvasH = Math.round(bigger.naturalHeight * scale);
+      const scale = FIXED_SIZE / Math.max(biggest.naturalWidth, biggest.naturalHeight);
+      canvasW = Math.round(biggest.naturalWidth * scale);
+      canvasH = Math.round(biggest.naturalHeight * scale);
     }
 
     const canvas = document.createElement("canvas");
     canvas.width = canvasW;
     canvas.height = canvasH;
     const ctx = canvas.getContext("2d");
-    ctx.globalCompositeOperation = "source-over";
-    if (entry.cropped) {
-      drawCover(ctx, imgA, canvasW, canvasH);
-      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
-      drawCover(ctx, imgB, canvasW, canvasH);
-    } else if (entry.fullRes) {
-      drawCenteredNative(ctx, imgA, canvasW, canvasH);
-      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
-      drawCenteredNative(ctx, imgB, canvasW, canvasH);
-    } else {
-      drawContain(ctx, imgA, canvasW, canvasH);
-      ctx.globalCompositeOperation = canvasBlendName(entry.blend);
-      drawContain(ctx, imgB, canvasW, canvasH);
-    }
+    imgs.forEach(function(im, i){
+      ctx.globalCompositeOperation = i === 0 ? "source-over" : canvasBlendName(entry.blend);
+      if (entry.cropped) {
+        drawCover(ctx, im, canvasW, canvasH);
+      } else if (entry.fullRes) {
+        drawCenteredNative(ctx, im, canvasW, canvasH);
+      } else {
+        drawContain(ctx, im, canvasW, canvasH);
+      }
+    });
     ctx.globalCompositeOperation = "source-over";
 
     const activeFilter = entry.filter;
@@ -657,17 +805,18 @@ function downloadCaptureImage(entry){
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       const stamp = entry.time.replace(/[:.]/g, "-");
+      const names = entry.sources.map(baseName).join("_");
       link.href = url;
-      link.download = "blend_" + baseName(entry.a) + "_" + baseName(entry.b) + "_" + entry.blend + "_" + stamp + ".png";
+      link.download = "blend_" + names + "_" + entry.blend + "_" + stamp + ".png";
       link.click();
       URL.revokeObjectURL(url);
     }, "image/png");
   }
 
-  imgA.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
-  imgB.onload = function(){ loaded++; if (loaded === 2) onBothLoaded(); };
-  imgA.src = entry.a;
-  imgB.src = entry.b;
+  imgs.forEach(function(im, i){
+    im.onload = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
+    im.src = entry.sources[i];
+  });
 }
 
 document.addEventListener("keydown", function(e){
