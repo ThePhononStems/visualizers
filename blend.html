@@ -95,6 +95,10 @@ body{
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
     <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
+  <div class="controls urlRow">
+    <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
+    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
+  </div>
 
   <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
@@ -352,9 +356,10 @@ select:disabled{
 <script>
 /* ============================================================
    Default sources for each layer. These are only used the
-   first time the page loads -- once you paste an album URL
-   into the box on the page itself, that choice is saved in
-   the browser and used from then on, overriding this.
+   first time the page loads with nothing else specified --
+   a link with ?a=...&b=...&c=... album URLs takes priority
+   over everything, then a saved choice in this browser,
+   then finally these defaults.
    ============================================================ */
 const FLICKR_API_KEY = "93e2c36e6750f5f66de8c917ce5b5db0";
 const LAYER_SOURCES = {
@@ -402,9 +407,9 @@ const skipFwdB = document.getElementById("skipFwdB");
 const skipBackC = document.getElementById("skipBackC");
 const skipFwdC = document.getElementById("skipFwdC");
 
-let getCurrentA = function(){ return ""; };
-let getCurrentB = function(){ return ""; };
-let getCurrentC = function(){ return ""; };
+let getCurrentA = function(){ return null; };
+let getCurrentB = function(){ return null; };
+let getCurrentC = function(){ return null; };
 let cyclerA = null;
 let cyclerB = null;
 let cyclerC = null;
@@ -496,7 +501,10 @@ async function loadManifest(path, folder){
   return text.split("\n")
     .map(function(line){ return line.trim(); })
     .filter(function(line){ return line.length > 0 && line[0] !== "#"; })
-    .map(function(name){ return folder + name; });
+    .map(function(name){
+      const url = folder + name;
+      return { display: url, full: url, title: name, album: "Local folder", dateupload: null };
+    });
 }
 
 function flickrJsonp(url){
@@ -540,12 +548,40 @@ async function resolveUserId(apiKey, userIdOrUsername){
   return data.user.id;
 }
 
+function normalizeUrl(url){
+  return url.indexOf("http") === 0 ? url : "https:" + url;
+}
+
+function isoFromUnix(unixSeconds){
+  if (!unixSeconds) return null;
+  const n = parseInt(unixSeconds, 10);
+  if (!n) return null;
+  return new Date(n * 1000).toISOString();
+}
+
+function photoToItem(p, albumLabel){
+  const display = p.url_z || p.url_m || p.url_c || p.url_l || p.url_o;
+  const full = p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
+  if (!display || !full) return null;
+  return {
+    display: normalizeUrl(display),
+    full: normalizeUrl(full),
+    title: p.title || "untitled",
+    album: albumLabel,
+    dateupload: isoFromUnix(p.dateupload)
+  };
+}
+
 async function loadFlickrAlbum(cfg){
   const userId = await resolveUserId(cfg.apiKey, cfg.userId);
   const perPage = 500;
   let allPhotos = [];
   let page = 1;
   let totalPages = 1;
+
+  function sleep(ms){
+    return new Promise(function(resolve){ setTimeout(resolve, ms); });
+  }
 
   do {
     const url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos"
@@ -554,7 +590,7 @@ async function loadFlickrAlbum(cfg){
       + "&user_id=" + encodeURIComponent(userId)
       + "&per_page=" + perPage
       + "&page=" + page
-      + "&extras=url_o,url_l,url_c,url_z,url_m";
+      + "&extras=url_o,url_l,url_c,url_z,url_m,date_upload";
     const data = await flickrJsonp(url);
     if (data.stat !== "ok") {
       throw new Error("Flickr API error: " + (data.message || data.stat));
@@ -562,16 +598,15 @@ async function loadFlickrAlbum(cfg){
     allPhotos = allPhotos.concat(data.photoset.photo);
     totalPages = data.photoset.pages;
     page++;
+    if (page <= totalPages) {
+      await sleep(400);
+    }
   } while (page <= totalPages);
 
+  const albumLabel = cfg.sourceUrl || ("Flickr album " + cfg.photosetId);
   return allPhotos
-    .map(function(p){
-      return p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
-    })
-    .filter(Boolean)
-    .map(function(url){
-      return url.indexOf("http") === 0 ? url : "https:" + url;
-    });
+    .map(function(p){ return photoToItem(p, albumLabel); })
+    .filter(Boolean);
 }
 
 async function loadFlickrPage(cfg){
@@ -582,19 +617,15 @@ async function loadFlickrPage(cfg){
     + "&user_id=" + encodeURIComponent(userId)
     + "&page=" + encodeURIComponent(cfg.page)
     + "&per_page=" + encodeURIComponent(perPage)
-    + "&extras=url_o,url_l,url_c,url_z,url_m";
+    + "&extras=url_o,url_l,url_c,url_z,url_m,date_upload";
   const data = await flickrJsonp(url);
   if (data.stat !== "ok") {
     throw new Error("Flickr API error: " + (data.message || data.stat));
   }
+  const albumLabel = "Photostream page " + cfg.page;
   return data.photos.photo
-    .map(function(p){
-      return p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
-    })
-    .filter(Boolean)
-    .map(function(url){
-      return url.indexOf("http") === 0 ? url : "https:" + url;
-    });
+    .map(function(p){ return photoToItem(p, albumLabel); })
+    .filter(Boolean);
 }
 
 function loadLayerSource(cfg){
@@ -617,6 +648,12 @@ const URL_STORAGE_PREFIX = "blendLayerAlbumUrl_";
 
 function savedAlbumUrl(key){
   return localStorage.getItem(URL_STORAGE_PREFIX + key) || "";
+}
+
+function queryAlbumUrl(key){
+  const paramName = { A: "a", B: "b", C: "c" }[key];
+  const params = new URLSearchParams(window.location.search);
+  return params.get(paramName) || "";
 }
 
 function applyLayerList(key, list){
@@ -642,7 +679,7 @@ async function switchLayerToAlbumUrl(key, rawUrl){
     alert("That doesn't look like a Flickr album URL. Expected something like:\nflickr.com/photos/username/albums/72177720123456789");
     return;
   }
-  const cfg = { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId };
+  const cfg = { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: rawUrl };
   try {
     const list = await loadLayerSource(cfg);
     if (list.length === 0) {
@@ -665,7 +702,10 @@ function wireUploadInput(key){
       return f.type.indexOf("image/") === 0;
     });
     if (files.length === 0) return;
-    const list = files.map(function(f){ return URL.createObjectURL(f); });
+    const list = files.map(function(f){
+      const url = URL.createObjectURL(f);
+      return { display: url, full: url, title: f.name, album: "Uploaded by visitor", dateupload: null };
+    });
     applyLayerList(key, list);
   });
 }
@@ -678,8 +718,13 @@ function wireUrlInput(key){
   const btn = document.getElementById("urlLoad" + key);
   const clearBtn = document.getElementById("urlClear" + key);
   const toggle = document.getElementById("layer" + key + "Toggle");
+  const fromQuery = queryAlbumUrl(key);
   const saved = savedAlbumUrl(key);
-  if (saved) input.value = saved;
+  if (fromQuery) {
+    input.value = fromQuery;
+  } else if (saved) {
+    input.value = saved;
+  }
 
   function submit(){
     const val = input.value.trim();
@@ -716,30 +761,59 @@ wireUrlInput("A");
 wireUrlInput("B");
 wireUrlInput("C");
 
-function makeCycler(id, list){
+document.getElementById("shareLinkBtn").addEventListener("click", function(){
+  const base = window.location.origin + window.location.pathname;
+  const params = new URLSearchParams();
+  ["A", "B", "C"].forEach(function(key){
+    const val = document.getElementById("urlInput" + key).value.trim();
+    if (val) params.set(key.toLowerCase(), val);
+  });
+  const qs = params.toString();
+  const link = qs ? base + "?" + qs : base;
+  if (!qs) {
+    alert("None of the Layer boxes have an album URL loaded right now -- nothing to share beyond the default page.");
+    return;
+  }
+  if (navigator.clipboard && navigator.clipboard.writeText) {
+    navigator.clipboard.writeText(link).then(function(){
+      alert("Shareable link copied to your clipboard:\n\n" + link);
+    }).catch(function(){
+      prompt("Copy this link:", link);
+    });
+  } else {
+    prompt("Copy this link:", link);
+  }
+});
+
+function makeCycler(id, rawList){
   const el = document.getElementById(id);
+  const list = rawList.map(function(x){
+    return (typeof x === "string")
+      ? { display: x, full: x, title: baseName(x), album: "", dateupload: null }
+      : x;
+  });
   let index = 0;
   let current = list[0];
 
-  function preload(src){
+  function preload(item){
     const img = new Image();
-    img.src = src;
+    img.src = item.display;
   }
 
-  el.src = list[0];
+  el.src = list[0].display;
   preload(list[1 % list.length]);
 
   function advance(){
     index = (index + 1) % list.length;
     current = list[index];
-    el.src = current;
+    el.src = current.display;
     preload(list[(index + 1) % list.length]);
   }
 
   function back(){
     index = (index - 1 + list.length) % list.length;
     current = list[index];
-    el.src = current;
+    el.src = current.display;
     preload(list[(index + 1) % list.length]);
   }
 
@@ -861,11 +935,18 @@ function disableLayerC(){
 }
 
 function resolveInitialConfig(key, defaultCfg){
+  const fromQuery = queryAlbumUrl(key);
+  if (fromQuery) {
+    const parsed = parseFlickrAlbumUrl(fromQuery);
+    if (parsed) {
+      return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: fromQuery };
+    }
+  }
   const saved = savedAlbumUrl(key);
   if (saved) {
     const parsed = parseFlickrAlbumUrl(saved);
     if (parsed) {
-      return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId };
+      return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: saved };
     }
   }
   return defaultCfg;
@@ -927,19 +1008,19 @@ function scheduleAnalysisNow(){
   analyzeAndCorrect();
 }
 
-function activeLayerSources(){
+function activeLayerItems(){
   const arr = [];
   if (layerAToggle.checked) arr.push(getCurrentA());
   if (layerBToggle.checked) arr.push(getCurrentB());
   if (layerCToggle.checked && cyclerC) arr.push(getCurrentC());
-  return arr.filter(function(s){ return !!s; });
+  return arr.filter(Boolean);
 }
 
 function analyzeAndCorrect(){
-  const sources = activeLayerSources();
-  if (sources.length === 0) return;
+  const items = activeLayerItems();
+  if (items.length === 0) return;
 
-  const imgs = sources.map(function(){ return new Image(); });
+  const imgs = items.map(function(){ return new Image(); });
   let loaded = 0;
 
   function onAllLoaded(){
@@ -975,7 +1056,8 @@ function analyzeAndCorrect(){
 
   imgs.forEach(function(im, i){
     im.onload = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
-    im.src = sources[i];
+    im.onerror = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
+    im.src = items[i].display;
   });
 }
 
@@ -1019,21 +1101,34 @@ function renderLog(){
 }
 renderLog();
 
+/* Draws directly from the live, already-decoded on-screen <img>
+   elements instead of re-fetching by URL -- faster, no extra
+   bandwidth, and avoids re-triggering Flickr rate limits. If the
+   browser blocks reading pixel data back out of the canvas (common
+   for cross-origin images without permissive CORS headers, which
+   is the likely cause if thumbnails were showing as broken icons),
+   this falls back to a plain text card so a capture never shows
+   a literal broken-image icon. */
 function renderThumbnail(entry){
   const THUMB_SIZE = 240;
-  const imgs = entry.sources.map(function(){ return new Image(); });
-  let loaded = 0;
   return new Promise(function(resolve){
-    function onAllLoaded(){
+    try {
+      const activeEls = [];
+      if (layerAToggle.checked) activeEls.push(imgAEl);
+      if (layerBToggle.checked) activeEls.push(imgBEl);
+      if (layerCToggle.checked && cyclerC) activeEls.push(imgCEl);
+
       const canvas = document.createElement("canvas");
       canvas.width = THUMB_SIZE;
       canvas.height = THUMB_SIZE;
       const ctx = canvas.getContext("2d");
-      imgs.forEach(function(im, i){
+      activeEls.forEach(function(im, i){
         ctx.globalCompositeOperation = i === 0 ? "source-over" : canvasBlendName(entry.blend);
         drawCover(ctx, im, THUMB_SIZE, THUMB_SIZE);
       });
       ctx.globalCompositeOperation = "source-over";
+
+      let finalCanvas = canvas;
       if (entry.filter && entry.filter !== "none") {
         const filtered = document.createElement("canvas");
         filtered.width = THUMB_SIZE;
@@ -1041,22 +1136,46 @@ function renderThumbnail(entry){
         const fctx = filtered.getContext("2d");
         fctx.filter = entry.filter;
         fctx.drawImage(canvas, 0, 0);
-        resolve(filtered.toDataURL("image/jpeg", 0.8));
-      } else {
-        resolve(canvas.toDataURL("image/jpeg", 0.8));
+        finalCanvas = filtered;
       }
+      resolve(finalCanvas.toDataURL("image/jpeg", 0.8));
+    } catch (e) {
+      resolve(makeTextThumbnail(entry));
     }
-    imgs.forEach(function(im, i){
-      im.onload = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
-      im.onerror = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
-      im.src = entry.sources[i];
-    });
   });
 }
 
+function makeTextThumbnail(entry){
+  const THUMB_SIZE = 240;
+  const canvas = document.createElement("canvas");
+  canvas.width = THUMB_SIZE;
+  canvas.height = THUMB_SIZE;
+  const ctx = canvas.getContext("2d");
+  ctx.fillStyle = "#1b1b1b";
+  ctx.fillRect(0, 0, THUMB_SIZE, THUMB_SIZE);
+  ctx.fillStyle = "#5ec8ff";
+  ctx.font = "bold 16px Arial";
+  ctx.textAlign = "center";
+  ctx.fillText(entry.blend, THUMB_SIZE / 2, THUMB_SIZE / 2 - 10);
+  ctx.fillStyle = "#9a9a9a";
+  ctx.font = "11px Arial";
+  const label = entry.sources.map(baseName).join(" + ");
+  ctx.fillText(label.length > 30 ? label.slice(0, 30) + "..." : label, THUMB_SIZE / 2, THUMB_SIZE / 2 + 14);
+  ctx.font = "10px Arial";
+  ctx.fillStyle = "#6a6a6a";
+  ctx.fillText("(preview unavailable)", THUMB_SIZE / 2, THUMB_SIZE / 2 + 34);
+  return canvas.toDataURL("image/jpeg", 0.85);
+}
+
 function capture(){
+  const items = activeLayerItems();
+  if (items.length === 0) return;
+
   const entry = {
-    sources: activeLayerSources(),
+    sources: items.map(function(it){ return it.full; }),
+    photoInfo: items.map(function(it){
+      return { title: it.title, album: it.album, dateupload: it.dateupload };
+    }),
     blend: currentBlendValue,
     cropped: cropToggle.checked,
     fullRes: fullResToggle.checked,
@@ -1064,7 +1183,6 @@ function capture(){
     thumb: "",
     time: new Date().toISOString()
   };
-  if (entry.sources.length === 0) return;
   captures.push(entry);
   localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
   renderLog();
