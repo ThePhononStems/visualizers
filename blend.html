@@ -75,6 +75,7 @@ body{
     <span class="ctrlLabel urlLabel">Layer A album:</span>
     <input type="text" id="urlInputA" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadA" class="btn btnSmall">Load</button>
+    <button id="urlClearA" class="btn btnSmall">Clear</button>
     <button id="uploadBtnA" class="btn btnSmall">Upload your own photos</button>
     <input type="file" id="uploadInputA" accept="image/*" multiple style="display:none;">
   </div>
@@ -82,6 +83,7 @@ body{
     <span class="ctrlLabel urlLabel">Layer B album:</span>
     <input type="text" id="urlInputB" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadB" class="btn btnSmall">Load</button>
+    <button id="urlClearB" class="btn btnSmall">Clear</button>
     <button id="uploadBtnB" class="btn btnSmall">Upload your own photos</button>
     <input type="file" id="uploadInputB" accept="image/*" multiple style="display:none;">
   </div>
@@ -89,6 +91,7 @@ body{
     <span class="ctrlLabel urlLabel">Layer C album:</span>
     <input type="text" id="urlInputC" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadC" class="btn btnSmall">Load</button>
+    <button id="urlClearC" class="btn btnSmall">Clear</button>
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
     <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
@@ -673,6 +676,8 @@ wireUploadInput("C");
 function wireUrlInput(key){
   const input = document.getElementById("urlInput" + key);
   const btn = document.getElementById("urlLoad" + key);
+  const clearBtn = document.getElementById("urlClear" + key);
+  const toggle = document.getElementById("layer" + key + "Toggle");
   const saved = savedAlbumUrl(key);
   if (saved) input.value = saved;
 
@@ -684,6 +689,11 @@ function wireUrlInput(key){
   input.addEventListener("keydown", function(e){
     if (e.key === "Enter") submit();
     e.stopPropagation();
+  });
+  clearBtn.addEventListener("click", function(){
+    toggle.checked = false;
+    updateLayerStack();
+    scheduleAnalysis();
   });
 }
 wireUrlInput("A");
