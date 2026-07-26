@@ -1,6 +1,6 @@
 # Add filenames here, one per line, for photos placed in the photosB folder.
 # Lines starting with # are ignored.
 
-2a-BLENDGEN.jpg
+1b-IMAGE.jpg
 2b-image.png
-2c-mixer.png
+3b-image.png
