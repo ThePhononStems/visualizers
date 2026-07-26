@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Flickr Slideshow</title>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+<style>
+*{
+  box-sizing:border-box;
+}
+html,
+body{
+  margin:0;
+  width:100%;
+  height:100%;
+  background:#111;
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+}
+.wrap{
+  max-width:1300px;
+  width:80vw;
+  margin:0 auto;
+  padding:16px 20px;
+}
+.frameOuter{
+  width:100%;
+  height:68vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.stage{
+  position:relative;
+  transition:width 450ms ease, height 450ms ease;
+  background:#fff;
+  border:5px solid #000;
+  border-radius:0;
+  padding:44px;
+  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+}
+.photoViewport{
+  position:relative;
+  width:100%;
+  height:100%;
+  overflow:hidden;
+  background:#fff;
+}
+.slide{
+  position:absolute;
+  inset:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+.slide img{
+  width:100%;
+  height:100%;
+  object-fit:contain;
+  background:#fff;
+}
+.playBadge{
+  position:absolute;
+  bottom:14px;
+  right:14px;
+  width:34px;
+  height:34px;
+  border-radius:50%;
+  background:rgba(0,0,0,0.5);
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  color:#fff;
+  font-size:14px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .3s;
+}
+.playBadge.show{
+  opacity:1;
+}
+
+.controls{
+  display:flex;
+  flex-wrap:wrap;
+  align-items:center;
+  justify-content:center;
+  gap:12px;
+  margin-top:14px;
+}
+.ctrlLabel{
+  font-size:13px;
+  color:#9a9a9a;
+}
+.btn{
+  font-family:"Special Elite","Courier New",Courier,monospace;
+  letter-spacing:0.5px;
+  background:#242424;
+  color:#fff;
+  border:1px solid #2a2a2a;
+  border-radius:8px;
+  padding:8px 14px;
+  font-size:13px;
+  cursor:pointer;
+}
+.btn:hover{
+  background:#303030;
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+}
+.btn.active{
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+}
+.btnNav{
+  padding:6px 12px;
+  font-size:12px;
+  border-color:#a6414f;
+  color:#e08a96;
+}
+.btnNav:hover{
+  background:#3a2226;
+  border-color:#ff8fa3;
+  color:#ff8fa3;
+}
+.hint{
+  font-size:12px;
+  color:#8a8a8a;
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <div class="frameOuter" id="frameOuter">
+    <div class="stage" id="stage">
+      <div class="photoViewport" id="photoViewport">
+        <div class="slide" id="slideA"><img id="imgSlideA"></div>
+        <div class="slide" id="slideB"><img id="imgSlideB"></div>
+        <div class="playBadge" id="playBadge">&#10074;&#10074;</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="prevBtn" class="btn btnNav">&#9664; Previous</button>
+    <button id="playPauseBtn" class="btn btnNav">Pause</button>
+    <button id="nextBtn" class="btn btnNav">Next &#9654;</button>
+  </div>
+
+  <div class="controls">
+    <button id="catSelection" class="btn">Selection</button>
+    <button id="catPortraits" class="btn">Portraits</button>
+    <button id="catNaturalWorld" class="btn">Natural World</button>
+    <button id="catBW" class="btn">B&amp;W</button>
+    <button id="catStructured" class="btn">Structured Environment</button>
+    <span class="hint" id="positionHint"></span>
+  </div>
+</div>
+
+<script>
+const FLICKR_API_KEY = "93e2c36e6750f5f66de8c917ce5b5db0";
+
+/* ============================================================
+   EDIT HERE: each category button points at a Flickr album URL.
+   "Selection" is already set. Ask to have the other four filled
+   in with their real album URLs -- until then, clicking one of
+   the empty ones just shows a friendly message.
+   ============================================================ */
+const CATEGORY_ALBUMS = {
+  Selection: "https://www.flickr.com/photos/swthomson/albums/72177720334848092/",
+  Portraits: "",
+  NaturalWorld: "",
+  BW: "",
+  Structured: ""
+};
+
+const INTERVAL_MS = 2700;
+const TRANSITION_MS = 450;
+const SLIDE_EASING = "cubic-bezier(0.65, 0, 0.35, 1)";
+const STORAGE_KEY = "slideshowAlbumUrl";
+
+const stage = document.getElementById("stage");
+const slideA = document.getElementById("slideA");
+const slideB = document.getElementById("slideB");
+const imgSlideA = document.getElementById("imgSlideA");
+const imgSlideB = document.getElementById("imgSlideB");
+const playBadge = document.getElementById("playBadge");
+const prevBtn = document.getElementById("prevBtn");
+const nextBtn = document.getElementById("nextBtn");
+const playPauseBtn = document.getElementById("playPauseBtn");
+const positionHint = document.getElementById("positionHint");
+
+const catButtons = {
+  Selection: document.getElementById("catSelection"),
+  Portraits: document.getElementById("catPortraits"),
+  NaturalWorld: document.getElementById("catNaturalWorld"),
+  BW: document.getElementById("catBW"),
+  Structured: document.getElementById("catStructured")
+};
+
+/* Corner-wipe transition: the incoming photo reveals itself via
+   an expanding circular clip-path anchored at the top-right
+   corner, rather than sliding horizontally. */
+function setWipeTransition(el, on){
+  el.style.transition = on ? ("clip-path " + TRANSITION_MS + "ms " + SLIDE_EASING) : "none";
+}
+
+const HIDDEN_CLIP = "circle(0% at 50% 50%)";
+const SHOWN_CLIP = "circle(150% at 50% 50%)";
+
+slideA.style.clipPath = SHOWN_CLIP;
+slideB.style.clipPath = HIDDEN_CLIP;
+slideA.style.zIndex = "1";
+slideB.style.zIndex = "1";
+
+let list = [];
+let index = 0;
+let showingA = true;
+let mainTimerId = null;
+let paused = false;
+
+function updatePositionHint(){
+  if (list.length === 0) {
+    positionHint.textContent = "";
+  } else {
+    positionHint.textContent = (index + 1) + " / " + list.length;
+  }
+}
+
+function preloadImage(src){
+  return new Promise(function(resolve){
+    const img = new Image();
+    img.onload = function(){ resolve(img); };
+    img.onerror = function(){ resolve(img); };
+    img.src = src;
+  });
+}
+
+const frameOuter = document.getElementById("frameOuter");
+let currentRatio = 16 / 9;
+const MATTE_TOTAL = 98; /* 44px padding + 5px border, on both sides */
+
+function fitStageToRatio(){
+  const availW = frameOuter.clientWidth;
+  const availH = frameOuter.clientHeight;
+  const contentAvailW = Math.max(availW - MATTE_TOTAL, 10);
+  const contentAvailH = Math.max(availH - MATTE_TOTAL, 10);
+  let cw = contentAvailW;
+  let ch = cw / currentRatio;
+  if (ch > contentAvailH) {
+    ch = contentAvailH;
+    cw = ch * currentRatio;
+  }
+  stage.style.width = Math.round(cw + MATTE_TOTAL) + "px";
+  stage.style.height = Math.round(ch + MATTE_TOTAL) + "px";
+}
+
+function applyAspectRatio(img){
+  if (img.naturalWidth && img.naturalHeight) {
+    currentRatio = img.naturalWidth / img.naturalHeight;
+  }
+  fitStageToRatio();
+}
+
+window.addEventListener("resize", fitStageToRatio);
+
+let transitioning = false;
+
+async function goTo(nextIndex){
+  if (list.length === 0 || transitioning) return;
+  transitioning = true;
+
+  const currentEl = showingA ? slideA : slideB;
+  const incomingEl = showingA ? slideB : slideA;
+  const incomingImg = showingA ? imgSlideB : imgSlideA;
+  const targetSrc = list[nextIndex];
+
+  const loadedImg = await preloadImage(targetSrc);
+  applyAspectRatio(loadedImg);
+
+  incomingImg.src = targetSrc;
+  incomingEl.style.zIndex = "2";
+  currentEl.style.zIndex = "1";
+
+  setWipeTransition(incomingEl, false);
+  incomingEl.style.clipPath = HIDDEN_CLIP;
+  void incomingEl.offsetWidth;
+  setWipeTransition(incomingEl, true);
+
+  requestAnimationFrame(function(){
+    incomingEl.style.clipPath = SHOWN_CLIP;
+  });
+
+  index = nextIndex;
+  showingA = !showingA;
+  updatePositionHint();
+
+  setTimeout(function(){
+    transitioning = false;
+    preloadImage(list[(nextIndex + 1) % list.length]);
+  }, TRANSITION_MS + 50);
+}
+
+function nextSlide(){
+  goTo((index + 1) % list.length);
+}
+function prevSlide(){
+  goTo((index - 1 + list.length) % list.length);
+}
+
+function startTimer(){
+  stopTimer();
+  if (paused || list.length === 0) return;
+  mainTimerId = setInterval(nextSlide, INTERVAL_MS);
+}
+function stopTimer(){
+  clearInterval(mainTimerId);
+  mainTimerId = null;
+}
+
+nextBtn.addEventListener("click", function(){
+  nextSlide();
+});
+prevBtn.addEventListener("click", function(){
+  prevSlide();
+});
+playPauseBtn.addEventListener("click", function(){
+  paused = !paused;
+  playPauseBtn.textContent = paused ? "Play" : "Pause";
+  playBadge.classList.toggle("show", paused);
+  if (paused) {
+    stopTimer();
+  } else {
+    startTimer();
+  }
+});
+
+document.addEventListener("keydown", function(e){
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
+  if (e.key === "ArrowRight") {
+    e.preventDefault();
+    nextSlide();
+  } else if (e.key === "ArrowLeft") {
+    e.preventDefault();
+    prevSlide();
+  }
+});
+
+function flickrJsonp(url){
+  return new Promise(function(resolve, reject){
+    const callbackName = "flickrCb_" + Math.random().toString(36).slice(2);
+    const script = document.createElement("script");
+    let settled = false;
+    window[callbackName] = function(data){
+      settled = true;
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+    script.src = url + "&format=json&jsoncallback=" + callbackName;
+    script.onerror = function(){
+      if (!settled) reject(new Error("Flickr request failed to load"));
+      delete window[callbackName];
+      script.remove();
+    };
+    setTimeout(function(){
+      if (!settled) reject(new Error("Flickr request timed out"));
+    }, 10000);
+    document.body.appendChild(script);
+  });
+}
+
+async function resolveUserId(apiKey, userIdOrUsername){
+  if (/^\d+@N\d+$/.test(userIdOrUsername)) {
+    return userIdOrUsername;
+  }
+  const profileUrl = "https://www.flickr.com/photos/" + encodeURIComponent(userIdOrUsername) + "/";
+  const url = "https://api.flickr.com/services/rest/?method=flickr.urls.lookupUser"
+    + "&api_key=" + encodeURIComponent(apiKey)
+    + "&url=" + encodeURIComponent(profileUrl);
+  const data = await flickrJsonp(url);
+  if (data.stat !== "ok") {
+    throw new Error("Could not resolve Flickr profile '" + userIdOrUsername + "': " + (data.message || data.stat));
+  }
+  return data.user.id;
+}
+
+function normalizeUrl(url){
+  return url.indexOf("http") === 0 ? url : "https:" + url;
+}
+
+function parseFlickrAlbumUrl(text){
+  const m = text.match(/flickr\.com\/photos\/([^\/\s]+)\/albums\/(\d+)/);
+  if (!m) return null;
+  return { userId: m[1], photosetId: m[2] };
+}
+
+function sleep(ms){
+  return new Promise(function(resolve){ setTimeout(resolve, ms); });
+}
+
+async function loadFlickrAlbum(userId, photosetId){
+  const resolvedUserId = await resolveUserId(FLICKR_API_KEY, userId);
+  const perPage = 500;
+  let allPhotos = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos"
+      + "&api_key=" + encodeURIComponent(FLICKR_API_KEY)
+      + "&photoset_id=" + encodeURIComponent(photosetId)
+      + "&user_id=" + encodeURIComponent(resolvedUserId)
+      + "&per_page=" + perPage
+      + "&page=" + page
+      + "&extras=url_z,url_c,url_m,url_l,url_o";
+    const data = await flickrJsonp(url);
+    if (data.stat !== "ok") {
+      throw new Error("Flickr API error: " + (data.message || data.stat));
+    }
+    allPhotos = allPhotos.concat(data.photoset.photo);
+    totalPages = data.photoset.pages;
+    page++;
+    if (page <= totalPages) {
+      await sleep(400);
+    }
+  } while (page <= totalPages);
+
+  return allPhotos
+    .map(function(p){
+      const display = p.url_z || p.url_m || p.url_c || p.url_l || p.url_o;
+      return display ? normalizeUrl(display) : null;
+    })
+    .filter(Boolean);
+}
+
+async function loadAlbumFromUrl(rawUrl){
+  const parsed = parseFlickrAlbumUrl(rawUrl);
+  if (!parsed) {
+    throw new Error("That doesn't look like a Flickr album URL. Expected something like:\nflickr.com/photos/username/albums/72177720123456789");
+  }
+  return loadFlickrAlbum(parsed.userId, parsed.photosetId);
+}
+
+function setActiveCategoryButton(name){
+  Object.keys(catButtons).forEach(function(key){
+    catButtons[key].classList.toggle("active", key === name);
+  });
+}
+
+async function switchAlbum(rawUrl, categoryName){
+  try {
+    const newList = await loadAlbumFromUrl(rawUrl);
+    if (newList.length === 0) {
+      alert("That album returned no photos.");
+      return;
+    }
+    stopTimer();
+    list = newList;
+    index = 0;
+    showingA = true;
+    setWipeTransition(slideA, false);
+    setWipeTransition(slideB, false);
+    slideA.style.clipPath = SHOWN_CLIP;
+    slideB.style.clipPath = HIDDEN_CLIP;
+    slideA.style.zIndex = "1";
+    slideB.style.zIndex = "1";
+    const firstImg = await preloadImage(list[0]);
+    applyAspectRatio(firstImg);
+    imgSlideA.src = list[0];
+    updatePositionHint();
+    localStorage.setItem(STORAGE_KEY, rawUrl);
+    if (categoryName) setActiveCategoryButton(categoryName);
+    if (!paused) startTimer();
+  } catch (err) {
+    alert("Could not load that album: " + err.message);
+  }
+}
+
+Object.keys(catButtons).forEach(function(name){
+  catButtons[name].addEventListener("click", function(){
+    const url = CATEGORY_ALBUMS[name];
+    if (!url) {
+      alert("The \"" + catButtons[name].textContent + "\" category doesn't have an album URL set up yet.");
+      return;
+    }
+    switchAlbum(url, name);
+  });
+});
+
+const savedUrl = localStorage.getItem(STORAGE_KEY) || CATEGORY_ALBUMS.Selection;
+switchAlbum(savedUrl, savedUrl === CATEGORY_ALBUMS.Selection ? "Selection" : null);
+</script>
+
+</body>
+</html>
