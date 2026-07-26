@@ -75,16 +75,22 @@ body{
     <span class="ctrlLabel urlLabel">Layer A album:</span>
     <input type="text" id="urlInputA" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadA" class="btn btnSmall">Load</button>
+    <button id="uploadBtnA" class="btn btnSmall">Upload your own photos</button>
+    <input type="file" id="uploadInputA" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
     <span class="ctrlLabel urlLabel">Layer B album:</span>
     <input type="text" id="urlInputB" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadB" class="btn btnSmall">Load</button>
+    <button id="uploadBtnB" class="btn btnSmall">Upload your own photos</button>
+    <input type="file" id="uploadInputB" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
     <span class="ctrlLabel urlLabel">Layer C album:</span>
     <input type="text" id="urlInputC" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
     <button id="urlLoadC" class="btn btnSmall">Load</button>
+    <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
+    <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
 
   <div class="controls">
@@ -135,10 +141,11 @@ body{
     <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
+    <button id="downloadSheetBtn" class="btn">Download contact sheet</button>
     <button id="clearBtn" class="btn">Clear</button>
   </div>
 
-  <div class="log" id="log"></div>
+  <div class="sheet" id="sheet"></div>
 </div>
 
 <style>
@@ -289,16 +296,52 @@ select:disabled{
   opacity:0.4;
 }
 
-.log{
+.sheet{
   margin-top:20px;
-  max-height:200px;
+  max-height:420px;
   overflow-y:auto;
-  font-size:12px;
-  color:#9a9a9a;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(120px, 1fr));
+  gap:10px;
 }
-.log div{
-  padding:6px 0;
-  border-bottom:1px solid #1e1e1e;
+.sheetCell{
+  position:relative;
+  border-radius:8px;
+  overflow:hidden;
+  background:#1b1b1b;
+  border:1px solid #2a2a2a;
+}
+.sheetCell img{
+  width:100%;
+  aspect-ratio:1/1;
+  object-fit:cover;
+  display:block;
+}
+.sheetCap{
+  font-size:10px;
+  color:#8a8a8a;
+  padding:4px 6px;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.sheetDiscard{
+  position:absolute;
+  top:4px;
+  right:4px;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  border:none;
+  background:rgba(0,0,0,0.6);
+  color:#fff;
+  cursor:pointer;
+  font-size:12px;
+  line-height:1;
+}
+.sheetDiscard:hover{
+  background:#5ec8ff;
+  color:#111;
 }
 </style>
 
@@ -341,7 +384,7 @@ const imgAEl = document.getElementById("imgA");
 const imgBEl = document.getElementById("imgB");
 const imgCEl = document.getElementById("imgC");
 const flash = document.getElementById("flash");
-const logEl = document.getElementById("log");
+const logEl = document.getElementById("sheet");
 const captureCountEl = document.getElementById("captureCount");
 
 const layerAToggle = document.getElementById("layerAToggle");
@@ -563,6 +606,23 @@ function savedAlbumUrl(key){
   return localStorage.getItem(URL_STORAGE_PREFIX + key) || "";
 }
 
+function applyLayerList(key, list){
+  const imgId = "img" + key;
+  const cycler = makeCycler(imgId, list);
+  if (key === "A") { cyclerA = cycler; getCurrentA = cycler.getCurrent; }
+  if (key === "B") { cyclerB = cycler; getCurrentB = cycler.getCurrent; }
+  if (key === "C") {
+    cyclerC = cycler;
+    getCurrentC = cycler.getCurrent;
+    layerCToggle.disabled = false;
+    layerCLabel.classList.remove("disabledLabel");
+    skipBackC.disabled = false;
+    skipFwdC.disabled = false;
+  }
+  updateLayerStack();
+  scheduleAnalysisNow();
+}
+
 async function switchLayerToAlbumUrl(key, rawUrl){
   const parsed = parseFlickrAlbumUrl(rawUrl);
   if (!parsed) {
@@ -570,31 +630,35 @@ async function switchLayerToAlbumUrl(key, rawUrl){
     return;
   }
   const cfg = { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId };
-  const imgId = "img" + key;
   try {
     const list = await loadLayerSource(cfg);
     if (list.length === 0) {
       alert("That album returned no photos.");
       return;
     }
-    const cycler = makeCycler(imgId, list);
-    if (key === "A") { cyclerA = cycler; getCurrentA = cycler.getCurrent; }
-    if (key === "B") { cyclerB = cycler; getCurrentB = cycler.getCurrent; }
-    if (key === "C") {
-      cyclerC = cycler;
-      getCurrentC = cycler.getCurrent;
-      layerCToggle.disabled = false;
-      layerCLabel.classList.remove("disabledLabel");
-      skipBackC.disabled = false;
-      skipFwdC.disabled = false;
-    }
+    applyLayerList(key, list);
     localStorage.setItem(URL_STORAGE_PREFIX + key, rawUrl);
-    updateLayerStack();
-    scheduleAnalysisNow();
   } catch (err) {
     alert("Could not load that album: " + err.message);
   }
 }
+
+function wireUploadInput(key){
+  const btn = document.getElementById("uploadBtn" + key);
+  const input = document.getElementById("uploadInput" + key);
+  btn.addEventListener("click", function(){ input.click(); });
+  input.addEventListener("change", function(){
+    const files = Array.from(input.files || []).filter(function(f){
+      return f.type.indexOf("image/") === 0;
+    });
+    if (files.length === 0) return;
+    const list = files.map(function(f){ return URL.createObjectURL(f); });
+    applyLayerList(key, list);
+  });
+}
+wireUploadInput("A");
+wireUploadInput("B");
+wireUploadInput("C");
 
 function wireUrlInput(key){
   const input = document.getElementById("urlInput" + key);
@@ -907,11 +971,59 @@ function applyCorrection(mean, std){
 
 function renderLog(){
   captureCountEl.textContent = captures.length + " captured";
-  logEl.innerHTML = captures.slice().reverse().map(function(c){
-    return '<div>' + c.sources.join("  +  ") + '  (' + c.blend + ')</div>';
-  }).join("");
+  logEl.innerHTML = "";
+  captures.slice().reverse().forEach(function(c){
+    const realIndex = captures.indexOf(c);
+    const cell = document.createElement("div");
+    cell.className = "sheetCell";
+    cell.innerHTML =
+      '<img src="' + (c.thumb || "") + '" alt="">' +
+      '<div class="sheetCap">' + c.sources.map(baseName).join(" + ") + " (" + c.blend + ")</div>" +
+      '<button class="sheetDiscard" title="Discard">&times;</button>';
+    cell.querySelector(".sheetDiscard").addEventListener("click", function(){
+      captures.splice(realIndex, 1);
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
+      renderLog();
+    });
+    logEl.appendChild(cell);
+  });
 }
 renderLog();
+
+function renderThumbnail(entry){
+  const THUMB_SIZE = 240;
+  const imgs = entry.sources.map(function(){ return new Image(); });
+  let loaded = 0;
+  return new Promise(function(resolve){
+    function onAllLoaded(){
+      const canvas = document.createElement("canvas");
+      canvas.width = THUMB_SIZE;
+      canvas.height = THUMB_SIZE;
+      const ctx = canvas.getContext("2d");
+      imgs.forEach(function(im, i){
+        ctx.globalCompositeOperation = i === 0 ? "source-over" : canvasBlendName(entry.blend);
+        drawCover(ctx, im, THUMB_SIZE, THUMB_SIZE);
+      });
+      ctx.globalCompositeOperation = "source-over";
+      if (entry.filter && entry.filter !== "none") {
+        const filtered = document.createElement("canvas");
+        filtered.width = THUMB_SIZE;
+        filtered.height = THUMB_SIZE;
+        const fctx = filtered.getContext("2d");
+        fctx.filter = entry.filter;
+        fctx.drawImage(canvas, 0, 0);
+        resolve(filtered.toDataURL("image/jpeg", 0.8));
+      } else {
+        resolve(canvas.toDataURL("image/jpeg", 0.8));
+      }
+    }
+    imgs.forEach(function(im, i){
+      im.onload = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
+      im.onerror = function(){ loaded++; if (loaded === imgs.length) onAllLoaded(); };
+      im.src = entry.sources[i];
+    });
+  });
+}
 
 function capture(){
   const entry = {
@@ -920,6 +1032,7 @@ function capture(){
     cropped: cropToggle.checked,
     fullRes: fullResToggle.checked,
     filter: stageInner.style.filter || "none",
+    thumb: "",
     time: new Date().toISOString()
   };
   if (entry.sources.length === 0) return;
@@ -929,7 +1042,44 @@ function capture(){
 
   flash.classList.add("on");
   setTimeout(function(){ flash.classList.remove("on"); }, 80);
+
+  renderThumbnail(entry).then(function(dataUrl){
+    entry.thumb = dataUrl;
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(captures));
+    renderLog();
+  });
 }
+
+function downloadContactSheet(){
+  if (captures.length === 0) {
+    alert("No captures yet -- press I to capture a pairing first.");
+    return;
+  }
+  const cells = captures.map(function(c){
+    return '<div class="cell"><img src="' + c.thumb + '" alt="">' +
+      '<div class="cap">' + c.sources.map(baseName).join(" + ") + " (" + c.blend + ")<br>" + c.time + "</div></div>";
+  }).join("");
+  const html = "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Contact Sheet</title><style>" +
+    "body{background:#111;color:#fff;font-family:Arial,Helvetica,sans-serif;margin:0;padding:30px;}" +
+    "h1{font-size:20px;margin:0 0 20px;}" +
+    ".grid{display:grid;grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));gap:14px;}" +
+    ".cell{background:#1b1b1b;border:1px solid #2a2a2a;border-radius:8px;overflow:hidden;}" +
+    ".cell img{width:100%;aspect-ratio:1/1;object-fit:cover;display:block;}" +
+    ".cap{font-size:11px;color:#9a9a9a;padding:8px 10px;}" +
+    "</style></head><body>" +
+    "<h1>Contact Sheet -- " + captures.length + " blend" + (captures.length === 1 ? "" : "s") + "</h1>" +
+    "<div class='grid'>" + cells + "</div>" +
+    "</body></html>";
+  const blob = new Blob([html], { type: "text/html" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = "contact-sheet-" + Date.now() + ".html";
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+document.getElementById("downloadSheetBtn").addEventListener("click", downloadContactSheet);
 
 function drawCover(ctx, img, w, h){
   const iw = img.naturalWidth;
