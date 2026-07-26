@@ -266,12 +266,19 @@ select:disabled{
 </style>
 
 <script>
-const MANIFEST_A = "photos/list.txt";
-const MANIFEST_B = "photosB/list.txt";
-const MANIFEST_C = "photosC/list.txt";
-const FOLDER_A = "photos/";
-const FOLDER_B = "photosB/";
-const FOLDER_C = "photosC/";
+/* ============================================================
+   EDIT HERE: each layer can pull from a local folder, a Flickr
+   album, or a specific page of a Flickr photostream.
+     Album:  { type: "flickr", apiKey, userId, photosetId }
+     Photostream page: { type: "flickr-page", apiKey, userId, page, perPage }
+   userId can be a plain username (like "swthomson") or the
+   numeric NSID -- either works, the page resolves it either way.
+   ============================================================ */
+const LAYER_SOURCES = {
+  A: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 270, perPage: 100 },
+  B: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 580, perPage: 100 },
+  C: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 1050, perPage: 100 }
+};
 
 const INTERVAL_MS = 2000;
 const BLEND_CYCLE_MODES = ["overlay", "multiply", "vivid-light", "color-dodge", "color-burn", "exclusion", "difference", "hard-light", "screen", "soft-light", "lighter-color", "pin-light"];
@@ -398,6 +405,100 @@ async function loadManifest(path, folder){
     .map(function(line){ return line.trim(); })
     .filter(function(line){ return line.length > 0 && line[0] !== "#"; })
     .map(function(name){ return folder + name; });
+}
+
+function flickrJsonp(url){
+  return new Promise(function(resolve, reject){
+    const callbackName = "flickrCb_" + Math.random().toString(36).slice(2);
+    const script = document.createElement("script");
+    let settled = false;
+
+    window[callbackName] = function(data){
+      settled = true;
+      resolve(data);
+      delete window[callbackName];
+      script.remove();
+    };
+
+    script.src = url + "&format=json&jsoncallback=" + callbackName;
+    script.onerror = function(){
+      if (!settled) reject(new Error("Flickr request failed to load"));
+      delete window[callbackName];
+      script.remove();
+    };
+    setTimeout(function(){
+      if (!settled) reject(new Error("Flickr request timed out"));
+    }, 10000);
+    document.body.appendChild(script);
+  });
+}
+
+async function resolveUserId(apiKey, userIdOrUsername){
+  if (/^\d+@N\d+$/.test(userIdOrUsername)) {
+    return userIdOrUsername;
+  }
+  const url = "https://api.flickr.com/services/rest/?method=flickr.people.findByUsername"
+    + "&api_key=" + encodeURIComponent(apiKey)
+    + "&username=" + encodeURIComponent(userIdOrUsername);
+  const data = await flickrJsonp(url);
+  if (data.stat !== "ok") {
+    throw new Error("Could not resolve Flickr username '" + userIdOrUsername + "': " + (data.message || data.stat));
+  }
+  return data.user.nsid;
+}
+
+async function loadFlickrAlbum(cfg){
+  const userId = await resolveUserId(cfg.apiKey, cfg.userId);
+  const url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos"
+    + "&api_key=" + encodeURIComponent(cfg.apiKey)
+    + "&photoset_id=" + encodeURIComponent(cfg.photosetId)
+    + "&user_id=" + encodeURIComponent(userId)
+    + "&extras=url_o,url_l,url_c,url_z,url_m";
+  const data = await flickrJsonp(url);
+  if (data.stat !== "ok") {
+    throw new Error("Flickr API error: " + (data.message || data.stat));
+  }
+  return data.photoset.photo
+    .map(function(p){
+      return p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
+    })
+    .filter(Boolean)
+    .map(function(url){
+      return url.indexOf("http") === 0 ? url : "https:" + url;
+    });
+}
+
+async function loadFlickrPage(cfg){
+  const perPage = cfg.perPage || 100;
+  const userId = await resolveUserId(cfg.apiKey, cfg.userId);
+  const url = "https://api.flickr.com/services/rest/?method=flickr.people.getPublicPhotos"
+    + "&api_key=" + encodeURIComponent(cfg.apiKey)
+    + "&user_id=" + encodeURIComponent(userId)
+    + "&page=" + encodeURIComponent(cfg.page)
+    + "&per_page=" + encodeURIComponent(perPage)
+    + "&extras=url_o,url_l,url_c,url_z,url_m";
+  const data = await flickrJsonp(url);
+  if (data.stat !== "ok") {
+    throw new Error("Flickr API error: " + (data.message || data.stat));
+  }
+  return data.photos.photo
+    .map(function(p){
+      return p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
+    })
+    .filter(Boolean)
+    .map(function(url){
+      return url.indexOf("http") === 0 ? url : "https:" + url;
+    });
+}
+
+function loadLayerSource(cfg){
+  if (cfg.type === "flickr") {
+    return loadFlickrAlbum(cfg);
+  }
+  if (cfg.type === "flickr-page") {
+    return loadFlickrPage(cfg);
+  }
+  return loadManifest(cfg.manifest, cfg.folder);
 }
 
 function makeCycler(id, list){
@@ -552,13 +653,13 @@ function disableLayerC(){
 }
 
 Promise.all([
-  loadManifest(MANIFEST_A, FOLDER_A),
-  loadManifest(MANIFEST_B, FOLDER_B)
+  loadLayerSource(LAYER_SOURCES.A),
+  loadLayerSource(LAYER_SOURCES.B)
 ]).then(function(results){
   const listA = results[0];
   const listB = results[1];
   if (listA.length === 0 || listB.length === 0) {
-    stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">One of the manifest files is empty. Add filenames to photos/list.txt and photosB/list.txt.</div>';
+    stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Layer A or Layer B returned no photos. Check the manifest file or Flickr album/API key configuration.</div>';
     return;
   }
   cyclerA = makeCycler("imgA", listA);
@@ -568,10 +669,10 @@ Promise.all([
   startCurrentMode();
   scheduleAnalysis();
 }).catch(function(err){
-  stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load the photo lists. This page needs to run over http/https (Live Server or your live site) — opening it directly as a file:// path will not work.</div>';
+  stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load Layer A or Layer B: ' + err.message + '. If using local folders, this page needs to run over http/https, not file://.</div>';
 });
 
-loadManifest(MANIFEST_C, FOLDER_C).then(function(listC){
+loadLayerSource(LAYER_SOURCES.C).then(function(listC){
   if (listC.length === 0) {
     disableLayerC();
     return;
