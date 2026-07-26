@@ -1,19 +1,6 @@
 # Add filenames here, one per line, for photos placed in the photosB folder.
 # Lines starting with # are ignored.
 
-MaiteMarshallBeach.jpg
-RaccoonsLegionOfHonor.jpg
-TheRainInSpainFallsPlainlyOnTheDame.jpg
-USPSBombogenesis.jpg
-ValenciaMuseoCienciasSunset.jpg
-YesseniaRenfeReflection.jpg
-KarlaIowaCityNap.jpg
-MaiteBestPic.jpg
-MaiteJulian.jpg
-ManadaGranVia.jpg
-MicahYoungOceanBeach.jpg
-MomBucky.jpg
-OceanBeachSurfersHippies.jpg
-OldBridgesNeighbors.jpg
-PaHose.jpg
-USPSBombogenesis.jpg
+2a-BLENDGEN.jpg
+2b-image.png
+2c-mixer.png

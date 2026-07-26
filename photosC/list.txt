@@ -1,11 +1,3 @@
-FoodNewcastleGardeners.jpg
-FoodNewcastleWarehouse.jpg
-portada.jpg
-RastroMasks.jpg
-RenfeSecurityGuard.jpg
-SalisburyCrag.jpg
-SalisburyCragSunset2g.jpg
-SalisburyCraig3g.jpg
-SurferOceanBeachSilhouette.jpg
-TeamBuild.jpg
-YogaSutroPark.jpg
+3a-BLENDGEN.jpg
+3b-image.png
+3cmixer.png
