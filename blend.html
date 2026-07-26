@@ -437,14 +437,15 @@ async function resolveUserId(apiKey, userIdOrUsername){
   if (/^\d+@N\d+$/.test(userIdOrUsername)) {
     return userIdOrUsername;
   }
-  const url = "https://api.flickr.com/services/rest/?method=flickr.people.findByUsername"
+  const profileUrl = "https://www.flickr.com/photos/" + encodeURIComponent(userIdOrUsername) + "/";
+  const url = "https://api.flickr.com/services/rest/?method=flickr.urls.lookupUser"
     + "&api_key=" + encodeURIComponent(apiKey)
-    + "&username=" + encodeURIComponent(userIdOrUsername);
+    + "&url=" + encodeURIComponent(profileUrl);
   const data = await flickrJsonp(url);
   if (data.stat !== "ok") {
-    throw new Error("Could not resolve Flickr username '" + userIdOrUsername + "': " + (data.message || data.stat));
+    throw new Error("Could not resolve Flickr profile '" + userIdOrUsername + "': " + (data.message || data.stat));
   }
-  return data.user.nsid;
+  return data.user.id;
 }
 
 async function loadFlickrAlbum(cfg){
