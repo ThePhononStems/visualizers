@@ -71,6 +71,22 @@ body{
     <button id="skipFwdC" class="btn btnSmall">&#9654;</button>
   </div>
 
+  <div class="controls urlRow">
+    <span class="ctrlLabel urlLabel">Layer A album:</span>
+    <input type="text" id="urlInputA" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <button id="urlLoadA" class="btn btnSmall">Load</button>
+  </div>
+  <div class="controls urlRow">
+    <span class="ctrlLabel urlLabel">Layer B album:</span>
+    <input type="text" id="urlInputB" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <button id="urlLoadB" class="btn btnSmall">Load</button>
+  </div>
+  <div class="controls urlRow">
+    <span class="ctrlLabel urlLabel">Layer C album:</span>
+    <input type="text" id="urlInputC" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <button id="urlLoadC" class="btn btnSmall">Load</button>
+  </div>
+
   <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
     <select id="blendSelect">
@@ -207,6 +223,27 @@ select{
   gap:6px;
   cursor:pointer;
 }
+.urlRow{
+  margin-top:8px;
+}
+.urlLabel{
+  flex:none;
+  width:100px;
+}
+.urlInput{
+  flex:1;
+  min-width:200px;
+  background:#242424;
+  color:#fff;
+  border:1px solid #2a2a2a;
+  border-radius:8px;
+  padding:8px 10px;
+  font-size:13px;
+}
+.urlInput:focus{
+  border-color:#5ec8ff;
+  outline:none;
+}
 .hint{
   font-size:12px;
   color:#8a8a8a;
@@ -267,17 +304,16 @@ select:disabled{
 
 <script>
 /* ============================================================
-   EDIT HERE: each layer can pull from a local folder, a Flickr
-   album, or a specific page of a Flickr photostream.
-     Album:  { type: "flickr", apiKey, userId, photosetId }
-     Photostream page: { type: "flickr-page", apiKey, userId, page, perPage }
-   userId can be a plain username (like "swthomson") or the
-   numeric NSID -- either works, the page resolves it either way.
+   Default sources for each layer. These are only used the
+   first time the page loads -- once you paste an album URL
+   into the box on the page itself, that choice is saved in
+   the browser and used from then on, overriding this.
    ============================================================ */
+const FLICKR_API_KEY = "93e2c36e6750f5f66de8c917ce5b5db0";
 const LAYER_SOURCES = {
-  A: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 270, perPage: 100 },
-  B: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 580, perPage: 100 },
-  C: { type: "flickr-page", apiKey: "93e2c36e6750f5f66de8c917ce5b5db0", userId: "swthomson", page: 1050, perPage: 100 }
+  A: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 270, perPage: 100 },
+  B: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 580, perPage: 100 },
+  C: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 1050, perPage: 100 }
 };
 
 const INTERVAL_MS = 2000;
@@ -450,16 +486,29 @@ async function resolveUserId(apiKey, userIdOrUsername){
 
 async function loadFlickrAlbum(cfg){
   const userId = await resolveUserId(cfg.apiKey, cfg.userId);
-  const url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos"
-    + "&api_key=" + encodeURIComponent(cfg.apiKey)
-    + "&photoset_id=" + encodeURIComponent(cfg.photosetId)
-    + "&user_id=" + encodeURIComponent(userId)
-    + "&extras=url_o,url_l,url_c,url_z,url_m";
-  const data = await flickrJsonp(url);
-  if (data.stat !== "ok") {
-    throw new Error("Flickr API error: " + (data.message || data.stat));
-  }
-  return data.photoset.photo
+  const perPage = 500;
+  let allPhotos = [];
+  let page = 1;
+  let totalPages = 1;
+
+  do {
+    const url = "https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos"
+      + "&api_key=" + encodeURIComponent(cfg.apiKey)
+      + "&photoset_id=" + encodeURIComponent(cfg.photosetId)
+      + "&user_id=" + encodeURIComponent(userId)
+      + "&per_page=" + perPage
+      + "&page=" + page
+      + "&extras=url_o,url_l,url_c,url_z,url_m";
+    const data = await flickrJsonp(url);
+    if (data.stat !== "ok") {
+      throw new Error("Flickr API error: " + (data.message || data.stat));
+    }
+    allPhotos = allPhotos.concat(data.photoset.photo);
+    totalPages = data.photoset.pages;
+    page++;
+  } while (page <= totalPages);
+
+  return allPhotos
     .map(function(p){
       return p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
     })
@@ -501,6 +550,71 @@ function loadLayerSource(cfg){
   }
   return loadManifest(cfg.manifest, cfg.folder);
 }
+
+function parseFlickrAlbumUrl(text){
+  const m = text.match(/flickr\.com\/photos\/([^\/\s]+)\/albums\/(\d+)/);
+  if (!m) return null;
+  return { userId: m[1], photosetId: m[2] };
+}
+
+const URL_STORAGE_PREFIX = "blendLayerAlbumUrl_";
+
+function savedAlbumUrl(key){
+  return localStorage.getItem(URL_STORAGE_PREFIX + key) || "";
+}
+
+async function switchLayerToAlbumUrl(key, rawUrl){
+  const parsed = parseFlickrAlbumUrl(rawUrl);
+  if (!parsed) {
+    alert("That doesn't look like a Flickr album URL. Expected something like:\nflickr.com/photos/username/albums/72177720123456789");
+    return;
+  }
+  const cfg = { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId };
+  const imgId = "img" + key;
+  try {
+    const list = await loadLayerSource(cfg);
+    if (list.length === 0) {
+      alert("That album returned no photos.");
+      return;
+    }
+    const cycler = makeCycler(imgId, list);
+    if (key === "A") { cyclerA = cycler; getCurrentA = cycler.getCurrent; }
+    if (key === "B") { cyclerB = cycler; getCurrentB = cycler.getCurrent; }
+    if (key === "C") {
+      cyclerC = cycler;
+      getCurrentC = cycler.getCurrent;
+      layerCToggle.disabled = false;
+      layerCLabel.classList.remove("disabledLabel");
+      skipBackC.disabled = false;
+      skipFwdC.disabled = false;
+    }
+    localStorage.setItem(URL_STORAGE_PREFIX + key, rawUrl);
+    updateLayerStack();
+    scheduleAnalysisNow();
+  } catch (err) {
+    alert("Could not load that album: " + err.message);
+  }
+}
+
+function wireUrlInput(key){
+  const input = document.getElementById("urlInput" + key);
+  const btn = document.getElementById("urlLoad" + key);
+  const saved = savedAlbumUrl(key);
+  if (saved) input.value = saved;
+
+  function submit(){
+    const val = input.value.trim();
+    if (val) switchLayerToAlbumUrl(key, val);
+  }
+  btn.addEventListener("click", submit);
+  input.addEventListener("keydown", function(e){
+    if (e.key === "Enter") submit();
+    e.stopPropagation();
+  });
+}
+wireUrlInput("A");
+wireUrlInput("B");
+wireUrlInput("C");
 
 function makeCycler(id, list){
   const el = document.getElementById(id);
@@ -653,9 +767,20 @@ function disableLayerC(){
   updateLayerStack();
 }
 
+function resolveInitialConfig(key, defaultCfg){
+  const saved = savedAlbumUrl(key);
+  if (saved) {
+    const parsed = parseFlickrAlbumUrl(saved);
+    if (parsed) {
+      return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId };
+    }
+  }
+  return defaultCfg;
+}
+
 Promise.all([
-  loadLayerSource(LAYER_SOURCES.A),
-  loadLayerSource(LAYER_SOURCES.B)
+  loadLayerSource(resolveInitialConfig("A", LAYER_SOURCES.A)),
+  loadLayerSource(resolveInitialConfig("B", LAYER_SOURCES.B))
 ]).then(function(results){
   const listA = results[0];
   const listB = results[1];
@@ -673,7 +798,7 @@ Promise.all([
   stage.innerHTML = '<div style="position:absolute; inset:0; display:flex; align-items:center; justify-content:center; padding:20px; text-align:center; color:#9a9a9a; font-size:13px;">Could not load Layer A or Layer B: ' + err.message + '. If using local folders, this page needs to run over http/https, not file://.</div>';
 });
 
-loadLayerSource(LAYER_SOURCES.C).then(function(listC){
+loadLayerSource(resolveInitialConfig("C", LAYER_SOURCES.C)).then(function(listC){
   if (listC.length === 0) {
     disableLayerC();
     return;
@@ -922,6 +1047,7 @@ function downloadCaptureImage(entry){
 }
 
 document.addEventListener("keydown", function(e){
+  if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
   if (e.key.toLowerCase() === "i") {
     e.preventDefault();
     capture();
