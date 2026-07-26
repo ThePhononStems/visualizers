@@ -691,6 +691,8 @@ function wireUrlInput(key){
     e.stopPropagation();
   });
   clearBtn.addEventListener("click", function(){
+    input.value = "";
+    localStorage.removeItem(URL_STORAGE_PREFIX + key);
     toggle.checked = false;
     updateLayerStack();
     scheduleAnalysis();
