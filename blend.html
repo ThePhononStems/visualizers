@@ -399,6 +399,13 @@ const skipFwdB = document.getElementById("skipFwdB");
 const skipBackC = document.getElementById("skipBackC");
 const skipFwdC = document.getElementById("skipFwdC");
 
+let getCurrentA = function(){ return ""; };
+let getCurrentB = function(){ return ""; };
+let getCurrentC = function(){ return ""; };
+let cyclerA = null;
+let cyclerB = null;
+let cyclerC = null;
+
 function applyCropClass(){
   imgAEl.classList.toggle("cropFill", cropToggle.checked);
   imgBEl.classList.toggle("cropFill", cropToggle.checked);
@@ -712,13 +719,6 @@ function makeCycler(id, list){
 
   return { advance: advance, back: back, getCurrent: function(){ return current; } };
 }
-
-let getCurrentA = function(){ return ""; };
-let getCurrentB = function(){ return ""; };
-let getCurrentC = function(){ return ""; };
-let cyclerA = null;
-let cyclerB = null;
-let cyclerC = null;
 
 let mode = "normal";
 let paused = false;
