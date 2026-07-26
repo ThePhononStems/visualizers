@@ -690,12 +690,26 @@ function wireUrlInput(key){
     if (e.key === "Enter") submit();
     e.stopPropagation();
   });
-  clearBtn.addEventListener("click", function(){
+  clearBtn.addEventListener("click", async function(){
     input.value = "";
     localStorage.removeItem(URL_STORAGE_PREFIX + key);
-    toggle.checked = false;
-    updateLayerStack();
-    scheduleAnalysis();
+    toggle.checked = true;
+    toggle.disabled = false;
+    if (key === "C") {
+      layerCLabel.classList.remove("disabledLabel");
+      skipBackC.disabled = false;
+      skipFwdC.disabled = false;
+    }
+    try {
+      const list = await loadLayerSource(LAYER_SOURCES[key]);
+      if (list.length > 0) {
+        applyLayerList(key, list);
+      } else {
+        alert("The default source for Layer " + key + " returned no photos.");
+      }
+    } catch (err) {
+      alert("Could not reload the default images for Layer " + key + ": " + err.message);
+    }
   });
 }
 wireUrlInput("A");
