@@ -143,6 +143,7 @@ body{
     <button id="downloadBtn" class="btn">Download captures</button>
     <button id="downloadSheetBtn" class="btn">Download contact sheet</button>
     <button id="clearBtn" class="btn">Clear</button>
+    <button id="resetDefaultsBtn" class="btn">Reset to defaults</button>
   </div>
 
   <div class="sheet" id="sheet"></div>
@@ -354,9 +355,9 @@ select:disabled{
    ============================================================ */
 const FLICKR_API_KEY = "93e2c36e6750f5f66de8c917ce5b5db0";
 const LAYER_SOURCES = {
-  A: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 270, perPage: 100 },
-  B: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 580, perPage: 100 },
-  C: { type: "flickr-page", apiKey: FLICKR_API_KEY, userId: "swthomson", page: 1050, perPage: 100 }
+  A: { type: "local", manifest: "photos/list.txt", folder: "photos/" },
+  B: { type: "local", manifest: "photosB/list.txt", folder: "photosB/" },
+  C: { type: "local", manifest: "photosC/list.txt", folder: "photosC/" }
 };
 
 const INTERVAL_MS = 2000;
@@ -1222,6 +1223,16 @@ document.getElementById("clearBtn").addEventListener("click", function(){
   captures = [];
   localStorage.removeItem(STORAGE_KEY);
   renderLog();
+});
+
+document.getElementById("resetDefaultsBtn").addEventListener("click", function(){
+  if (!confirm("This clears any Flickr album URLs you've saved for Layer A/B/C in this browser and reloads with the built-in defaults. Your captures/contact sheet are not affected. Continue?")) {
+    return;
+  }
+  localStorage.removeItem(URL_STORAGE_PREFIX + "A");
+  localStorage.removeItem(URL_STORAGE_PREFIX + "B");
+  localStorage.removeItem(URL_STORAGE_PREFIX + "C");
+  location.reload();
 });
 </script>
 
