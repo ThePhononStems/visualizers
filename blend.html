@@ -64,7 +64,7 @@ body{
     <button id="skipFwdB" class="btn btnSmall">&#9654;</button>
 
     <label class="ctrlLabel toggleLabel" id="layerCLabel">
-      <input type="checkbox" id="layerCToggle">
+      <input type="checkbox" id="layerCToggle" checked>
       Layer C
     </label>
     <button id="skipBackC" class="btn btnSmall">&#9664;</button>
@@ -96,7 +96,7 @@ body{
   <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
     <select id="blendSelect">
-      <option value="overlay" selected>Overlay</option>
+      <option value="overlay">Overlay</option>
       <option value="multiply">Multiply</option>
       <option value="screen">Screen</option>
       <option value="soft-light">Soft light</option>
@@ -106,7 +106,7 @@ body{
       <option value="color-dodge">Color dodge</option>
       <option value="color-burn">Color burn</option>
       <option value="exclusion">Exclusion</option>
-      <option value="difference">Difference</option>
+      <option value="difference" selected>Difference</option>
       <option value="lighter-color">Lighter color (approx.)</option>
     </select>
     <label class="ctrlLabel toggleLabel">
@@ -114,7 +114,7 @@ body{
       Cycle blend modes
     </label>
     <label class="ctrlLabel toggleLabel">
-      <input type="checkbox" id="autoBalance" checked>
+      <input type="checkbox" id="autoBalance">
       Auto-balance exposure
     </label>
     <label class="ctrlLabel toggleLabel">
@@ -129,7 +129,7 @@ body{
 
   <div class="controls">
     <label class="ctrlLabel toggleLabel">
-      <input type="checkbox" id="cropToggle">
+      <input type="checkbox" id="cropToggle" checked>
       Crop to fill (square)
     </label>
     <label class="ctrlLabel toggleLabel">
@@ -399,11 +399,13 @@ const skipFwdB = document.getElementById("skipFwdB");
 const skipBackC = document.getElementById("skipBackC");
 const skipFwdC = document.getElementById("skipFwdC");
 
-cropToggle.addEventListener("change", function(){
+function applyCropClass(){
   imgAEl.classList.toggle("cropFill", cropToggle.checked);
   imgBEl.classList.toggle("cropFill", cropToggle.checked);
   imgCEl.classList.toggle("cropFill", cropToggle.checked);
-});
+}
+cropToggle.addEventListener("change", applyCropClass);
+applyCropClass();
 
 function toggleFullscreen(){
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
