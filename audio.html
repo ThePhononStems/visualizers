@@ -4,6 +4,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Audio Visualizer</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
 
@@ -128,6 +131,32 @@
     color: #000;
     border-color: #fff;
   }
+
+  /* Clickable track list below the visualizer */
+  #trackList {
+    list-style: none;
+    margin: 0;
+    padding: 16px 20px 24px;
+    background: #000;
+    font-family: "Special Elite", "Courier New", Courier, monospace;
+  }
+  #trackList li {
+    font-size: 28px;                 /* ~2x the old title size */
+    line-height: 1.5;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: rgba(255,255,255,0.55);
+    cursor: pointer;
+    padding: 4px 0;
+    transition: color .15s ease, transform .12s ease;
+    width: fit-content;
+  }
+  #trackList li:hover { color: #fff; transform: translateX(4px); }
+  #trackList li[data-active="1"] { color: #fff; }
+  #trackList li[data-active="1"]::before {
+    content: "\25B6  ";              /* ▶ marker on the playing track */
+    font-size: 0.7em;
+  }
 </style>
 </head>
 <body>
@@ -156,11 +185,11 @@
       <option value="neon">Neon</option>
     </select>
 
-    <select id="trackSel" aria-label="Track"></select>
-
     <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
   </div>
 </div>
+
+<ul id="trackList" aria-label="Track list"></ul>
 
 <!-- Media element: crossOrigin anonymous is safe for same-origin files and
      lets you later move audio to a CORS-enabled host without code changes. -->
@@ -194,7 +223,7 @@ const playBtn    = document.getElementById("playBtn");
 const trackTitle = document.getElementById("trackTitle");
 const timeEl     = document.getElementById("time");
 const seek       = document.getElementById("seek");
-const trackSel   = document.getElementById("trackSel");
+const trackList  = document.getElementById("trackList");
 const themeSel   = document.getElementById("themeSel");
 const modeToggles= document.getElementById("modeToggles");
 
@@ -540,11 +569,13 @@ function stop() {
    ============================================================ */
 function loadTrack(idx) {
   idx = (idx + TRACKS.length) % TRACKS.length;
-  trackSel.value = String(idx);
   const t = TRACKS[idx];
   audio.src = encodeURI(t.file);
   trackTitle.textContent = t.title;
   timeEl.textContent = "0:00 / 0:00";
+  // highlight the active item in the list
+  trackList.querySelectorAll("li").forEach((li, i) =>
+    li.dataset.active = (i === idx) ? "1" : "0");
 }
 
 function fmt(s) {
@@ -553,11 +584,16 @@ function fmt(s) {
   return m + ":" + (ss < 10 ? "0" : "") + ss;
 }
 
-// populate track dropdown
+// build clickable track list
 TRACKS.forEach((t, i) => {
-  const o = document.createElement("option");
-  o.value = String(i); o.textContent = t.title;
-  trackSel.appendChild(o);
+  const li = document.createElement("li");
+  li.textContent = t.title;
+  li.addEventListener("click", () => {
+    startIdx = i;
+    loadTrack(i);
+    audio.play();            // clicking a title cues + plays it
+  });
+  trackList.appendChild(li);
 });
 
 // initial track (respect ?track= param)
@@ -597,12 +633,6 @@ seek.addEventListener("input", () => {
   if (audio.duration) audio.currentTime = (seek.value / 1000) * audio.duration;
 });
 
-trackSel.addEventListener("change", () => {
-  startIdx = parseInt(trackSel.value, 10);
-  const wasPlaying = !audio.paused;
-  loadTrack(startIdx);
-  if (wasPlaying) audio.play();
-});
 
 themeSel.addEventListener("change", () => { THEME = themeSel.value; });
 
