@@ -316,7 +316,10 @@ function hsl(h,s,l,a){ return "hsla(" + h + "," + s + "%," + l + "%," + a + ")";
    ============================================================ */
 let W = 0, H = 0, DPR = 1;
 function resize() {
-  DPR = window.devicePixelRatio || 1;
+  // Cap the pixel ratio. Beyond ~1.75x the extra sharpness is invisible
+  // but the per-frame fill/glow cost grows with DPR squared — the main
+  // cause of the animation throttling down after it heats the CPU/GPU.
+  DPR = Math.min(window.devicePixelRatio || 1, 1.75);
   W = canvas.width  = Math.round(canvas.clientWidth  * DPR);
   H = canvas.height = Math.round(canvas.clientHeight * DPR);
 }
@@ -385,21 +388,30 @@ function drawBars() {
     const x = pad + i * (bw + gap);
     const h = Math.max(2 * DPR, v * maxH);
     const pos = i / (NB - 1);
+    const rad = Math.min(bw/2, 4*DPR);
 
-    // glow
-    g.shadowBlur = (THEME === "mono" ? 6 : 18) * DPR * (0.4 + v);
-    g.shadowColor = color(pos, v, 0.9);
+    // Cheap additive glow: a wider, faint bar drawn behind the solid one
+    // using the "lighter" blend. Visually close to shadowBlur but far
+    // cheaper, so it won't throttle the frame rate over time.
+    if (THEME !== "mono") {
+      g.globalCompositeOperation = "lighter";
+      g.fillStyle = color(pos, v, 0.18 + 0.35 * v);
+      const gw = bw + 6 * DPR;
+      roundRect(x - 3 * DPR, baseY - h, gw, h, rad);
+      g.fill();
+      g.globalCompositeOperation = "source-over";
+    }
+
+    // solid core bar
     g.fillStyle = color(pos, v, 0.95);
-    roundRect(x, baseY - h, bw, h, Math.min(bw/2, 4*DPR));
+    roundRect(x, baseY - h, bw, h, rad);
     g.fill();
 
     // mirror reflection
-    g.shadowBlur = 0;
     g.fillStyle = color(pos, v, 0.10);
-    roundRect(x, baseY, bw, h * 0.4, Math.min(bw/2, 4*DPR));
+    roundRect(x, baseY, bw, h * 0.4, rad);
     g.fill();
   }
-  g.shadowBlur = 0;
 
   // kick pulse — a floor line that flashes on the beat
   g.fillStyle = color(0.1, kick, 0.12 + 0.5 * kick);
@@ -435,13 +447,14 @@ function drawRadial() {
     const x2 = cx + Math.cos(ang) * (base + len);
     const y2 = cy + Math.sin(ang) * (base + len);
     const pos = i / N;
-    g.strokeStyle = color(pos, v, 0.9);
+    // Additive blend gives the spokes a glow without per-spoke shadowBlur,
+    // which would throttle the frame rate the same way the bars did.
+    g.globalCompositeOperation = (THEME === "mono") ? "source-over" : "lighter";
+    g.strokeStyle = color(pos, v, 0.85);
     g.lineWidth = (2 + v * 3) * DPR;
-    g.shadowBlur = (THEME === "mono" ? 4 : 14) * DPR;
-    g.shadowColor = color(pos, v, 0.8);
     g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke();
   }
-  g.shadowBlur = 0;
+  g.globalCompositeOperation = "source-over";
 
   // cymbal ring flash — expanding bright ring on cymbal transients
   if (cym > 0.05) {
