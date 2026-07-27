@@ -29,7 +29,7 @@
   #visualizer {
     display: block;
     width: 100%;
-    height: 300px;
+    height: 420px;
     background: #000;
     touch-action: manipulation;
   }
@@ -150,10 +150,10 @@
     </div>
 
     <select id="themeSel" aria-label="Color theme">
-      <option value="neon">Neon</option>
-      <option value="mono">Mono</option>
       <option value="warm">Warm</option>
+      <option value="mono">Mono</option>
       <option value="spectrum">Spectrum</option>
+      <option value="neon">Neon</option>
     </select>
 
     <select id="trackSel" aria-label="Track"></select>
@@ -203,7 +203,7 @@ const modeToggles= document.getElementById("modeToggles");
    ============================================================ */
 const params = new URLSearchParams(location.search);
 let MODE  = params.get("mode")  || "bars";     // bars | radial | wave
-let THEME = params.get("theme") || "neon";     // neon | mono | warm | spectrum
+let THEME = params.get("theme") || "warm";      // warm | mono | spectrum | neon
 const startTrackParam = params.get("track");
 
 /* ============================================================
@@ -217,7 +217,7 @@ function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 16384;                 // ~0.37s time window (16384/44.1kHz); fine frequency resolution
+  analyser.fftSize = 32768;                 // ~0.74s time window (32768/44.1kHz); max the AnalyserNode allows
   analyser.smoothingTimeConstant = 0.72;    // per-bin smoothing (we add our own envelopes)
   source = audioCtx.createMediaElementSource(audio);
   source.connect(analyser);
@@ -423,8 +423,10 @@ function drawRadial() {
   const cx = W / 2, cy = H / 2;
   const kick = lowLevel();
   const cym = cymbalHit();
-  const base = Math.min(W, H) * 0.16 * (1 + kick * 0.5);   // core pulses with kick
-  const maxLen = Math.min(W, H) * 0.30;
+  // Size everything off the available radius so nothing clips top/bottom.
+  const avail = Math.min(W, H) * 0.5 * 0.9;                // 90% of half-canvas
+  const base = avail * 0.32 * (1 + kick * 0.4);            // core pulses with kick
+  const maxLen = avail * 0.5;                              // spoke length
   const N = 96;
 
   radialRot += 0.0015 + kick * 0.01;
@@ -460,8 +462,9 @@ function drawRadial() {
   if (cym > 0.05) {
     g.strokeStyle = color(0.95, 1, cym * 0.8);
     g.lineWidth = 2 * DPR * cym;
+    const ringR = Math.min(avail, base + maxLen * (0.6 + cym * 0.4));
     g.beginPath();
-    g.arc(cx, cy, base + maxLen * (0.6 + cym), 0, Math.PI*2);
+    g.arc(cx, cy, ringR, 0, Math.PI*2);
     g.stroke();
   }
 }
