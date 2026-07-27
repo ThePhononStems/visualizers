@@ -14,19 +14,21 @@ body{
   margin:0;
   width:100%;
   height:100%;
-  background:#111;
   color:#fff;
   font-family:Arial,Helvetica,sans-serif;
+  background-color:#273432;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
+  background-repeat:repeat;
 }
 .wrap{
   max-width:1300px;
   width:80vw;
   margin:0 auto;
-  padding:16px 20px;
+  padding:48px 20px 16px;
 }
 .frameOuter{
   width:100%;
-  height:74vh;
+  height:70vh;
   display:flex;
   align-items:center;
   justify-content:center;
@@ -35,10 +37,11 @@ body{
   position:relative;
   transition:width 450ms ease, height 450ms ease;
   background:#fff;
-  border:5px solid #000;
   border-radius:0;
   padding:44px;
-  box-shadow:0 10px 30px rgba(0,0,0,0.4);
+  box-shadow:
+    0 10px 30px rgba(0,0,0,0.4),
+    0 0 360px 60px rgba(0,0,0,0.5);
 }
 .photoViewport{
   position:relative;
@@ -86,15 +89,27 @@ body{
   gap:12px;
   margin-top:26px;
 }
+.navRow + .catRow{
+  margin-top:44px;
+}
+.catRow + .catRow{
+  margin-top:2px;
+}
 .ctrlLabel{
   font-size:13px;
-  color:#9a9a9a;
+  color:#e8e8e8;
+}
+.catCol{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:5px;
 }
 .btn{
   font-family:"Special Elite","Courier New",Courier,monospace;
   letter-spacing:0.5px;
   background:#242424;
-  color:#fff;
+  color:#cccccc;
   border:1px solid #2a2a2a;
   border-radius:8px;
   padding:8px 14px;
@@ -110,20 +125,23 @@ body{
   border-color:#5ec8ff;
   color:#5ec8ff;
 }
-.btnNav{
-  padding:6px 12px;
-  font-size:12px;
-  border-color:#a6414f;
-  color:#e08a96;
+.navIcon{
+  background:none;
+  border:none;
+  padding:0;
+  font-size:30px;
+  line-height:1;
+  color:#6e918a;
+  cursor:pointer;
 }
-.btnNav:hover{
-  background:#3a2226;
-  border-color:#ff8fa3;
-  color:#ff8fa3;
+.navIcon:hover{
+  color:#8fb0a8;
 }
-.hint{
-  font-size:12px;
-  color:#8a8a8a;
+.catCount{
+  font-family:"Special Elite","Courier New",Courier,monospace;
+  font-size:11px;
+  color:#2c2f2b;
+  min-height:14px;
 }
 </style>
 </head>
@@ -139,19 +157,52 @@ body{
     </div>
   </div>
 
-  <div class="controls">
-    <button id="prevBtn" class="btn btnNav" aria-label="Previous">&#9664;</button>
-    <button id="playPauseBtn" class="btn btnNav" aria-label="Pause">&#9208;</button>
-    <button id="nextBtn" class="btn btnNav" aria-label="Next">&#9654;</button>
+  <div class="controls navRow">
+    <button id="prevBtn" class="navIcon" aria-label="Previous">&#9664;</button>
+    <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
+    <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
   </div>
 
-  <div class="controls">
-    <button id="catSelection" class="btn">Selection</button>
-    <button id="catPortraits" class="btn">Portraits</button>
-    <button id="catNaturalWorld" class="btn">Natural World</button>
-    <button id="catBW" class="btn">B&amp;W</button>
-    <button id="catStructured" class="btn">Structured Environment</button>
-    <span class="hint" id="positionHint"></span>
+  <div class="controls catRow">
+    <div class="catCol">
+      <button id="catFavorites" class="btn">Favorites</button>
+      <span class="catCount" id="countFavorites"></span>
+    </div>
+    <div class="catCol">
+      <button id="catPortraits" class="btn">Portraits</button>
+      <span class="catCount" id="countPortraits"></span>
+    </div>
+    <div class="catCol">
+      <button id="catNaturalWorld" class="btn">Natural World</button>
+      <span class="catCount" id="countNaturalWorld"></span>
+    </div>
+    <div class="catCol">
+      <button id="catBW" class="btn">B&amp;W</button>
+      <span class="catCount" id="countBW"></span>
+    </div>
+    <div class="catCol">
+      <button id="catStructured" class="btn">Structured Environment</button>
+      <span class="catCount" id="countStructured"></span>
+    </div>
+  </div>
+
+  <div class="controls catRow">
+    <div class="catCol">
+      <button id="catDiegeticText" class="btn">Diegetic Text</button>
+      <span class="catCount" id="countDiegeticText"></span>
+    </div>
+    <div class="catCol">
+      <button id="catSunShadow" class="btn">Sun &amp; Shadow</button>
+      <span class="catCount" id="countSunShadow"></span>
+    </div>
+    <div class="catCol">
+      <button id="catReflection" class="btn">Reflection</button>
+      <span class="catCount" id="countReflection"></span>
+    </div>
+    <div class="catCol">
+      <button id="catFood" class="btn">Food</button>
+      <span class="catCount" id="countFood"></span>
+    </div>
   </div>
 </div>
 
@@ -160,16 +211,20 @@ const FLICKR_API_KEY = "93e2c36e6750f5f66de8c917ce5b5db0";
 
 /* ============================================================
    EDIT HERE: each category button points at a Flickr album URL.
-   "Selection" is already set. Ask to have the other four filled
+   "Favorites" is already set. Ask to have the other four filled
    in with their real album URLs -- until then, clicking one of
    the empty ones just shows a friendly message.
    ============================================================ */
 const CATEGORY_ALBUMS = {
-  Selection: "https://www.flickr.com/photos/swthomson/albums/72177720334848092/",
+  Favorites: "https://www.flickr.com/photos/swthomson/albums/72177720334848092/",
   Portraits: "",
   NaturalWorld: "",
   BW: "",
-  Structured: ""
+  Structured: "",
+  DiegeticText: "",
+  SunShadow: "",
+  Reflection: "",
+  Food: ""
 };
 
 const INTERVAL_MS = 2700;
@@ -184,14 +239,28 @@ const playBadge = document.getElementById("playBadge");
 const prevBtn = document.getElementById("prevBtn");
 const nextBtn = document.getElementById("nextBtn");
 const playPauseBtn = document.getElementById("playPauseBtn");
-const positionHint = document.getElementById("positionHint");
 
 const catButtons = {
-  Selection: document.getElementById("catSelection"),
+  Favorites: document.getElementById("catFavorites"),
   Portraits: document.getElementById("catPortraits"),
   NaturalWorld: document.getElementById("catNaturalWorld"),
   BW: document.getElementById("catBW"),
-  Structured: document.getElementById("catStructured")
+  Structured: document.getElementById("catStructured"),
+  DiegeticText: document.getElementById("catDiegeticText"),
+  SunShadow: document.getElementById("catSunShadow"),
+  Reflection: document.getElementById("catReflection"),
+  Food: document.getElementById("catFood")
+};
+const catCounts = {
+  Favorites: document.getElementById("countFavorites"),
+  Portraits: document.getElementById("countPortraits"),
+  NaturalWorld: document.getElementById("countNaturalWorld"),
+  BW: document.getElementById("countBW"),
+  Structured: document.getElementById("countStructured"),
+  DiegeticText: document.getElementById("countDiegeticText"),
+  SunShadow: document.getElementById("countSunShadow"),
+  Reflection: document.getElementById("countReflection"),
+  Food: document.getElementById("countFood")
 };
 
 function sleep(ms){
@@ -202,13 +271,20 @@ let list = [];
 let index = 0;
 let mainTimerId = null;
 let paused = false;
+let activeCategory = null;
+const categoryTotals = {};
 
-function updatePositionHint(){
-  if (list.length === 0) {
-    positionHint.textContent = "";
-  } else {
-    positionHint.textContent = (index + 1) + " / " + list.length;
-  }
+function updateCatCounters(){
+  Object.keys(catCounts).forEach(function(name){
+    const el = catCounts[name];
+    if (name === activeCategory && list.length > 0) {
+      el.textContent = (index + 1) + " / " + list.length;
+    } else if (categoryTotals[name]) {
+      el.textContent = categoryTotals[name] + " photos";
+    } else {
+      el.textContent = "";
+    }
+  });
 }
 
 function preloadImage(src){
@@ -222,7 +298,7 @@ function preloadImage(src){
 
 const frameOuter = document.getElementById("frameOuter");
 let currentRatio = 16 / 9;
-const MATTE_TOTAL = 98; /* 44px padding + 5px border, on both sides */
+const MATTE_TOTAL = 88; /* 44px padding, on both sides */
 
 function fitStageToRatio(){
   const availW = frameOuter.clientWidth;
@@ -276,7 +352,7 @@ async function goTo(nextIndex){
   });
 
   index = nextIndex;
-  updatePositionHint();
+  updateCatCounters();
 
   await sleep(FADE_MS);
   transitioning = false;
@@ -437,6 +513,8 @@ async function switchAlbum(rawUrl, categoryName){
     stopTimer();
     list = newList;
     index = 0;
+    activeCategory = categoryName || activeCategory;
+    if (categoryName) categoryTotals[categoryName] = newList.length;
     photoImg.style.transition = "none";
     photoImg.style.opacity = "0";
     const firstImg = await preloadImage(list[0]);
@@ -448,7 +526,7 @@ async function switchAlbum(rawUrl, categoryName){
     requestAnimationFrame(function(){
       photoImg.style.opacity = "1";
     });
-    updatePositionHint();
+    updateCatCounters();
     localStorage.setItem(STORAGE_KEY, rawUrl);
     if (categoryName) setActiveCategoryButton(categoryName);
     if (!paused) startTimer();
@@ -468,8 +546,8 @@ Object.keys(catButtons).forEach(function(name){
   });
 });
 
-const savedUrl = localStorage.getItem(STORAGE_KEY) || CATEGORY_ALBUMS.Selection;
-switchAlbum(savedUrl, savedUrl === CATEGORY_ALBUMS.Selection ? "Selection" : null);
+const savedUrl = localStorage.getItem(STORAGE_KEY) || CATEGORY_ALBUMS.Favorites;
+switchAlbum(savedUrl, savedUrl === CATEGORY_ALBUMS.Favorites ? "Favorites" : null);
 </script>
 
 </body>
