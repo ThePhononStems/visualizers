@@ -217,7 +217,7 @@ function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
   analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 4096;                  // fine frequency resolution
+  analyser.fftSize = 16384;                 // ~0.37s time window (16384/44.1kHz); fine frequency resolution
   analyser.smoothingTimeConstant = 0.72;    // per-bin smoothing (we add our own envelopes)
   source = audioCtx.createMediaElementSource(audio);
   source.connect(analyser);
