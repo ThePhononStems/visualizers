@@ -360,8 +360,8 @@ function sampleSpectrum(i, count) {
   v *= 0.75 + 0.9 * (i / count);
   // Higher contrast: an expansion curve (gamma > 1) pushes quiet
   // passages down and loud transients up, then a gain restores height.
-  // This makes the dB response feel punchier and more dynamic.
-  v = Math.pow(Math.min(1, v), 1.7) * 1.85;
+  // Gain kept modest so bars rarely hit the ceiling and get clipped.
+  v = Math.pow(Math.min(1, v), 1.7) * 1.4;
   return Math.min(1, v);
 }
 
@@ -374,7 +374,7 @@ function drawBars() {
   const gap = 2 * DPR;
   const bw = (usable - gap * (NB - 1)) / NB;
   const baseY = H * 0.94;
-  const maxH = H * 0.82;
+  const maxH = H * 0.70;
   const kick = lowLevel();
 
   for (let i = 0; i < NB; i++) {
