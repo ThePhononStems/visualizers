@@ -132,16 +132,29 @@
     border-color: #fff;
   }
 
-  /* Clickable track list above the visualizer */
+  /* Two-column layout: track list left, visualizer right */
+  #layout {
+    display: flex;
+    align-items: stretch;
+    gap: 8px;
+    background: #000;
+  }
+  #wrap { flex: 1 1 auto; min-width: 0; }        /* visualizer takes the rest */
+
+  /* Clickable track list on the left */
   #trackList {
+    flex: 0 0 auto;
+    width: 240px;
+    max-width: 32vw;
     list-style: none;
     margin: 0;
-    padding: 24px 20px 16px;
+    padding: 22px 16px;
     background: #000;
     font-family: "Special Elite", "Courier New", Courier, monospace;
+    align-self: center;
   }
   #trackList li {
-    font-size: 28px;                 /* ~2x the old title size */
+    font-size: 20px;                 /* smaller, so the visualizer dominates */
     line-height: 1.5;
     text-transform: uppercase;
     letter-spacing: 1px;
@@ -157,10 +170,17 @@
     content: "\25B6  ";              /* ▶ marker on the playing track */
     font-size: 0.7em;
   }
+
+  /* On narrow screens, stack the list above the visualizer */
+  @media (max-width: 560px) {
+    #layout { flex-direction: column; }
+    #trackList { width: 100%; max-width: none; align-self: stretch; padding: 16px 20px; }
+  }
 </style>
 </head>
 <body>
 
+<div id="layout">
 <ul id="trackList" aria-label="Track list"></ul>
 
 <div id="wrap">
@@ -190,6 +210,7 @@
     <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
   </div>
 </div>
+</div><!-- /layout -->
 
 <!-- Media element: crossOrigin anonymous is safe for same-origin files and
      lets you later move audio to a CORS-enabled host without code changes. -->
@@ -207,10 +228,13 @@
      audio.html?track=SWTAFX%20-%20VAST.mp3
    ============================================================ */
 const TRACKS = [
-  { title: "Stomping Ground",   file: "audios/STOMPING GROUND.mp3" },
-  { title: "Expanse",           file: "audios/SWTAFX - EXPANSE.mp3" },
-  { title: "Worlds Apart",      file: "audios/SWTAFX - Worlds Apart.mp3" },
-  { title: "Espero Al Final", file: "audios/SWTAFX - Espero Al Final.mp3" }
+  { title: "Stomping Ground", file: "audios/SWTAFX - STOMPING GROUND.mp3" },
+  { title: "Expanse",         file: "audios/SWTAFX - EXPANSE.mp3" },
+  { title: "Worlds Apart",    file: "audios/SWTAFX - Worlds Apart.mp3" },
+  { title: "Espero Al Final", file: "audios/SWTAFX - Espero Al Final.mp3" },
+  { title: "Color Burn",      file: "audios/SWTAFX - Color Burn.mp3" },
+  { title: "Fading",          file: "audios/SWTAFX - Fading.mp3" },
+  { title: "Fanfare",         file: "audios/SWTAFX - Fanfare.mp3" }
 ];
 
 /* ============================================================
