@@ -132,11 +132,11 @@
     border-color: #fff;
   }
 
-  /* Clickable track list below the visualizer */
+  /* Clickable track list above the visualizer */
   #trackList {
     list-style: none;
     margin: 0;
-    padding: 16px 20px 24px;
+    padding: 24px 20px 16px;
     background: #000;
     font-family: "Special Elite", "Courier New", Courier, monospace;
   }
@@ -145,14 +145,14 @@
     line-height: 1.5;
     text-transform: uppercase;
     letter-spacing: 1px;
-    color: rgba(255,255,255,0.55);
+    color: #1fbfd4;                  /* teal-blue default */
     cursor: pointer;
     padding: 4px 0;
     transition: color .15s ease, transform .12s ease;
     width: fit-content;
   }
-  #trackList li:hover { color: #fff; transform: translateX(4px); }
-  #trackList li[data-active="1"] { color: #fff; }
+  #trackList li:hover { color: #ff8a3d; transform: translateX(4px); } /* warm, like the bars */
+  #trackList li[data-active="1"] { color: #ff8a3d; }
   #trackList li[data-active="1"]::before {
     content: "\25B6  ";              /* ▶ marker on the playing track */
     font-size: 0.7em;
@@ -160,6 +160,8 @@
 </style>
 </head>
 <body>
+
+<ul id="trackList" aria-label="Track list"></ul>
 
 <div id="wrap">
   <canvas id="visualizer"></canvas>
@@ -188,8 +190,6 @@
     <input id="seek" type="range" min="0" max="1000" value="0" step="1" aria-label="Seek">
   </div>
 </div>
-
-<ul id="trackList" aria-label="Track list"></ul>
 
 <!-- Media element: crossOrigin anonymous is safe for same-origin files and
      lets you later move audio to a CORS-enabled host without code changes. -->
@@ -238,21 +238,33 @@ const startTrackParam = params.get("track");
 /* ============================================================
    WEB AUDIO GRAPH
    ============================================================ */
-let audioCtx = null, analyser = null, source = null;
+let audioCtx = null, analyser = null, waveA = null, source = null;
 let freq = null, time = null;
 let running = false, rafId = null;
 
 function initAudio() {
   if (audioCtx) return;
   audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-  analyser = audioCtx.createAnalyser();
-  analyser.fftSize = 32768;                 // ~0.74s time window (32768/44.1kHz); max the AnalyserNode allows
-  analyser.smoothingTimeConstant = 0.72;    // per-bin smoothing (we add our own envelopes)
   source = audioCtx.createMediaElementSource(audio);
+
+  // FAST analyser for the frequency bars/bands: a small FFT means a short
+  // analysis window, so snare/cymbal transients register immediately.
+  analyser = audioCtx.createAnalyser();
+  analyser.fftSize = 2048;                  // ~46ms window — snappy, low latency
+  analyser.smoothingTimeConstant = 0.5;     // light per-bin smoothing
+
+  // WIDE analyser used only for the oscilloscope waveform display, where a
+  // long time window is what we actually want (~0.74s across the screen).
+  waveA = audioCtx.createAnalyser();
+  waveA.fftSize = 32768;                     // max the AnalyserNode allows
+  waveA.smoothingTimeConstant = 0;
+
   source.connect(analyser);
-  analyser.connect(audioCtx.destination);
+  source.connect(waveA);
+  analyser.connect(audioCtx.destination);    // playback path (one connection is enough)
+
   freq = new Uint8Array(analyser.frequencyBinCount);
-  time = new Uint8Array(analyser.fftSize);
+  time = new Uint8Array(waveA.fftSize);
 }
 
 /* ============================================================
@@ -290,8 +302,8 @@ function bandEnergy(loHz, hiHz) {
 }
 
 function analyze() {
-  analyser.getByteFrequencyData(freq);
-  analyser.getByteTimeDomainData(time);
+  analyser.getByteFrequencyData(freq);       // fast FFT → responsive bars/bands
+  waveA.getByteTimeDomainData(time);         // wide FFT → long waveform window
   for (let b = 0; b < BANDS.length; b++) {
     const raw = bandEnergy(BANDS[b].lo, BANDS[b].hi);
     // envelope
