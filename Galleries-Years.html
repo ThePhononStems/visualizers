@@ -4,12 +4,15 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Year Slider</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Cal+Sans&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
   html, body {
     margin: 0; padding: 0;
     background: transparent;               /* blends into the Google Sites page */
-    font-family: "Spartan", Arial, Helvetica, sans-serif;
+    font-family: "Cal Sans", "Spartan", Arial, Helvetica, sans-serif;
     -webkit-user-select: none; user-select: none;
     overflow: hidden;
   }
@@ -131,19 +134,54 @@ const LINKS = {
   2000: ""
 };
 
-/* Range + order. Newest first (left → right). */
-const START = 2027, END = 2000;
+/* Range + order. Oldest on the left → newest on the right. */
+const START = 2000, END = 2027;
 
-/* Open behavior: "_top" replaces the whole tab (best when embedded);
-   change to "_blank" to open galleries in a new tab. */
-const LINK_TARGET = "_top";
+/* Open behavior: "_blank" opens the gallery in a new tab. This is the
+   reliable choice inside a Google Sites embed, whose sandboxed iframe
+   blocks same-tab ("_top") navigation. */
+const LINK_TARGET = "_blank";
 
-/* Optionally highlight one year as active via ?active=2023 */
-const activeYear = new URLSearchParams(location.search).get("active");
+/* ============================================================
+   WHICH YEAR IS ACTIVE?
+   The slider highlights the year of whatever gallery page it is
+   embedded in. It figures that out automatically from the URL of
+   the containing page. Priority:
+     1. ?active=2023  (manual override, if you ever want it)
+     2. the page that embedded this iframe (document.referrer)
+     3. this page's own URL (useful when opened directly)
+   We match a year by looking for its gallery slug (e.g.
+   "2023-gallery") or the bare year in that URL.
+   ============================================================ */
+function detectActiveYear() {
+  const override = new URLSearchParams(location.search).get("active");
+  if (override) return override;
+
+  // The URL of the page this iframe is embedded in.
+  let ctx = "";
+  try { ctx = document.referrer || ""; } catch (e) {}
+  if (window.location.ancestorOrigins && window.location.ancestorOrigins.length) {
+    ctx += " " + Array.from(window.location.ancestorOrigins).join(" ");
+  }
+  ctx = (ctx + " " + location.href).toLowerCase();
+
+  for (let y = START; y <= END; y++) {
+    const link = (LINKS[y] || "").toLowerCase();
+    const slug = link ? link.split("/").filter(Boolean).pop() : "";  // e.g. "2023-gallery"
+    if (slug && ctx.includes(slug)) return String(y);
+  }
+  // fallback: a bare "/2023" or "2023-" style match
+  for (let y = START; y <= END; y++) {
+    if (ctx.includes("/" + y) || ctx.includes(y + "-gallery")) return String(y);
+  }
+  return null;
+}
+
+const activeYear = detectActiveYear();
 
 const track = document.getElementById("track");
 
-for (let y = START; y >= END; y--) {
+for (let y = START; y <= END; y++) {
   const url = LINKS[y] || "";
   const el = document.createElement(url ? "a" : "span");
   el.className = "year" + (url ? "" : " disabled")
@@ -152,9 +190,18 @@ for (let y = START; y >= END; y--) {
   if (url) {
     el.href = url;
     el.target = LINK_TARGET;
+    el.rel = "noopener";
   }
   track.appendChild(el);
 }
+
+/* On load, scroll to the active year if given, otherwise to the newest
+   (right) end so the years that currently have galleries are in view. */
+requestAnimationFrame(() => {
+  const act = track.querySelector(".year.active");
+  if (act) act.scrollIntoView({ inline: "center", block: "nearest" });
+  else track.scrollLeft = track.scrollWidth;
+});
 
 /* Arrow-button scrolling */
 document.getElementById("left").addEventListener("click",
