@@ -355,7 +355,11 @@ function sampleSpectrum(i, count) {
   let v = peak / 255;
   // tilt: lift the highs so cymbals/hats read as strongly as bass
   v *= 0.75 + 0.9 * (i / count);
-  return Math.min(1, Math.pow(v, 0.9));
+  // Higher contrast: an expansion curve (gamma > 1) pushes quiet
+  // passages down and loud transients up, then a gain restores height.
+  // This makes the dB response feel punchier and more dynamic.
+  v = Math.pow(Math.min(1, v), 1.7) * 1.85;
+  return Math.min(1, v);
 }
 
 // smoothed bar heights for a fluid look
@@ -372,8 +376,9 @@ function drawBars() {
 
   for (let i = 0; i < NB; i++) {
     let v = sampleSpectrum(i, NB);
-    // envelope smoothing per bar
-    const r = v > barVals[i] ? 0.7 : 0.16;
+    // envelope smoothing per bar — near-instant attack for snappy hits,
+    // slightly faster release so bars fall back quickly between transients.
+    const r = v > barVals[i] ? 0.92 : 0.24;
     barVals[i] += (v - barVals[i]) * r;
     v = barVals[i];
 
@@ -452,38 +457,22 @@ function drawWave() {
   const mid = H / 2;
   const kick = lowLevel();
 
-  // oscilloscope waveform
-  g.lineWidth = (2 + kick * 3) * DPR;
+  // Zoomed-out, calmer oscilloscope waveform.
+  // A smaller vertical scale and gentle kick influence keep it from
+  // looking manic; a wider time slice makes the wave read as smoother.
+  g.lineWidth = (2 + kick * 1.5) * DPR;
   g.strokeStyle = color(0.4, 0.6 + overall(), 0.95);
-  g.shadowBlur = (THEME === "mono" ? 6 : 16) * DPR;
+  g.shadowBlur = (THEME === "mono" ? 6 : 14) * DPR;
   g.shadowColor = color(0.4, 0.9, 0.7);
   g.beginPath();
   const step = Math.max(1, Math.floor(time.length / W));
+  const amp = H * 0.26 * (0.85 + kick * 0.25);   // zoomed out (was 0.42, 0.6+kick)
   for (let i = 0, x = 0; i < time.length; i += step, x += (W / (time.length / step))) {
-    const y = mid + ((time[i] - 128) / 128) * (H * 0.42) * (0.6 + kick);
+    const y = mid + ((time[i] - 128) / 128) * amp;
     if (i === 0) g.moveTo(x, y); else g.lineTo(x, y);
   }
   g.stroke();
   g.shadowBlur = 0;
-
-  // spawn particle bursts on snare & cymbal hits
-  const snare = snareHit();
-  const cym = cymbalHit();
-  if (snare > 0.28) spawnBurst(W*0.5, mid, 10 + (snare*30|0), 200, 4*DPR*(0.5+snare));
-  if (cym > 0.22)  spawnBurst(W*(0.2+Math.random()*0.6), H*0.3, 8 + (cym*24|0), 300, 5*DPR*(0.5+cym));
-
-  // update + draw particles
-  for (let i = particles.length - 1; i >= 0; i--) {
-    const p = particles[i];
-    p.x += p.vx; p.y += p.vy; p.vy += 0.05 * DPR; p.life -= 0.02;
-    if (p.life <= 0) { particles.splice(i, 1); continue; }
-    g.globalAlpha = p.life;
-    g.fillStyle = (THEME === "spectrum")
-      ? hsl(p.hue, 90, 60, 1)
-      : color(p.hue/360, p.life, 1);
-    g.beginPath(); g.arc(p.x, p.y, p.size * p.life, 0, Math.PI*2); g.fill();
-  }
-  g.globalAlpha = 1;
 }
 
 function roundRect(x, y, w, h, r) {
