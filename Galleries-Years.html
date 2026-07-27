@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Year Slider</title>
+<style>
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0; padding: 0;
+    background: transparent;               /* blends into the Google Sites page */
+    font-family: "Spartan", Arial, Helvetica, sans-serif;
+    -webkit-user-select: none; user-select: none;
+    overflow: hidden;
+  }
+
+  #slider {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 64px;
+    padding: 0 44px;                       /* room for the arrow buttons */
+    position: relative;
+  }
+
+  /* scrolling track */
+  #track {
+    display: flex;
+    gap: 10px;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    padding: 6px 4px;
+    scrollbar-width: none;                 /* hide scrollbar (Firefox) */
+    cursor: grab;
+  }
+  #track::-webkit-scrollbar { display: none; }  /* hide scrollbar (Chrome/Safari) */
+  #track.dragging { cursor: grabbing; scroll-behavior: auto; }
+
+  .year {
+    flex: 0 0 auto;
+    font-size: 26px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    color: #2b6fd6;                        /* site blue */
+    background: none;
+    border: none;
+    padding: 6px 14px;
+    border-radius: 8px;
+    cursor: pointer;
+    text-decoration: none;
+    line-height: 1;
+    transition: color .15s ease, background .15s ease, transform .12s ease;
+    white-space: nowrap;
+  }
+  .year:hover { color: #d32f2f; transform: translateY(-1px); }   /* red on hover */
+  .year.active { color: #d32f2f; }                               /* red = current year */
+
+  /* years without a gallery link: visible but muted + not clickable */
+  .year.disabled {
+    color: #b9c4d4;
+    cursor: default;
+    pointer-events: none;
+  }
+
+  /* left/right scroll arrows */
+  .arrow {
+    position: absolute;
+    top: 0; bottom: 0;
+    width: 40px;
+    border: none;
+    background: none;
+    color: #2b6fd6;
+    font-size: 26px;
+    cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    z-index: 2;
+  }
+  .arrow:hover { color: #d32f2f; }
+  #left  { left: 0; }
+  #right { right: 0; }
+</style>
+</head>
+<body>
+
+<div id="slider">
+  <button class="arrow" id="left"  aria-label="Scroll left">&#10094;</button>
+  <div id="track"></div>
+  <button class="arrow" id="right" aria-label="Scroll right">&#10095;</button>
+</div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   YEAR → GALLERY LINK MAP
+   Paste each year's gallery URL here. To get a URL: in Google
+   Sites, open the gallery page, click "Copy page link" (or
+   publish and copy the live URL), and paste it below.
+   Any year left as "" (empty) shows greyed-out and non-clickable.
+   ============================================================ */
+const LINKS = {
+  2027: "",
+  2026: "",
+  2025: "",
+  2024: "",
+  2023: "https://www.swtmedia.com/photography-slideshow/galleries/2023-gallery",
+  2022: "https://www.swtmedia.com/photography-slideshow/galleries/2022-gallery",
+  2021: "https://www.swtmedia.com/photography-slideshow/galleries/2021-gallery",
+  2020: "https://www.swtmedia.com/photography-slideshow/galleries/2020-gallery",
+  2019: "https://www.swtmedia.com/photography-slideshow/galleries/2019-gallery",
+  2018: "",
+  2017: "",
+  2016: "",
+  2015: "",
+  2014: "",
+  2013: "",
+  2012: "",
+  2011: "",
+  2010: "",
+  2009: "",
+  2008: "",
+  2007: "",
+  2006: "",
+  2005: "",
+  2004: "",
+  2003: "",
+  2002: "",
+  2001: "",
+  2000: ""
+};
+
+/* Range + order. Newest first (left → right). */
+const START = 2027, END = 2000;
+
+/* Open behavior: "_top" replaces the whole tab (best when embedded);
+   change to "_blank" to open galleries in a new tab. */
+const LINK_TARGET = "_top";
+
+/* Optionally highlight one year as active via ?active=2023 */
+const activeYear = new URLSearchParams(location.search).get("active");
+
+const track = document.getElementById("track");
+
+for (let y = START; y >= END; y--) {
+  const url = LINKS[y] || "";
+  const el = document.createElement(url ? "a" : "span");
+  el.className = "year" + (url ? "" : " disabled")
+                 + (String(y) === activeYear ? " active" : "");
+  el.textContent = y;
+  if (url) {
+    el.href = url;
+    el.target = LINK_TARGET;
+  }
+  track.appendChild(el);
+}
+
+/* Arrow-button scrolling */
+document.getElementById("left").addEventListener("click",
+  () => track.scrollBy({ left: -240, behavior: "smooth" }));
+document.getElementById("right").addEventListener("click",
+  () => track.scrollBy({ left:  240, behavior: "smooth" }));
+
+/* Click-and-drag to scroll (desktop) */
+let down = false, startX = 0, startScroll = 0, moved = 0;
+track.addEventListener("mousedown", e => {
+  down = true; moved = 0;
+  startX = e.pageX; startScroll = track.scrollLeft;
+  track.classList.add("dragging");
+});
+window.addEventListener("mouseup", () => { down = false; track.classList.remove("dragging"); });
+window.addEventListener("mousemove", e => {
+  if (!down) return;
+  const dx = e.pageX - startX;
+  moved += Math.abs(dx);
+  track.scrollLeft = startScroll - dx;
+});
+/* Prevent a drag from also firing the link click */
+track.addEventListener("click", e => {
+  if (moved > 6) { e.preventDefault(); }
+}, true);
+
+/* Mouse wheel scrolls horizontally */
+track.addEventListener("wheel", e => {
+  if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+    track.scrollLeft += e.deltaY;
+    e.preventDefault();
+  }
+}, { passive: false });
+</script>
+</body>
+</html>
