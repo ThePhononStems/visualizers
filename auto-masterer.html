@@ -43,7 +43,15 @@
   .bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:14px}
   .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:.2s}
   .note{color:var(--mut);font-size:12px;margin-top:10px}
+  .sliders{display:grid;grid-template-columns:repeat(auto-fill,minmax(210px,1fr));gap:12px 22px;margin-top:6px}
+  .sl{display:flex;flex-direction:column;gap:3px}
+  .sl label{font-size:12px;color:var(--mut);display:flex;justify-content:space-between;gap:8px}
+  .sl b{color:var(--acc2);font-weight:600}
+  .sl input[type=range]{width:100%;accent-color:var(--acc)}
+  .grp{grid-column:1/-1;font-size:11px;text-transform:uppercase;letter-spacing:.09em;color:var(--acc);margin:12px 0 -2px;font-weight:650}
+  .exp{color:var(--warn);font-size:11px}
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/lamejs/1.2.0/lame.min.js"></script>
 </head>
 <body>
 <header>
@@ -70,47 +78,12 @@
     <div class="findings" id="findings"></div>
 
     <div class="panel" style="margin-top:20px;background:var(--panel2)">
-      <h3>2 · Master settings</h3>
+      <h3>2 · Master console</h3>
+      <div class="sliders" id="sliders"></div>
       <div class="controls">
-        <label class="f">Loudness target (LUFS)
-          <select id="lufs">
-            <option value="-14">-14 · Spotify/YouTube</option>
-            <option value="-16">-16 · Apple Music</option>
-            <option value="-9">-9 · Loud / club</option>
-            <option value="-23">-23 · Broadcast</option>
-          </select>
-        </label>
-        <label class="f">Correction strength
-          <select id="strength">
-            <option value="0.5">Gentle</option>
-            <option value="0.8" selected>Balanced</option>
-            <option value="1.1">Aggressive</option>
-          </select>
-        </label>
-        <label class="f">Character
-          <select id="sat">
-            <option value="0">Clean</option>
-            <option value="0.35" selected>Warm</option>
-            <option value="0.7">Driven</option>
-          </select>
-        </label>
-        <label class="f">Stereo width
-          <select id="width">
-            <option value="1" selected>Natural</option>
-            <option value="1.25">Wide</option>
-            <option value="1.5">Very wide</option>
-          </select>
-        </label>
-        <label class="f">Punch (keep hits)
-          <select id="punch">
-            <option value="0">Off</option>
-            <option value="0.6" selected>Medium</option>
-            <option value="1">Strong</option>
-          </select>
-        </label>
-      </div>
-      <div class="controls">
-        <button id="master">⚡ Auto-master</button>
+        <button id="master">⚡ Render master</button>
+        <button class="sec" id="auto">✨ Auto-set from analysis</button>
+        <button class="sec" id="resetSliders">Reset to defaults</button>
         <button class="sec" id="reset">Load another track</button>
       </div>
       <div class="bar hide" id="progwrap"><i id="prog"></i></div>
@@ -129,13 +102,61 @@
           <audio id="aMast" controls></audio>
         </div>
       </div>
-      <div class="controls"><button id="dl">⬇ Download mastered WAV</button></div>
+      <div class="controls">
+        <label class="f">Format
+          <select id="fmt">
+            <option value="wav">WAV · 16-bit</option>
+            <option value="mp3">MP3 · 320 kbps</option>
+          </select>
+        </label>
+        <button id="dl">⬇ Download master</button>
+      </div>
     </div>
   </div>
 </main>
 <script>
 "use strict";
 const $=id=>document.getElementById(id);
+const val=id=>parseFloat($(id).value);
+
+/* ---------- Slider console definition ---------- */
+const SLIDERS=[
+  {grp:'Tone (all boosts — nothing is cut)'},
+  {id:'strength',label:'Auto EQ fill',    min:0,max:1.5,step:0.05,def:0.8,u:'×'},
+  {id:'body',    label:'Body',            min:0,max:6,  step:0.1, def:2.5,u:'dB',hz:110},
+  {id:'warmth',  label:'Warmth',          min:0,max:6,  step:0.1, def:1.8,u:'dB',hz:230},
+  {id:'presence',label:'Presence',        min:0,max:6,  step:0.1, def:1.5,u:'dB',hz:3000},
+  {id:'air',     label:'Air',             min:0,max:6,  step:0.1, def:2.2,u:'dB',hz:9000},
+  {grp:'Character & harmonics'},
+  {id:'sat',     label:'Saturation',      min:0,max:1,  step:0.02,def:0.35,u:''},
+  {id:'exciter', label:'HF exciter',      min:0,max:1,  step:0.02,def:0.2, u:''},
+  {id:'octave',  label:'Octave shimmer',  min:0,max:0.5,step:0.01,def:0,   u:'',exp:1},
+  {id:'fifth',   label:'Fifth shimmer',   min:0,max:0.5,step:0.01,def:0,   u:'',exp:1},
+  {grp:'Dynamics'},
+  {id:'punch',   label:'Punch (keep hits)',min:0,max:1, step:0.05,def:0.6, u:''},
+  {id:'glueThr', label:'Glue threshold',  min:-40,max:0,step:1,   def:-20, u:'dB'},
+  {id:'glueRat', label:'Glue ratio',      min:1,max:4,  step:0.1, def:2.5, u:':1'},
+  {grp:'Output'},
+  {id:'width',   label:'Stereo width',    min:1,max:1.6,step:0.02,def:1,   u:'×'},
+  {id:'lufs',    label:'Loudness target',  min:-24,max:-6,step:0.5,def:-14, u:'LUFS'},
+  {id:'ceiling', label:'Peak ceiling',    min:-3,max:-0.1,step:0.1,def:-1, u:'dB'},
+];
+function buildSliders(){
+  const box=$('sliders');box.innerHTML='';
+  SLIDERS.forEach(s=>{
+    if(s.grp){const d=document.createElement('div');d.className='grp';d.textContent=s.grp;box.appendChild(d);return;}
+    const wrap=document.createElement('div');wrap.className='sl';
+    const hz=s.hz?` <span style="color:#5b6572">${s.hz>=1000?(s.hz/1000)+'k':s.hz}Hz</span>`:'';
+    const exp=s.exp?' <span class="exp">exp.</span>':'';
+    wrap.innerHTML=`<label>${s.label}${hz}${exp} <b id="v_${s.id}"></b></label>
+      <input type="range" id="${s.id}" min="${s.min}" max="${s.max}" step="${s.step}" value="${s.def}">`;
+    box.appendChild(wrap);
+    const inp=wrap.querySelector('input');
+    const upd=()=>{$('v_'+s.id).textContent=(+inp.value).toFixed(s.step<1?(s.step<0.05?2:1):0)+(s.u?' '+s.u:'');};
+    inp.addEventListener('input',upd);upd();
+  });
+}
+function resetSliders(){SLIDERS.forEach(s=>{if(s.id){$(s.id).value=s.def;$(s.id).dispatchEvent(new Event('input'));}});}
 
 /* ---------- FFT (iterative radix-2) ---------- */
 function fft(re,im){
@@ -307,12 +328,12 @@ function drawFindings(){
    No multiband split (avoids comb-filter/phase artifacts). One in-series signal
    path: broad tonal correction -> warmth low-shelf -> gentle bus "glue". */
 async function renderProcessed(){
-  const strength=parseFloat($('strength').value)*0.7;
+  const strength=val('strength')*0.7;
   const dev=analysis.deviation;
   const oc=new OfflineAudioContext(audioBuf.numberOfChannels,audioBuf.length,audioBuf.sampleRate);
   const src=oc.createBufferSource();src.buffer=audioBuf;
   let node=src;
-  // ADDITIVE EQ: only boost bands that sit below target — never cut.
+  // ADDITIVE auto EQ: only boost bands that sit below target — never cut.
   BANDS.forEach((b,i)=>{
     let gain=Math.max(0,Math.min(6,dev[i]*strength)); // boosts only, clamped 0..6 dB
     if(gain<0.4)return;
@@ -323,22 +344,21 @@ async function renderProcessed(){
     f.gain.value=gain;
     node.connect(f);node=f;
   });
-  // Fixed "fullness" enhancement — always adds body, presence & air (all boosts).
+  // Manual fullness EQ (all boosts) — driven by the sliders.
   const enh=[
-    {type:'peaking',  f:110,  Q:0.7, g:2.5},   // low-end body / weight
-    {type:'peaking',  f:230,  Q:0.8, g:1.8},   // warmth
-    {type:'peaking',  f:3000, Q:0.6, g:1.5},   // presence / clarity
-    {type:'highshelf',f:9000, Q:0.7, g:2.2},   // air / sheen
+    {type:'peaking',  f:110,  Q:0.7, g:val('body')},
+    {type:'peaking',  f:230,  Q:0.8, g:val('warmth')},
+    {type:'peaking',  f:3000, Q:0.6, g:val('presence')},
+    {type:'highshelf',f:9000, Q:0.7, g:val('air')},
   ];
-  enh.forEach(e=>{const f=oc.createBiquadFilter();f.type=e.type;f.frequency.value=e.f;if(e.Q)f.Q.value=e.Q;f.gain.value=e.g;node.connect(f);node=f;});
-  // very gentle subsonic guard (20Hz) — protects headroom, inaudible, no musical cut
+  enh.forEach(e=>{if(e.g<0.1)return;const f=oc.createBiquadFilter();f.type=e.type;f.frequency.value=e.f;if(e.Q)f.Q.value=e.Q;f.gain.value=e.g;node.connect(f);node=f;});
+  // gentle subsonic guard (20Hz) — protects headroom, inaudible, no musical cut
   const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=20;hp.Q.value=0.5;node.connect(hp);node=hp;
-  // Glue compression to even out level so the added energy sits together (parallel).
-  // Attack slows with Punch so transient hits pass BEFORE the comp clamps down.
-  const punch=parseFloat($('punch').value);
+  // Glue compression (parallel). Attack slows with Punch so hits pass first.
+  const punch=val('punch');
   const comp=oc.createDynamicsCompressor();
-  comp.threshold.value=-20;comp.ratio.value=2.5;comp.knee.value=10;
-  comp.attack.value=0.02+punch*0.045; // 20ms -> up to 65ms
+  comp.threshold.value=val('glueThr');comp.ratio.value=val('glueRat');comp.knee.value=10;
+  comp.attack.value=0.02+punch*0.045;
   comp.release.value=0.2;
   node.connect(comp);
   const dry=oc.createGain();dry.gain.value=0.3;node.connect(dry);
@@ -351,44 +371,74 @@ async function renderProcessed(){
 
 /* ---------- JS post: saturation, width, limiter, loudness ---------- */
 function postProcess(buf){
-  const sat=parseFloat($('sat').value);
-  const width=parseFloat($('width').value);
-  const targetLUFS=parseFloat($('lufs').value);
+  const sat=val('sat'), width=val('width'), targetLUFS=val('lufs');
+  const exc=val('exciter'), octave=val('octave'), fifth=val('fifth');
+  const ceilDb=val('ceiling'), sr=buf.sampleRate;
   const n=buf.length;
   const chN=buf.numberOfChannels;
   let l=buf.getChannelData(0).slice();
   let r=chN>1?buf.getChannelData(1).slice():l.slice();
 
-  // Mid/Side stereo width (kept subtle; bass stays mono for solidity)
+  // Mid/Side stereo width
   if(chN>1 && width!==1){
-    for(let i=0;i<n;i++){
-      const m=(l[i]+r[i])*0.5, s=(l[i]-r[i])*0.5*width;
-      l[i]=m+s; r[i]=m-s;
-    }
+    for(let i=0;i<n;i++){const m=(l[i]+r[i])*0.5, s=(l[i]-r[i])*0.5*width;l[i]=m+s;r[i]=m-s;}
   }
-  // Parallel harmonic saturation for "fullness" — adds overtones without
-  // grinding the whole signal. Even+odd harmonics, blended low with the dry.
+  // Parallel harmonic saturation (even+odd), blended low with the dry.
   if(sat>0){
-    const amt=Math.min(0.5,sat*0.5);      // gentle blend ceiling
-    const drive=1+sat*1.6;
-    const sh=x=>{const t=Math.tanh(x*drive)/Math.tanh(drive); return t*0.85 + (x*x*Math.sign(x))*0.15;}; // tanh + a touch of even harmonics
-    for(let i=0;i<n;i++){
-      l[i]=l[i]*(1-amt)+sh(l[i])*amt;
-      r[i]=r[i]*(1-amt)+sh(r[i])*amt;
-    }
+    const amt=Math.min(0.5,sat*0.5), drive=1+sat*1.6;
+    const sh=x=>{const t=Math.tanh(x*drive)/Math.tanh(drive);return t*0.85+(x*x*Math.sign(x))*0.15;};
+    for(let i=0;i<n;i++){l[i]=l[i]*(1-amt)+sh(l[i])*amt;r[i]=r[i]*(1-amt)+sh(r[i])*amt;}
   }
-  // Transient preservation — lift short bright hits so they aren't buried,
-  // applied before loudness/limiting so they punch through the master.
-  transientShape([l,r],buf.sampleRate,parseFloat($('punch').value));
-  // Loudness normalization toward target — but cap how hard we push so the
-  // limiter never has to slam (prevents pumping/distortion). Max +9 dB lift.
+  // HF exciter — generate octave/upper harmonics from the highs and add them back.
+  exciteHigh(l,r,sr,exc);
+  // Octave-up & fifth-up shimmer layers (granular pitch shift, blended low).
+  if(octave>0){const lo=pitchShift(l,2),ro=pitchShift(r,2);for(let i=0;i<n;i++){l[i]+=lo[i]*octave;r[i]+=ro[i]*octave;}}
+  if(fifth>0){const rat=Math.pow(2,7/12);const lf=pitchShift(l,rat),rf=pitchShift(r,rat);for(let i=0;i<n;i++){l[i]+=lf[i]*fifth;r[i]+=rf[i]*fifth;}}
+  // Transient preservation — lift short bright hits before loudness/limiting.
+  transientShape([l,r],sr,val('punch'));
+  // Loudness normalization toward target (capped push so the limiter never slams).
   const curLUFS=lufs([l,r]);
   let gainDb=Math.min(9, targetLUFS-curLUFS);
   let gain=Math.pow(10,gainDb/20);
   for(let i=0;i<n;i++){l[i]*=gain;r[i]*=gain;}
-  // Brickwall look-ahead limiter, ceiling -1 dBFS
-  limiter([l,r],buf.sampleRate,Math.pow(10,-1/20));
-  return {l,r,sr:buf.sampleRate};
+  // Brickwall look-ahead limiter to the chosen ceiling.
+  limiter([l,r],sr,Math.pow(10,ceilDb/20));
+  return {l,r,sr};
+}
+
+/* HF exciter — add generated harmonics from a high-passed copy. */
+function exciteHigh(l,r,sr,amt){
+  if(amt<=0)return;
+  const n=l.length, hpCoef=Math.exp(-2*Math.PI*3000/sr);
+  const doCh=ch=>{let hpIn=0,hpOut=0;for(let i=0;i<n;i++){const hp=hpCoef*(hpOut+ch[i]-hpIn);hpIn=ch[i];hpOut=hp;
+    const harm=Math.tanh(hp*3)*0.5+hp*Math.abs(hp)*0.5; ch[i]+=harm*amt*0.6;}};
+  doCh(l);doCh(r);
+}
+
+/* WSOLA pitch shifter — time-stretch by ratio (grains phase-aligned to the
+   waveform's natural continuation via cross-correlation), then resample by
+   1/ratio. Correlation alignment keeps the shift in tune. Tempo preserved. */
+function pitchShift(x,ratio){
+  const N=x.length, G=1024, Hs=G>>2, Ha=Hs/ratio, seek=Hs>>1;
+  const win=new Float32Array(G);for(let i=0;i<G;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(G-1));
+  const M=Math.ceil(N*ratio)+G+seek+4;
+  const st=new Float32Array(M), norm=new Float32Array(M);
+  let sIn=0,sOut=0,prevTail=null;
+  while(sIn+G+seek<N && sOut+G<M){
+    let base=Math.floor(sIn), off=0;
+    if(prevTail){
+      let best=-1e18;
+      for(let d=-seek;d<=seek;d++){const b=base+d;if(b<0||b+G>=N)continue;let c=0;for(let k=0;k<G;k+=4)c+=x[b+k]*prevTail[k];if(c>best){best=c;off=d;}}
+    }
+    const b=base+off;
+    for(let k=0;k<G;k++){st[sOut+k]+=x[b+k]*win[k];norm[sOut+k]+=win[k];}
+    prevTail=new Float32Array(G);for(let k=0;k<G;k++)prevTail[k]=(b+Hs+k<N)?x[b+Hs+k]:0; // natural continuation
+    sIn+=Ha;sOut+=Hs;
+  }
+  for(let i=0;i<M;i++)if(norm[i]>1e-6)st[i]/=norm[i];
+  const out=new Float32Array(N);
+  for(let i=0;i<N;i++){const p=i*ratio,i0=Math.floor(p),f=p-i0;out[i]=(st[i0]||0)*(1-f)+(st[i0+1]||0)*f;}
+  return out;
 }
 
 /* Transient shaper — lifts short high-frequency attacks (e.g. wood-block snare)
@@ -451,11 +501,23 @@ function encodeWAV(l,r,sr){
   return new Blob([buf],{type:'audio/wav'});
 }
 
+/* ---------- MP3 encode (lamejs) ---------- */
+function encodeMP3(l,r,sr){
+  if(typeof lamejs==='undefined')throw new Error('MP3 encoder not loaded');
+  const enc=new lamejs.Mp3Encoder(2,sr,320);
+  const n=l.length, BL=1152, li=new Int16Array(n), ri=new Int16Array(n);
+  for(let i=0;i<n;i++){li[i]=Math.max(-1,Math.min(1,l[i]))*32767;ri[i]=Math.max(-1,Math.min(1,r[i]))*32767;}
+  const data=[];
+  for(let i=0;i<n;i+=BL){const lc=li.subarray(i,i+BL),rc=ri.subarray(i,i+BL);const buf=enc.encodeBuffer(lc,rc);if(buf.length)data.push(new Int8Array(buf));}
+  const end=enc.flush();if(end.length)data.push(new Int8Array(end));
+  return new Blob(data,{type:'audio/mp3'});
+}
+
 /* ---------- Master action ---------- */
 async function doMaster(){
   $('master').disabled=true;$('progwrap').classList.remove('hide');
   const step=(p,t)=>{$('prog').style.width=p+'%';$('status').textContent=t;};
-  step(15,'Applying corrective EQ & multiband compression…');
+  step(15,'Applying EQ, fullness & glue compression…');
   await new Promise(r=>setTimeout(r,30));
   const rendered=await renderProcessed();
   step(55,'Saturation, stereo, limiting & loudness…');
@@ -485,8 +547,33 @@ $('pick').addEventListener('click',()=>$('file').click());
 $('file').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
 $('master').addEventListener('click',doMaster);
 $('reset').addEventListener('click',()=>{$('drop').classList.remove('hide');$('work').classList.add('hide');mastered=null;});
-$('dl').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(mastered.blob);a.download='mastered.wav';a.click();});
+$('resetSliders').addEventListener('click',resetSliders);
+$('auto').addEventListener('click',()=>{
+  if(!analysis)return;
+  // Fill fullness sliders from where the track is weakest vs target.
+  const d=analysis.deviation; // +ve = lacking
+  const pick=(lo,hi,base)=>Math.max(0,Math.min(6,base+ (d.slice(lo,hi).reduce((a,b)=>a+b,0)/(hi-lo))*0.6));
+  $('body').value=pick(0,2,2).toFixed(1);
+  $('warmth').value=pick(2,3,1.5).toFixed(1);
+  $('presence').value=pick(4,5,1.2).toFixed(1);
+  $('air').value=pick(5,7,1.8).toFixed(1);
+  $('strength').value=0.8;$('sat').value=0.35;$('exciter').value=0.2;$('punch').value=0.6;
+  SLIDERS.forEach(s=>{if(s.id)$(s.id).dispatchEvent(new Event('input'));});
+  $('status').textContent='Sliders set from analysis — tweak, then Render master.';
+});
+$('dl').addEventListener('click',()=>{
+  if(!mastered)return;
+  const fmt=$('fmt').value;
+  let blob,ext;
+  try{
+    if(fmt==='mp3'){$('status').textContent='Encoding MP3…';blob=encodeMP3(mastered.l,mastered.r,mastered.sr);ext='mp3';}
+    else{blob=encodeWAV(mastered.l,mastered.r,mastered.sr);ext='wav';}
+  }catch(e){$('status').textContent='MP3 encoder unavailable (offline?) — exported WAV instead.';blob=encodeWAV(mastered.l,mastered.r,mastered.sr);ext='wav';}
+  const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download='mastered.'+ext;a.click();
+  $('status').textContent='Exported mastered.'+ext;
+});
 window.addEventListener('resize',()=>{if(analysis)drawSpectrum();});
+buildSliders();
 </script>
 </body>
 </html>
