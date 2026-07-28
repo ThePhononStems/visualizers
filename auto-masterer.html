@@ -96,8 +96,8 @@
         </label>
         <label class="f">Stereo width
           <select id="width">
-            <option value="1">Natural</option>
-            <option value="1.25" selected>Wide</option>
+            <option value="1" selected>Natural</option>
+            <option value="1.25">Wide</option>
             <option value="1.5">Very wide</option>
           </select>
         </label>
@@ -297,33 +297,39 @@ function drawFindings(){
   el.innerHTML=out.join('');
 }
 
-/* ---------- Offline render: EQ + multiband compression ---------- */
+/* ---------- Offline render: gentle corrective EQ + warmth + glue comp ----------
+   No multiband split (avoids comb-filter/phase artifacts). One in-series signal
+   path: broad tonal correction -> warmth low-shelf -> gentle bus "glue". */
 async function renderProcessed(){
-  const strength=parseFloat($('strength').value);
+  const strength=parseFloat($('strength').value)*0.6; // scaled down: subtle moves
   const dev=analysis.deviation;
   const oc=new OfflineAudioContext(audioBuf.numberOfChannels,audioBuf.length,audioBuf.sampleRate);
   const src=oc.createBufferSource();src.buffer=audioBuf;
   let node=src;
-  // corrective peaking EQ per band
+  // corrective EQ: wider Q, smaller max gain -> musical, low-phase-smear
   BANDS.forEach((b,i)=>{
-    const gain=Math.max(-9,Math.min(9,dev[i]*strength));
-    if(Math.abs(gain)<0.3)return;
-    const f=oc.createBiquadFilter();f.type='peaking';f.frequency.value=b.f;f.Q.value=1.0;f.gain.value=gain;
+    let gain=Math.max(-5,Math.min(5,dev[i]*strength));
+    if(Math.abs(gain)<0.4)return;
+    const f=oc.createBiquadFilter();
+    // shelves at the extremes, gentle peaks in between
+    if(i===0){f.type='lowshelf';f.frequency.value=70;}
+    else if(i===BANDS.length-1){f.type='highshelf';f.frequency.value=11000;}
+    else{f.type='peaking';f.frequency.value=b.f;f.Q.value=0.7;}
+    f.gain.value=gain;
     node.connect(f);node=f;
   });
-  // multiband compression: 3 bands
-  const split=node;
-  const xover=(type,freq,input)=>{const f=oc.createBiquadFilter();f.type=type;f.frequency.value=freq;const g=oc.createBiquadFilter();g.type=type;g.frequency.value=freq;input.connect(f);f.connect(g);return g;};
-  const low=xover('lowpass',180,split);
-  const midHi=xover('highpass',180,split);const mid=xover('lowpass',3000,midHi);
-  const high=xover('highpass',3000,split);
-  const mkComp=(inp,thr,ratio,att,rel)=>{const c=oc.createDynamicsCompressor();c.threshold.value=thr;c.ratio.value=ratio;c.attack.value=att;c.release.value=rel;c.knee.value=6;inp.connect(c);return c;};
-  const cl=mkComp(low,-24,3,0.01,0.2);
-  const cm=mkComp(mid,-22,2.5,0.006,0.12);
-  const ch=mkComp(high,-20,2.5,0.003,0.08);
-  const sum=oc.createGain();sum.gain.value=1;
-  cl.connect(sum);cm.connect(sum);ch.connect(sum);
-  sum.connect(oc.destination);
+  // "Fullness" warmth: subtle low-mid body lift + slight sub-cleanup high-pass
+  const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=24;hp.Q.value=0.5;node.connect(hp);node=hp;
+  const warm=oc.createBiquadFilter();warm.type='peaking';warm.frequency.value=220;warm.Q.value=0.8;warm.gain.value=1.6;node.connect(warm);node=warm;
+  // gentle single-band glue compression (slow, low ratio, soft knee)
+  const comp=oc.createDynamicsCompressor();
+  comp.threshold.value=-18;comp.ratio.value=2;comp.knee.value=12;comp.attack.value=0.03;comp.release.value=0.25;
+  node.connect(comp);
+  // parallel makeup so glue never squashes: blend comp with dry
+  const dry=oc.createGain();dry.gain.value=0.35;node.connect(dry);
+  const wet=oc.createGain();wet.gain.value=0.75;comp.connect(wet);
+  const out=oc.createGain();dry.connect(out);wet.connect(out);
+  out.connect(oc.destination);
   src.start();
   return await oc.startRendering();
 }
@@ -338,21 +344,29 @@ function postProcess(buf){
   let l=buf.getChannelData(0).slice();
   let r=chN>1?buf.getChannelData(1).slice():l.slice();
 
-  // Mid/Side stereo width
-  if(chN>1){
+  // Mid/Side stereo width (kept subtle; bass stays mono for solidity)
+  if(chN>1 && width!==1){
     for(let i=0;i<n;i++){
       const m=(l[i]+r[i])*0.5, s=(l[i]-r[i])*0.5*width;
       l[i]=m+s; r[i]=m-s;
     }
   }
-  // Harmonic saturation (soft tanh drive)
+  // Parallel harmonic saturation for "fullness" — adds overtones without
+  // grinding the whole signal. Even+odd harmonics, blended low with the dry.
   if(sat>0){
-    const drive=1+sat*3, comp=1/Math.tanh(drive);
-    for(let i=0;i<n;i++){l[i]=Math.tanh(l[i]*drive)*comp*(1-sat*0.15)+l[i]*sat*0.15;r[i]=Math.tanh(r[i]*drive)*comp*(1-sat*0.15)+r[i]*sat*0.15;}
+    const amt=Math.min(0.5,sat*0.5);      // gentle blend ceiling
+    const drive=1+sat*1.6;
+    const sh=x=>{const t=Math.tanh(x*drive)/Math.tanh(drive); return t*0.85 + (x*x*Math.sign(x))*0.15;}; // tanh + a touch of even harmonics
+    for(let i=0;i<n;i++){
+      l[i]=l[i]*(1-amt)+sh(l[i])*amt;
+      r[i]=r[i]*(1-amt)+sh(r[i])*amt;
+    }
   }
-  // Loudness normalization toward target (pre-limiter)
+  // Loudness normalization toward target — but cap how hard we push so the
+  // limiter never has to slam (prevents pumping/distortion). Max +9 dB lift.
   const curLUFS=lufs([l,r]);
-  let gain=Math.pow(10,(targetLUFS-curLUFS)/20);
+  let gainDb=Math.min(9, targetLUFS-curLUFS);
+  let gain=Math.pow(10,gainDb/20);
   for(let i=0;i<n;i++){l[i]*=gain;r[i]*=gain;}
   // Brickwall look-ahead limiter, ceiling -1 dBFS
   limiter([l,r],buf.sampleRate,Math.pow(10,-1/20));
@@ -361,8 +375,8 @@ function postProcess(buf){
 
 function limiter(chs,sr,ceil){
   const n=chs[0].length;
-  const look=Math.max(1,Math.round(sr*0.0015)); // 1.5ms lookahead
-  const rel=Math.exp(-1/(sr*0.05));
+  const look=Math.max(1,Math.round(sr*0.002)); // 2ms lookahead
+  const rel=Math.exp(-1/(sr*0.12)); // slower release -> smoother, less pumping
   let env=0;
   // compute gain envelope from delayed peak detection
   const gains=new Float32Array(n).fill(1);
