@@ -101,6 +101,13 @@
             <option value="1.5">Very wide</option>
           </select>
         </label>
+        <label class="f">Punch (keep hits)
+          <select id="punch">
+            <option value="0">Off</option>
+            <option value="0.6" selected>Medium</option>
+            <option value="1">Strong</option>
+          </select>
+        </label>
       </div>
       <div class="controls">
         <button id="master">⚡ Auto-master</button>
@@ -327,8 +334,12 @@ async function renderProcessed(){
   // very gentle subsonic guard (20Hz) — protects headroom, inaudible, no musical cut
   const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=20;hp.Q.value=0.5;node.connect(hp);node=hp;
   // Glue compression to even out level so the added energy sits together (parallel).
+  // Attack slows with Punch so transient hits pass BEFORE the comp clamps down.
+  const punch=parseFloat($('punch').value);
   const comp=oc.createDynamicsCompressor();
-  comp.threshold.value=-20;comp.ratio.value=2.5;comp.knee.value=10;comp.attack.value=0.02;comp.release.value=0.2;
+  comp.threshold.value=-20;comp.ratio.value=2.5;comp.knee.value=10;
+  comp.attack.value=0.02+punch*0.045; // 20ms -> up to 65ms
+  comp.release.value=0.2;
   node.connect(comp);
   const dry=oc.createGain();dry.gain.value=0.3;node.connect(dry);
   const wet=oc.createGain();wet.gain.value=0.85;comp.connect(wet);
@@ -366,6 +377,9 @@ function postProcess(buf){
       r[i]=r[i]*(1-amt)+sh(r[i])*amt;
     }
   }
+  // Transient preservation — lift short bright hits so they aren't buried,
+  // applied before loudness/limiting so they punch through the master.
+  transientShape([l,r],buf.sampleRate,parseFloat($('punch').value));
   // Loudness normalization toward target — but cap how hard we push so the
   // limiter never has to slam (prevents pumping/distortion). Max +9 dB lift.
   const curLUFS=lufs([l,r]);
@@ -375,6 +389,32 @@ function postProcess(buf){
   // Brickwall look-ahead limiter, ceiling -1 dBFS
   limiter([l,r],buf.sampleRate,Math.pow(10,-1/20));
   return {l,r,sr:buf.sampleRate};
+}
+
+/* Transient shaper — lifts short high-frequency attacks (e.g. wood-block snare)
+   so hits cut through the fullness boosts and glue comp instead of being buried.
+   Detection runs on a high-passed signal so it triggers on bright hits, not bass. */
+function transientShape(chs,sr,amount){
+  if(amount<=0)return;
+  const n=chs[0].length;
+  const hpCoef=Math.exp(-2*Math.PI*1800/sr);           // detect content above ~1.8kHz
+  const aFast=Math.exp(-1/(sr*0.0008)), rFast=Math.exp(-1/(sr*0.02));
+  const aSlow=Math.exp(-1/(sr*0.02)),   rSlow=Math.exp(-1/(sr*0.15));
+  let hpIn=0,hpOut=0, ef=0, es=0;
+  const gain=new Float32Array(n);
+  const c1=chs[0], c2=chs[1]||chs[0];
+  for(let i=0;i<n;i++){
+    const mono=(c1[i]+c2[i])*0.5;
+    const hp=hpCoef*(hpOut+mono-hpIn); hpIn=mono; hpOut=hp; // one-pole high-pass
+    const x=Math.abs(hp);
+    ef = x>ef ? aFast*ef+(1-aFast)*x : rFast*ef+(1-rFast)*x; // fast follower
+    es = x>es ? aSlow*es+(1-aSlow)*x : rSlow*es+(1-rSlow)*x; // slow follower
+    const trans=Math.max(0,(ef-es)/(es+1e-4));               // attack "amount"
+    gain[i]=1+amount*Math.min(2.5,trans);                    // boost only on attacks
+  }
+  // apply (broadband boost during detected high-freq attacks)
+  for(let i=0;i<n;i++){c1[i]*=gain[i];c2[i]*=gain[i];}
+  if(chs[1]&&chs[1]!==chs[0]){/* c2 already chs[1] */}
 }
 
 function limiter(chs,sr,ceil){
