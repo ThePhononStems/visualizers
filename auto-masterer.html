@@ -1,0 +1,434 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Auto Masterer</title>
+<style>
+  :root{--bg:#0e1116;--panel:#161b22;--panel2:#1c2330;--acc:#4cc2ff;--acc2:#7af0c0;--warn:#ffb454;--txt:#e6edf3;--mut:#8b96a5;--line:#2a323d;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:var(--bg);color:var(--txt);line-height:1.5}
+  header{padding:22px 28px;border-bottom:1px solid var(--line);display:flex;align-items:center;gap:14px}
+  header h1{font-size:19px;margin:0;font-weight:650}
+  header .tag{color:var(--mut);font-size:13px}
+  main{max-width:960px;margin:0 auto;padding:24px}
+  .drop{border:2px dashed var(--line);border-radius:14px;padding:44px;text-align:center;transition:.15s;cursor:pointer;background:var(--panel)}
+  .drop.hover{border-color:var(--acc);background:var(--panel2)}
+  .drop h2{margin:.2em 0;font-size:17px}
+  .drop p{color:var(--mut);margin:.2em 0;font-size:14px}
+  .panel{background:var(--panel);border:1px solid var(--line);border-radius:14px;padding:20px;margin-top:20px}
+  .row{display:flex;gap:20px;flex-wrap:wrap}
+  .row>div{flex:1;min-width:240px}
+  h3{font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--mut);margin:0 0 12px}
+  canvas{width:100%;height:170px;display:block;background:var(--panel2);border-radius:10px}
+  .meters{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px}
+  .meter{background:var(--panel2);border-radius:10px;padding:12px 16px;flex:1;min-width:120px}
+  .meter .v{font-size:22px;font-weight:650}
+  .meter .l{font-size:12px;color:var(--mut);text-transform:uppercase;letter-spacing:.05em}
+  .meter .d{font-size:12px;color:var(--acc2)}
+  button{background:var(--acc);color:#00121f;border:0;border-radius:9px;padding:12px 20px;font-size:15px;font-weight:650;cursor:pointer}
+  button:disabled{opacity:.4;cursor:default}
+  button.sec{background:var(--panel2);color:var(--txt);border:1px solid var(--line)}
+  .controls{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin-top:16px}
+  label.f{display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--mut)}
+  select,input[type=range]{accent-color:var(--acc)}
+  select{background:var(--panel2);color:var(--txt);border:1px solid var(--line);border-radius:8px;padding:8px}
+  .findings{margin-top:14px;font-size:14px}
+  .finding{padding:8px 12px;background:var(--panel2);border-radius:8px;margin-bottom:8px;border-left:3px solid var(--acc)}
+  .finding.corr{border-left-color:var(--acc2)}
+  .legend{display:flex;gap:16px;font-size:12px;color:var(--mut);margin-bottom:8px}
+  .legend .k{display:inline-block;width:11px;height:11px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  audio{width:100%;margin-top:10px}
+  .hide{display:none}
+  .bar{height:6px;background:var(--panel2);border-radius:4px;overflow:hidden;margin-top:14px}
+  .bar>i{display:block;height:100%;width:0;background:linear-gradient(90deg,var(--acc),var(--acc2));transition:.2s}
+  .note{color:var(--mut);font-size:12px;margin-top:10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>🎚 Auto Masterer</h1>
+  <span class="tag">analyze · correct · master — all in your browser</span>
+</header>
+<main>
+  <div class="drop" id="drop">
+    <h2>Drop an audio file here</h2>
+    <p>WAV, MP3, FLAC, OGG, M4A — decoded &amp; processed locally, nothing uploaded</p>
+    <p style="margin-top:14px"><button class="sec" id="pick">Choose file</button></p>
+    <input type="file" id="file" accept="audio/*" class="hide">
+  </div>
+
+  <div class="panel hide" id="work">
+    <h3>1 · Analysis</h3>
+    <div class="legend">
+      <span><span class="k" style="background:#4cc2ff"></span>Your track</span>
+      <span><span class="k" style="background:#7af0c0"></span>Target balance</span>
+      <span><span class="k" style="background:#ffb454"></span>Mastered</span>
+    </div>
+    <canvas id="spec"></canvas>
+    <div class="meters" id="meters"></div>
+    <div class="findings" id="findings"></div>
+
+    <div class="panel" style="margin-top:20px;background:var(--panel2)">
+      <h3>2 · Master settings</h3>
+      <div class="controls">
+        <label class="f">Loudness target (LUFS)
+          <select id="lufs">
+            <option value="-14">-14 · Spotify/YouTube</option>
+            <option value="-16">-16 · Apple Music</option>
+            <option value="-9">-9 · Loud / club</option>
+            <option value="-23">-23 · Broadcast</option>
+          </select>
+        </label>
+        <label class="f">Correction strength
+          <select id="strength">
+            <option value="0.5">Gentle</option>
+            <option value="0.8" selected>Balanced</option>
+            <option value="1.1">Aggressive</option>
+          </select>
+        </label>
+        <label class="f">Character
+          <select id="sat">
+            <option value="0">Clean</option>
+            <option value="0.35" selected>Warm</option>
+            <option value="0.7">Driven</option>
+          </select>
+        </label>
+        <label class="f">Stereo width
+          <select id="width">
+            <option value="1">Natural</option>
+            <option value="1.25" selected>Wide</option>
+            <option value="1.5">Very wide</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls">
+        <button id="master">⚡ Auto-master</button>
+        <button class="sec" id="reset">Load another track</button>
+      </div>
+      <div class="bar hide" id="progwrap"><i id="prog"></i></div>
+      <div class="note" id="status"></div>
+    </div>
+
+    <div class="panel hide" id="result" style="margin-top:20px">
+      <h3>3 · Result</h3>
+      <div class="row">
+        <div>
+          <p style="font-size:13px;color:var(--mut);margin:0 0 6px">Original</p>
+          <audio id="aOrig" controls></audio>
+        </div>
+        <div>
+          <p style="font-size:13px;color:var(--mut);margin:0 0 6px">Mastered</p>
+          <audio id="aMast" controls></audio>
+        </div>
+      </div>
+      <div class="controls"><button id="dl">⬇ Download mastered WAV</button></div>
+    </div>
+  </div>
+</main>
+<script>
+"use strict";
+const $=id=>document.getElementById(id);
+
+/* ---------- FFT (iterative radix-2) ---------- */
+function fft(re,im){
+  const n=re.length;
+  for(let i=1,j=0;i<n;i++){let bit=n>>1;for(;j&bit;bit>>=1)j^=bit;j^=bit;if(i<j){[re[i],re[j]]=[re[j],re[i]];[im[i],im[j]]=[im[j],im[i]];}}
+  for(let len=2;len<=n;len<<=1){
+    const ang=-2*Math.PI/len,wr=Math.cos(ang),wi=Math.sin(ang);
+    for(let i=0;i<n;i+=len){
+      let cr=1,ci=0;
+      for(let k=0;k<len/2;k++){
+        const ur=re[i+k],ui=im[i+k];
+        const vr=re[i+k+len/2]*cr-im[i+k+len/2]*ci;
+        const vi=re[i+k+len/2]*ci+im[i+k+len/2]*cr;
+        re[i+k]=ur+vr;im[i+k]=ui+vi;
+        re[i+k+len/2]=ur-vr;im[i+k+len/2]=ui-vi;
+        const ncr=cr*wr-ci*wi;ci=cr*wi+ci*wr;cr=ncr;
+      }
+    }
+  }
+}
+
+/* ---------- Averaged magnitude spectrum ---------- */
+function spectrum(mono,sr){
+  const N=4096,hop=2048;
+  const win=new Float32Array(N);
+  for(let i=0;i<N;i++)win[i]=0.5-0.5*Math.cos(2*Math.PI*i/(N-1));
+  const mag=new Float64Array(N/2);let frames=0;
+  for(let s=0;s+N<=mono.length;s+=hop){
+    const re=new Float64Array(N),im=new Float64Array(N);
+    for(let i=0;i<N;i++)re[i]=mono[s+i]*win[i];
+    fft(re,im);
+    for(let k=0;k<N/2;k++)mag[k]+=Math.hypot(re[k],im[k]);
+    frames++;
+  }
+  if(frames)for(let k=0;k<N/2;k++)mag[k]/=frames;
+  return {mag,N,sr};
+}
+
+/* Frequency bands for tonal-balance analysis */
+const BANDS=[
+  {name:'Sub',      f:40,   lo:20,   hi:60},
+  {name:'Bass',     f:100,  lo:60,   hi:160},
+  {name:'Low-mid',  f:300,  lo:160,  hi:500},
+  {name:'Mid',      f:1000, lo:500,  hi:2000},
+  {name:'High-mid', f:3500, lo:2000, hi:6000},
+  {name:'Presence', f:9000, lo:6000, hi:12000},
+  {name:'Air',      f:15000,lo:12000,hi:20000},
+];
+/* Target tonal balance (relative dB), gentle pink-ish slope */
+const TARGET_DB=[-4,0,-1,-2,-4,-8,-13];
+
+function bandEnergies(spec){
+  const {mag,N,sr}=spec;const bins=N/2;const out=[];
+  for(const b of BANDS){
+    let sum=0,c=0;
+    for(let k=1;k<bins;k++){const f=k*sr/N;if(f>=b.lo&&f<b.hi){sum+=mag[k]*mag[k];c++;}}
+    const p=c?sum/c:1e-12;
+    out.push(10*Math.log10(p+1e-12));
+  }
+  return out;
+}
+
+/* ---------- K-weighting LUFS (ITU-R BS.1770, ~48k coeffs) ---------- */
+function biquad(x,b0,b1,b2,a1,a2){
+  const y=new Float32Array(x.length);let x1=0,x2=0,y1=0,y2=0;
+  for(let i=0;i<x.length;i++){const xi=x[i];const yi=b0*xi+b1*x1+b2*x2-a1*y1-a2*y2;y[i]=yi;x2=x1;x1=xi;y2=y1;y1=yi;}
+  return y;
+}
+function lufs(chs){
+  // pre-filter (shelving) + RLB high-pass, coeffs @48k
+  const pre=[1.53512485958697,-2.69169618940638,1.19839281085285,-1.69065929318241,0.73248077421585];
+  const rlb=[1.0,-2.0,1.0,-1.99004745483398,0.99007225036621];
+  let z=0;const L=chs[0].length;
+  for(const ch of chs){
+    let f=biquad(ch,pre[0],pre[1],pre[2],pre[3],pre[4]);
+    f=biquad(f,rlb[0],rlb[1],rlb[2],rlb[3],rlb[4]);
+    let s=0;for(let i=0;i<L;i++)s+=f[i]*f[i];
+    z+=s/L;
+  }
+  return -0.691+10*Math.log10(z+1e-12);
+}
+function truePeakDb(chs){
+  let pk=0;for(const ch of chs)for(let i=0;i<ch.length;i++){const a=Math.abs(ch[i]);if(a>pk)pk=a;}
+  return 20*Math.log10(pk+1e-12);
+}
+
+/* ---------- State ---------- */
+let audioBuf=null, analysis=null, mastered=null, actx=null;
+
+/* ---------- Load ---------- */
+async function loadFile(file){
+  $('status').textContent='Decoding…';
+  actx=actx||new (window.AudioContext||window.webkitAudioContext)();
+  const arr=await file.arrayBuffer();
+  audioBuf=await actx.decodeAudioData(arr);
+  $('work').classList.remove('hide');
+  $('drop').classList.add('hide');
+  $('result').classList.add('hide');
+  $('aOrig').src=URL.createObjectURL(file);
+  analyze();
+  $('status').textContent='';
+}
+
+function mixMono(buf){
+  const L=buf.length,m=new Float32Array(L);
+  for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c);for(let i=0;i<L;i++)m[i]+=d[i];}
+  const g=1/buf.numberOfChannels;for(let i=0;i<L;i++)m[i]*=g;return m;
+}
+function chans(buf){const a=[];for(let c=0;c<buf.numberOfChannels;c++)a.push(buf.getChannelData(c));if(a.length===1)a.push(a[0]);return a;}
+
+function analyze(){
+  const mono=mixMono(audioBuf);
+  const spec=spectrum(mono,audioBuf.sampleRate);
+  const energies=bandEnergies(spec);
+  // normalize measured to its Mid band as anchor, target already relative to its Mid
+  const anchor=energies[3];
+  const rel=energies.map(e=>e-anchor);
+  const tgtAnchor=TARGET_DB[3];
+  const tgtRel=TARGET_DB.map(t=>t-tgtAnchor);
+  const deviation=rel.map((r,i)=>tgtRel[i]-r); // + means boost needed
+  analysis={spec,energies,rel,tgtRel,deviation,lufs:lufs(chans(audioBuf)),peak:truePeakDb(chans(audioBuf))};
+  drawSpectrum();drawMeters();drawFindings();
+}
+
+function drawSpectrum(){
+  const cv=$('spec');const dpr=devicePixelRatio||1;
+  cv.width=cv.clientWidth*dpr;cv.height=cv.clientHeight*dpr;
+  const ctx=cv.getContext('2d');ctx.scale(dpr,dpr);
+  const W=cv.clientWidth,H=cv.clientHeight;ctx.clearRect(0,0,W,H);
+  const pad=8;
+  const drawCurve=(vals,color,fill)=>{
+    ctx.beginPath();
+    vals.forEach((v,i)=>{const x=pad+(W-2*pad)*i/(vals.length-1);const y=H-pad-(v+20)/30*(H-2*pad);i?ctx.lineTo(x,y):ctx.moveTo(x,y);});
+    ctx.strokeStyle=color;ctx.lineWidth=2.4;ctx.stroke();
+  };
+  // grid + band labels
+  ctx.fillStyle='#8b96a5';ctx.font='10px sans-serif';ctx.textAlign='center';
+  BANDS.forEach((b,i)=>{const x=pad+(W-2*pad)*i/(BANDS.length-1);ctx.fillText(b.name,x,H-3);});
+  drawCurve(analysis.tgtRel,'#7af0c0');
+  drawCurve(analysis.rel,'#4cc2ff');
+  if(mastered) drawCurve(mastered.rel,'#ffb454');
+}
+
+function drawMeters(){
+  const m=$('meters');const a=analysis;
+  const cells=[
+    {l:'Integrated',v:a.lufs.toFixed(1),u:'LUFS',d:''},
+    {l:'True peak',v:a.peak.toFixed(1),u:'dBFS',d:''},
+  ];
+  if(mastered){
+    cells.push({l:'Mastered',v:mastered.lufs.toFixed(1),u:'LUFS',d:'→ target'});
+    cells.push({l:'Peak',v:mastered.peak.toFixed(1),u:'dBFS',d:'limited'});
+  }
+  m.innerHTML=cells.map(c=>`<div class="meter"><div class="l">${c.l}</div><div class="v">${c.v} <span style="font-size:12px;color:var(--mut)">${c.u}</span></div><div class="d">${c.d}</div></div>`).join('');
+}
+
+function drawFindings(){
+  const el=$('findings');const d=analysis.deviation;const out=[];
+  d.forEach((dev,i)=>{
+    if(Math.abs(dev)<1.5)return;
+    const b=BANDS[i];
+    if(dev>0) out.push(`<div class="finding">Lacking <b>${b.name.toLowerCase()}</b> (~${b.f}Hz) — <b>${dev.toFixed(1)} dB</b> below target → will boost</div>`);
+    else out.push(`<div class="finding">Excess <b>${b.name.toLowerCase()}</b> (~${b.f}Hz) — <b>${(-dev).toFixed(1)} dB</b> above target → will cut</div>`);
+  });
+  if(!out.length)out.push(`<div class="finding corr">Tonal balance already close to target — mainly loudness &amp; polish will be applied.</div>`);
+  el.innerHTML=out.join('');
+}
+
+/* ---------- Offline render: EQ + multiband compression ---------- */
+async function renderProcessed(){
+  const strength=parseFloat($('strength').value);
+  const dev=analysis.deviation;
+  const oc=new OfflineAudioContext(audioBuf.numberOfChannels,audioBuf.length,audioBuf.sampleRate);
+  const src=oc.createBufferSource();src.buffer=audioBuf;
+  let node=src;
+  // corrective peaking EQ per band
+  BANDS.forEach((b,i)=>{
+    const gain=Math.max(-9,Math.min(9,dev[i]*strength));
+    if(Math.abs(gain)<0.3)return;
+    const f=oc.createBiquadFilter();f.type='peaking';f.frequency.value=b.f;f.Q.value=1.0;f.gain.value=gain;
+    node.connect(f);node=f;
+  });
+  // multiband compression: 3 bands
+  const split=node;
+  const xover=(type,freq,input)=>{const f=oc.createBiquadFilter();f.type=type;f.frequency.value=freq;const g=oc.createBiquadFilter();g.type=type;g.frequency.value=freq;input.connect(f);f.connect(g);return g;};
+  const low=xover('lowpass',180,split);
+  const midHi=xover('highpass',180,split);const mid=xover('lowpass',3000,midHi);
+  const high=xover('highpass',3000,split);
+  const mkComp=(inp,thr,ratio,att,rel)=>{const c=oc.createDynamicsCompressor();c.threshold.value=thr;c.ratio.value=ratio;c.attack.value=att;c.release.value=rel;c.knee.value=6;inp.connect(c);return c;};
+  const cl=mkComp(low,-24,3,0.01,0.2);
+  const cm=mkComp(mid,-22,2.5,0.006,0.12);
+  const ch=mkComp(high,-20,2.5,0.003,0.08);
+  const sum=oc.createGain();sum.gain.value=1;
+  cl.connect(sum);cm.connect(sum);ch.connect(sum);
+  sum.connect(oc.destination);
+  src.start();
+  return await oc.startRendering();
+}
+
+/* ---------- JS post: saturation, width, limiter, loudness ---------- */
+function postProcess(buf){
+  const sat=parseFloat($('sat').value);
+  const width=parseFloat($('width').value);
+  const targetLUFS=parseFloat($('lufs').value);
+  const n=buf.length;
+  const chN=buf.numberOfChannels;
+  let l=buf.getChannelData(0).slice();
+  let r=chN>1?buf.getChannelData(1).slice():l.slice();
+
+  // Mid/Side stereo width
+  if(chN>1){
+    for(let i=0;i<n;i++){
+      const m=(l[i]+r[i])*0.5, s=(l[i]-r[i])*0.5*width;
+      l[i]=m+s; r[i]=m-s;
+    }
+  }
+  // Harmonic saturation (soft tanh drive)
+  if(sat>0){
+    const drive=1+sat*3, comp=1/Math.tanh(drive);
+    for(let i=0;i<n;i++){l[i]=Math.tanh(l[i]*drive)*comp*(1-sat*0.15)+l[i]*sat*0.15;r[i]=Math.tanh(r[i]*drive)*comp*(1-sat*0.15)+r[i]*sat*0.15;}
+  }
+  // Loudness normalization toward target (pre-limiter)
+  const curLUFS=lufs([l,r]);
+  let gain=Math.pow(10,(targetLUFS-curLUFS)/20);
+  for(let i=0;i<n;i++){l[i]*=gain;r[i]*=gain;}
+  // Brickwall look-ahead limiter, ceiling -1 dBFS
+  limiter([l,r],buf.sampleRate,Math.pow(10,-1/20));
+  return {l,r,sr:buf.sampleRate};
+}
+
+function limiter(chs,sr,ceil){
+  const n=chs[0].length;
+  const look=Math.max(1,Math.round(sr*0.0015)); // 1.5ms lookahead
+  const rel=Math.exp(-1/(sr*0.05));
+  let env=0;
+  // compute gain envelope from delayed peak detection
+  const gains=new Float32Array(n).fill(1);
+  for(let i=0;i<n;i++){
+    let peak=0;
+    for(const ch of chs){const a=Math.abs(ch[Math.min(n-1,i+look)]);if(a>peak)peak=a;}
+    let want=peak>ceil?ceil/peak:1;
+    if(want<env)env=want; else env=env*rel+want*(1-rel);
+    gains[i]=env;
+  }
+  // apply with lookahead delay
+  for(const ch of chs){
+    const d=ch.slice();
+    for(let i=0;i<n;i++){const gi=gains[Math.max(0,i-look)];ch[i]=d[i]*gi;}
+  }
+}
+
+/* ---------- WAV encode ---------- */
+function encodeWAV(l,r,sr){
+  const n=l.length,ch=2,bps=16;
+  const buf=new ArrayBuffer(44+n*ch*2);const v=new DataView(buf);
+  const ws=(o,s)=>{for(let i=0;i<s.length;i++)v.setUint8(o+i,s.charCodeAt(i));};
+  ws(0,'RIFF');v.setUint32(4,36+n*ch*2,true);ws(8,'WAVE');ws(12,'fmt ');
+  v.setUint32(16,16,true);v.setUint16(20,1,true);v.setUint16(22,ch,true);
+  v.setUint32(24,sr,true);v.setUint32(28,sr*ch*2,true);v.setUint16(32,ch*2,true);v.setUint16(34,bps,true);
+  ws(36,'data');v.setUint32(40,n*ch*2,true);
+  let o=44;for(let i=0;i<n;i++){for(const s of [l[i],r[i]]){let x=Math.max(-1,Math.min(1,s));v.setInt16(o,x<0?x*0x8000:x*0x7fff,true);o+=2;}}
+  return new Blob([buf],{type:'audio/wav'});
+}
+
+/* ---------- Master action ---------- */
+async function doMaster(){
+  $('master').disabled=true;$('progwrap').classList.remove('hide');
+  const step=(p,t)=>{$('prog').style.width=p+'%';$('status').textContent=t;};
+  step(15,'Applying corrective EQ & multiband compression…');
+  await new Promise(r=>setTimeout(r,30));
+  const rendered=await renderProcessed();
+  step(55,'Saturation, stereo, limiting & loudness…');
+  await new Promise(r=>setTimeout(r,30));
+  const {l,r,sr}=postProcess(rendered);
+  step(80,'Measuring & encoding…');
+  // re-analyze mastered spectrum
+  const mono=new Float32Array(l.length);for(let i=0;i<l.length;i++)mono[i]=(l[i]+r[i])*0.5;
+  const mspec=spectrum(mono,sr);const men=bandEnergies(mspec);
+  const anchor=men[3];const mrel=men.map(e=>e-anchor);
+  mastered={l,r,sr,rel:mrel,lufs:lufs([l,r]),peak:truePeakDb([l,r])};
+  const blob=encodeWAV(l,r,sr);mastered.blob=blob;
+  $('aMast').src=URL.createObjectURL(blob);
+  drawSpectrum();drawMeters();
+  step(100,'Done ✓');
+  $('result').classList.remove('hide');
+  setTimeout(()=>{$('progwrap').classList.add('hide');$('prog').style.width='0';},600);
+  $('master').disabled=false;
+}
+
+/* ---------- Wiring ---------- */
+const drop=$('drop');
+['dragenter','dragover'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.add('hover');}));
+['dragleave','drop'].forEach(e=>drop.addEventListener(e,ev=>{ev.preventDefault();drop.classList.remove('hover');}));
+drop.addEventListener('drop',ev=>{if(ev.dataTransfer.files[0])loadFile(ev.dataTransfer.files[0]);});
+$('pick').addEventListener('click',()=>$('file').click());
+$('file').addEventListener('change',e=>{if(e.target.files[0])loadFile(e.target.files[0]);});
+$('master').addEventListener('click',doMaster);
+$('reset').addEventListener('click',()=>{$('drop').classList.remove('hide');$('work').classList.add('hide');mastered=null;});
+$('dl').addEventListener('click',()=>{const a=document.createElement('a');a.href=URL.createObjectURL(mastered.blob);a.download='mastered.wav';a.click();});
+window.addEventListener('resize',()=>{if(analysis)drawSpectrum();});
+</script>
+</body>
+</html>
