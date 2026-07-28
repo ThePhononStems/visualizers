@@ -288,12 +288,11 @@ function drawMeters(){
 function drawFindings(){
   const el=$('findings');const d=analysis.deviation;const out=[];
   d.forEach((dev,i)=>{
-    if(Math.abs(dev)<1.5)return;
     const b=BANDS[i];
-    if(dev>0) out.push(`<div class="finding">Lacking <b>${b.name.toLowerCase()}</b> (~${b.f}Hz) — <b>${dev.toFixed(1)} dB</b> below target → will boost</div>`);
-    else out.push(`<div class="finding">Excess <b>${b.name.toLowerCase()}</b> (~${b.f}Hz) — <b>${(-dev).toFixed(1)} dB</b> above target → will cut</div>`);
+    if(dev>=1.5) out.push(`<div class="finding">Adding <b>${b.name.toLowerCase()}</b> (~${b.f}Hz) — <b>+${Math.min(6,dev*0.7).toFixed(1)} dB</b> to fill it out</div>`);
+    else if(dev<=-1.5) out.push(`<div class="finding corr"><b>${b.name}</b> (~${b.f}Hz) already strong — left untouched (no cuts)</div>`);
   });
-  if(!out.length)out.push(`<div class="finding corr">Tonal balance already close to target — mainly loudness &amp; polish will be applied.</div>`);
+  out.push(`<div class="finding corr">Plus fixed fullness lift: body (110Hz), warmth (230Hz), presence (3kHz) &amp; air (9kHz+), then glue compression &amp; limiting so nothing peaks.</div>`);
   el.innerHTML=out.join('');
 }
 
@@ -301,33 +300,38 @@ function drawFindings(){
    No multiband split (avoids comb-filter/phase artifacts). One in-series signal
    path: broad tonal correction -> warmth low-shelf -> gentle bus "glue". */
 async function renderProcessed(){
-  const strength=parseFloat($('strength').value)*0.6; // scaled down: subtle moves
+  const strength=parseFloat($('strength').value)*0.7;
   const dev=analysis.deviation;
   const oc=new OfflineAudioContext(audioBuf.numberOfChannels,audioBuf.length,audioBuf.sampleRate);
   const src=oc.createBufferSource();src.buffer=audioBuf;
   let node=src;
-  // corrective EQ: wider Q, smaller max gain -> musical, low-phase-smear
+  // ADDITIVE EQ: only boost bands that sit below target — never cut.
   BANDS.forEach((b,i)=>{
-    let gain=Math.max(-5,Math.min(5,dev[i]*strength));
-    if(Math.abs(gain)<0.4)return;
+    let gain=Math.max(0,Math.min(6,dev[i]*strength)); // boosts only, clamped 0..6 dB
+    if(gain<0.4)return;
     const f=oc.createBiquadFilter();
-    // shelves at the extremes, gentle peaks in between
     if(i===0){f.type='lowshelf';f.frequency.value=70;}
     else if(i===BANDS.length-1){f.type='highshelf';f.frequency.value=11000;}
     else{f.type='peaking';f.frequency.value=b.f;f.Q.value=0.7;}
     f.gain.value=gain;
     node.connect(f);node=f;
   });
-  // "Fullness" warmth: subtle low-mid body lift + slight sub-cleanup high-pass
-  const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=24;hp.Q.value=0.5;node.connect(hp);node=hp;
-  const warm=oc.createBiquadFilter();warm.type='peaking';warm.frequency.value=220;warm.Q.value=0.8;warm.gain.value=1.6;node.connect(warm);node=warm;
-  // gentle single-band glue compression (slow, low ratio, soft knee)
+  // Fixed "fullness" enhancement — always adds body, presence & air (all boosts).
+  const enh=[
+    {type:'peaking',  f:110,  Q:0.7, g:2.5},   // low-end body / weight
+    {type:'peaking',  f:230,  Q:0.8, g:1.8},   // warmth
+    {type:'peaking',  f:3000, Q:0.6, g:1.5},   // presence / clarity
+    {type:'highshelf',f:9000, Q:0.7, g:2.2},   // air / sheen
+  ];
+  enh.forEach(e=>{const f=oc.createBiquadFilter();f.type=e.type;f.frequency.value=e.f;if(e.Q)f.Q.value=e.Q;f.gain.value=e.g;node.connect(f);node=f;});
+  // very gentle subsonic guard (20Hz) — protects headroom, inaudible, no musical cut
+  const hp=oc.createBiquadFilter();hp.type='highpass';hp.frequency.value=20;hp.Q.value=0.5;node.connect(hp);node=hp;
+  // Glue compression to even out level so the added energy sits together (parallel).
   const comp=oc.createDynamicsCompressor();
-  comp.threshold.value=-18;comp.ratio.value=2;comp.knee.value=12;comp.attack.value=0.03;comp.release.value=0.25;
+  comp.threshold.value=-20;comp.ratio.value=2.5;comp.knee.value=10;comp.attack.value=0.02;comp.release.value=0.2;
   node.connect(comp);
-  // parallel makeup so glue never squashes: blend comp with dry
-  const dry=oc.createGain();dry.gain.value=0.35;node.connect(dry);
-  const wet=oc.createGain();wet.gain.value=0.75;comp.connect(wet);
+  const dry=oc.createGain();dry.gain.value=0.3;node.connect(dry);
+  const wet=oc.createGain();wet.gain.value=0.85;comp.connect(wet);
   const out=oc.createGain();dry.connect(out);wet.connect(out);
   out.connect(oc.destination);
   src.start();
