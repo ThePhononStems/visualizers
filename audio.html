@@ -6,7 +6,7 @@
 <title>Audio Visualizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IM+Fell+English&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
 
@@ -154,18 +154,19 @@
     align-self: flex-start;
   }
   #trackList li {
-    font-size: 20px;                 /* smaller, so the visualizer dominates */
+    font-family: "IM Fell English", Georgia, "Times New Roman", serif;
+    font-size: 21px;                 /* smaller, so the visualizer dominates */
     line-height: 1.5;
-    text-transform: uppercase;
-    letter-spacing: 1px;
+    font-variant-caps: small-caps;
+    letter-spacing: 0.5px;
     color: #1fbfd4;                  /* teal-blue default */
     cursor: pointer;
     padding: 4px 0;
     transition: color .15s ease, transform .12s ease;
     width: fit-content;
   }
-  #trackList li:hover { color: #ff8a3d; transform: translateX(4px); } /* warm, like the bars */
-  #trackList li[data-active="1"] { color: #ff8a3d; }
+  #trackList li:hover { color: #ddb459; transform: translateX(4px); } /* warm, dusty gold */
+  #trackList li[data-active="1"] { color: #ddb459; }
   #trackList li[data-active="1"]::before {
     content: "\25B6  ";              /* ▶ marker on the playing track */
     font-size: 0.7em;
