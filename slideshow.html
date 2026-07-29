@@ -53,16 +53,24 @@ body{
 .wrap:fullscreen .frameOuter{
   height:100vh;
   width:100vw;
+  align-items:center;
 }
 .wrap:-webkit-full-screen .frameOuter{
   height:100vh;
   width:100vw;
+  align-items:center;
 }
 .wrap:fullscreen .controls{
   display:none;
 }
 .wrap:-webkit-full-screen .controls{
   display:none;
+}
+.wrap:fullscreen .stage{
+  padding:0;
+}
+.wrap:-webkit-full-screen .stage{
+  padding:0;
 }
 .frameOuter{
   width:100%;
@@ -338,21 +346,27 @@ function preloadImage(src){
 
 const frameOuter = document.getElementById("frameOuter");
 let currentRatio = 16 / 9;
-const MATTE_TOTAL = 88; /* 44px padding, on both sides */
+const MATTE_TOTAL = 88; /* 44px padding, on both sides -- zero in fullscreen */
+
+function currentMatte(){
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  return isFs ? 0 : MATTE_TOTAL;
+}
 
 function fitStageToRatio(){
+  const matte = currentMatte();
   const availW = frameOuter.clientWidth;
   const availH = frameOuter.clientHeight;
-  const contentAvailW = Math.max(availW - MATTE_TOTAL, 10);
-  const contentAvailH = Math.max(availH - MATTE_TOTAL, 10);
+  const contentAvailW = Math.max(availW - matte, 10);
+  const contentAvailH = Math.max(availH - matte, 10);
   let cw = contentAvailW;
   let ch = cw / currentRatio;
   if (ch > contentAvailH) {
     ch = contentAvailH;
     cw = ch * currentRatio;
   }
-  stage.style.width = Math.round(cw + MATTE_TOTAL) + "px";
-  stage.style.height = Math.round(ch + MATTE_TOTAL) + "px";
+  stage.style.width = Math.round(cw + matte) + "px";
+  stage.style.height = Math.round(ch + matte) + "px";
 }
 
 function applyAspectRatio(img){
@@ -398,8 +412,7 @@ document.addEventListener("fullscreenchange", onFullscreenChange);
 document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
 if (document.fullscreenEnabled === false) {
-  fullscreenBtn.textContent = "Fullscreen unavailable here";
-  fullscreenBtn.disabled = true;
+  fullscreenBtn.style.display = "none";
 }
 
 let transitioning = false;
