@@ -19,6 +19,14 @@ body{
   background-color:#000000;
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.55' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.16'/%3E%3C/svg%3E");
   background-repeat:repeat;
+  overflow:hidden;
+}
+#scaleOuter{
+  width:100vw;
+  height:100vh;
+  display:flex;
+  align-items:center;
+  justify-content:center;
 }
 .wrap{
   max-width:1300px;
@@ -197,6 +205,7 @@ body{
 </head>
 <body>
 
+<div id="scaleOuter">
 <div class="wrap" id="wrap">
   <div class="frameOuter" id="frameOuter">
     <div class="stage" id="stage">
@@ -255,6 +264,7 @@ body{
       <span class="catCount" id="countFood"></span>
     </div>
   </div>
+</div>
 </div>
 
 <script>
@@ -370,7 +380,26 @@ function fitStageToRatio(){
   }
   stage.style.width = Math.round(cw + matte) + "px";
   stage.style.height = Math.round(ch + matte) + "px";
+  fitWholePlayerToViewport();
 }
+
+const scaleOuter = document.getElementById("scaleOuter");
+
+function fitWholePlayerToViewport(){
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  if (isFs) {
+    wrapEl.style.transform = "none";
+    return;
+  }
+  wrapEl.style.transform = "none";
+  const naturalHeight = wrapEl.scrollHeight;
+  const naturalWidth = wrapEl.scrollWidth;
+  if (!naturalHeight || !naturalWidth) return;
+  const scale = Math.min(window.innerHeight / naturalHeight, window.innerWidth / naturalWidth);
+  wrapEl.style.transform = "scale(" + scale + ")";
+}
+
+window.addEventListener("resize", fitWholePlayerToViewport);
 
 function applyAspectRatio(img){
   if (img.naturalWidth && img.naturalHeight) {
