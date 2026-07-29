@@ -67,10 +67,14 @@ body{
   display:none;
 }
 .wrap:fullscreen .stage{
-  padding:0;
+  padding:40px;
+  background:#000;
+  box-shadow:none;
 }
 .wrap:-webkit-full-screen .stage{
-  padding:0;
+  padding:40px;
+  background:#000;
+  box-shadow:none;
 }
 .frameOuter{
   width:100%;
@@ -208,7 +212,6 @@ body{
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Open full screen</button>
-    <a id="newTabLink" class="btn" target="_blank" rel="noopener" style="text-decoration:none;">Open in new tab</a>
   </div>
 
   <div class="controls catRow">
@@ -350,7 +353,7 @@ const MATTE_TOTAL = 88; /* 44px padding, on both sides -- zero in fullscreen */
 
 function currentMatte(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-  return isFs ? 0 : MATTE_TOTAL;
+  return isFs ? 80 : MATTE_TOTAL;
 }
 
 function fitStageToRatio(){
@@ -380,8 +383,6 @@ window.addEventListener("resize", fitStageToRatio);
 
 const wrapEl = document.getElementById("wrap");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
-const newTabLink = document.getElementById("newTabLink");
-newTabLink.href = window.location.href;
 
 function toggleFullscreen(){
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
