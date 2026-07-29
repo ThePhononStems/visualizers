@@ -151,7 +151,7 @@
     padding: 22px 16px;
     background: #000;
     font-family: "Special Elite", "Courier New", Courier, monospace;
-    align-self: center;
+    align-self: flex-start;
   }
   #trackList li {
     font-size: 20px;                 /* smaller, so the visualizer dominates */
@@ -441,7 +441,7 @@ function drawBars() {
   const gap = 2 * DPR;
   const bw = (usable - gap * (NB - 1)) / NB;
   const baseY = H * 0.94;
-  const maxH = H * 0.70;
+  const maxH = H * 0.90;
   const kick = lowLevel();
 
   for (let i = 0; i < NB; i++) {
