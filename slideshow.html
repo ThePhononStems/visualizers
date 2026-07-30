@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flickr Slideshow</title>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Raleway:wght@600&display=swap" rel="stylesheet">
 <style>
 *{
   box-sizing:border-box;
@@ -164,8 +164,10 @@ body{
   gap:5px;
 }
 .btn{
-  font-family:"Special Elite","Courier New",Courier,monospace;
-  letter-spacing:0.5px;
+  font-family:"Raleway",Arial,Helvetica,sans-serif;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:1.2px;
   background:#242424;
   color:#7a7a7a;
   border:1px solid #2a2a2a;
@@ -221,7 +223,6 @@ body{
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Open full screen</button>
-    <span class="hint" id="exifNote"></span>
   </div>
 
   <div class="controls catRow">
@@ -336,45 +337,6 @@ let paused = false;
 let activeCategory = null;
 const categoryTotals = {};
 
-let exifRequestToken = 0;
-
-async function fetchExifSummary(photoId, secret){
-  try {
-    const url = "https://api.flickr.com/services/rest/?method=flickr.photos.getExif"
-      + "&api_key=" + encodeURIComponent(FLICKR_API_KEY)
-      + "&photo_id=" + encodeURIComponent(photoId)
-      + (secret ? "&secret=" + encodeURIComponent(secret) : "");
-    const data = await flickrJsonp(url);
-    if (data.stat !== "ok" || !data.photo || !data.photo.exif) return "";
-    const wanted = ["Model", "FocalLength", "FNumber", "ExposureTime", "ISO", "DateTimeOriginal"];
-    const found = {};
-    data.photo.exif.forEach(function(e){
-      if (wanted.indexOf(e.tag) !== -1 && !found[e.tag]) {
-        found[e.tag] = (e.clean && e.clean._content) || (e.raw && e.raw._content) || "";
-      }
-    });
-    const parts = [];
-    if (found.Model) parts.push(found.Model);
-    if (found.FocalLength) parts.push(found.FocalLength);
-    if (found.FNumber) parts.push(/^f\//.test(found.FNumber) ? found.FNumber : ("f/" + found.FNumber));
-    if (found.ExposureTime) parts.push(found.ExposureTime + "s");
-    if (found.ISO) parts.push("ISO " + found.ISO);
-    if (found.DateTimeOriginal) parts.push(found.DateTimeOriginal);
-    return parts.join("  ·  ");
-  } catch (e) {
-    return "";
-  }
-}
-
-async function updateExifNote(item){
-  const myToken = ++exifRequestToken;
-  exifNoteEl.textContent = "";
-  if (!item || !item.id) return;
-  const summary = await fetchExifSummary(item.id, item.secret);
-  if (myToken !== exifRequestToken) return; // a newer photo loaded meanwhile -- discard this result
-  exifNoteEl.textContent = summary;
-}
-
 function updateCatCounters(){
   Object.keys(catCounts).forEach(function(name){
     const el = catCounts[name];
@@ -459,7 +421,6 @@ window.addEventListener("resize", fitStageToRatio);
 
 const wrapEl = document.getElementById("wrap");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
-const exifNoteEl = document.getElementById("exifNote");
 
 function toggleFullscreen(){
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
@@ -523,7 +484,6 @@ async function goTo(nextIndex){
 
   index = nextIndex;
   updateCatCounters();
-  updateExifNote(targetItem);
 
   await sleep(FADE_MS);
   transitioning = false;
@@ -703,7 +663,6 @@ async function switchAlbum(rawUrl, categoryName){
       photoImg.style.opacity = "1";
     });
     updateCatCounters();
-    updateExifNote(list[0]);
     localStorage.setItem(STORAGE_KEY, rawUrl);
     if (categoryName) setActiveCategoryButton(categoryName);
     if (!paused) startTimer();
