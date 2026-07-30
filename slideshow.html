@@ -401,6 +401,13 @@ function fitWholePlayerToViewport(){
 
 window.addEventListener("resize", fitWholePlayerToViewport);
 
+if (document.fonts && document.fonts.ready) {
+  document.fonts.ready.then(fitWholePlayerToViewport);
+}
+window.addEventListener("load", function(){
+  setTimeout(fitWholePlayerToViewport, 150);
+});
+
 function applyAspectRatio(img){
   if (img.naturalWidth && img.naturalHeight) {
     currentRatio = img.naturalWidth / img.naturalHeight;
