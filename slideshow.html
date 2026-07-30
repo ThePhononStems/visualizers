@@ -221,6 +221,7 @@ body{
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Open full screen</button>
+    <span class="hint" id="exifNote"></span>
   </div>
 
   <div class="controls catRow">
@@ -335,6 +336,45 @@ let paused = false;
 let activeCategory = null;
 const categoryTotals = {};
 
+let exifRequestToken = 0;
+
+async function fetchExifSummary(photoId, secret){
+  try {
+    const url = "https://api.flickr.com/services/rest/?method=flickr.photos.getExif"
+      + "&api_key=" + encodeURIComponent(FLICKR_API_KEY)
+      + "&photo_id=" + encodeURIComponent(photoId)
+      + (secret ? "&secret=" + encodeURIComponent(secret) : "");
+    const data = await flickrJsonp(url);
+    if (data.stat !== "ok" || !data.photo || !data.photo.exif) return "";
+    const wanted = ["Model", "FocalLength", "FNumber", "ExposureTime", "ISO", "DateTimeOriginal"];
+    const found = {};
+    data.photo.exif.forEach(function(e){
+      if (wanted.indexOf(e.tag) !== -1 && !found[e.tag]) {
+        found[e.tag] = (e.clean && e.clean._content) || (e.raw && e.raw._content) || "";
+      }
+    });
+    const parts = [];
+    if (found.Model) parts.push(found.Model);
+    if (found.FocalLength) parts.push(found.FocalLength);
+    if (found.FNumber) parts.push(/^f\//.test(found.FNumber) ? found.FNumber : ("f/" + found.FNumber));
+    if (found.ExposureTime) parts.push(found.ExposureTime + "s");
+    if (found.ISO) parts.push("ISO " + found.ISO);
+    if (found.DateTimeOriginal) parts.push(found.DateTimeOriginal);
+    return parts.join("  ·  ");
+  } catch (e) {
+    return "";
+  }
+}
+
+async function updateExifNote(item){
+  const myToken = ++exifRequestToken;
+  exifNoteEl.textContent = "";
+  if (!item || !item.id) return;
+  const summary = await fetchExifSummary(item.id, item.secret);
+  if (myToken !== exifRequestToken) return; // a newer photo loaded meanwhile -- discard this result
+  exifNoteEl.textContent = summary;
+}
+
 function updateCatCounters(){
   Object.keys(catCounts).forEach(function(name){
     const el = catCounts[name];
@@ -419,6 +459,7 @@ window.addEventListener("resize", fitStageToRatio);
 
 const wrapEl = document.getElementById("wrap");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
+const exifNoteEl = document.getElementById("exifNote");
 
 function toggleFullscreen(){
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
@@ -461,7 +502,8 @@ let transitioning = false;
 async function goTo(nextIndex){
   if (list.length === 0 || transitioning) return;
   transitioning = true;
-  const targetSrc = list[nextIndex];
+  const targetItem = list[nextIndex];
+  const targetSrc = targetItem.src;
 
   photoImg.style.transition = "none";
   photoImg.style.opacity = "0";
@@ -481,10 +523,11 @@ async function goTo(nextIndex){
 
   index = nextIndex;
   updateCatCounters();
+  updateExifNote(targetItem);
 
   await sleep(FADE_MS);
   transitioning = false;
-  preloadImage(list[(nextIndex + 1) % list.length]);
+  preloadImage(list[(nextIndex + 1) % list.length].src);
 }
 
 function nextSlide(){
@@ -616,7 +659,8 @@ async function loadFlickrAlbum(userId, photosetId){
   return allPhotos
     .map(function(p){
       const display = p.url_z || p.url_m || p.url_c || p.url_l || p.url_o;
-      return display ? normalizeUrl(display) : null;
+      if (!display) return null;
+      return { src: normalizeUrl(display), id: p.id, secret: p.secret };
     })
     .filter(Boolean);
 }
@@ -649,16 +693,17 @@ async function switchAlbum(rawUrl, categoryName){
     if (categoryName) categoryTotals[categoryName] = newList.length;
     photoImg.style.transition = "none";
     photoImg.style.opacity = "0";
-    const firstImg = await preloadImage(list[0]);
+    const firstImg = await preloadImage(list[0].src);
     applyAspectRatio(firstImg);
     await sleep(FRAME_SETTLE_MS);
-    photoImg.src = list[0];
+    photoImg.src = list[0].src;
     void photoImg.offsetWidth;
     photoImg.style.transition = "opacity " + FADE_MS + "ms " + FADE_EASING;
     requestAnimationFrame(function(){
       photoImg.style.opacity = "1";
     });
     updateCatCounters();
+    updateExifNote(list[0]);
     localStorage.setItem(STORAGE_KEY, rawUrl);
     if (categoryName) setActiveCategoryButton(categoryName);
     if (!paused) startTimer();
