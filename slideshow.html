@@ -397,7 +397,20 @@ function fitWholePlayerToViewport(){
   const naturalHeight = wrapEl.scrollHeight;
   const naturalWidth = wrapEl.scrollWidth;
   if (!naturalHeight || !naturalWidth) return;
-  const scale = Math.min(window.innerHeight / naturalHeight, window.innerWidth / naturalWidth);
+
+  const availH = document.documentElement.clientHeight || window.innerHeight;
+  const availW = document.documentElement.clientWidth || window.innerWidth;
+
+  // Inside an embedded iframe (like a Google Sites embed), these values can
+  // briefly report as 0 or unreasonably small before the embed has finished
+  // being laid out. Rather than shrinking the whole player to near-nothing
+  // on a bad reading, skip this round -- a scheduled retry will pick up the
+  // real size once it's actually available.
+  if (availH < 100 || availW < 100) return;
+
+  let scale = Math.min(availH / naturalHeight, availW / naturalWidth);
+  scale = Math.max(0.3, Math.min(scale, 2)); // clamp to sane bounds
+
   wrapEl.style.transform = "scale(" + scale + ")";
 }
 
@@ -407,7 +420,10 @@ if (document.fonts && document.fonts.ready) {
   document.fonts.ready.then(fitWholePlayerToViewport);
 }
 window.addEventListener("load", function(){
+  fitWholePlayerToViewport();
   setTimeout(fitWholePlayerToViewport, 150);
+  setTimeout(fitWholePlayerToViewport, 600);
+  setTimeout(fitWholePlayerToViewport, 1500);
 });
 
 function applyAspectRatio(img){
