@@ -203,6 +203,37 @@ body{
   color:#2c2f2b;
   min-height:14px;
 }
+
+/* ===== Standalone / pop-out mode =====
+   When the page is opened in its own window (not inside an embed),
+   present the photo full-bleed: no white matte, keep the grey gradient
+   glow, fill the window except for a margin on every side. */
+body.standalone #scaleOuter{
+  padding:0;
+}
+body.standalone .wrap{
+  max-width:none;
+  width:100vw;
+  height:100vh;
+  margin:0;
+  padding:0;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+}
+body.standalone .frameOuter{
+  width:100vw;
+  height:100vh;
+  align-items:center;
+  justify-content:center;
+}
+body.standalone .controls{
+  display:none;
+}
+body.standalone .stage{
+  background:transparent;   /* no white matte */
+  padding:0;                /* image goes edge to edge of the stage */
+}
 </style>
 </head>
 <body>
@@ -362,16 +393,28 @@ function preloadImage(src){
 const frameOuter = document.getElementById("frameOuter");
 let currentRatio = 16 / 9;
 const MATTE_TOTAL = 88; /* 44px padding, on both sides -- zero in fullscreen */
+const STANDALONE_MARGIN = 90; /* ~45px of empty space on each side in pop-out mode */
+
+/* True when the page is running in its own window (not inside an embed). */
+const STANDALONE = (function(){
+  try { return window.self === window.top; }
+  catch (e) { return false; }
+})();
+if (STANDALONE) {
+  document.body.classList.add("standalone");
+}
 
 function currentMatte(){
+  if (STANDALONE) return 0; /* no white matte in pop-out mode */
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
   return isFs ? 80 : MATTE_TOTAL;
 }
 
 function fitStageToRatio(){
   const matte = currentMatte();
-  const availW = frameOuter.clientWidth;
-  const availH = frameOuter.clientHeight;
+  const screenMargin = STANDALONE ? STANDALONE_MARGIN : 0;
+  const availW = frameOuter.clientWidth - screenMargin;
+  const availH = frameOuter.clientHeight - screenMargin;
   const contentAvailW = Math.max(availW - matte, 10);
   const contentAvailH = Math.max(availH - matte, 10);
   let cw = contentAvailW;
@@ -389,7 +432,9 @@ const scaleOuter = document.getElementById("scaleOuter");
 
 function fitWholePlayerToViewport(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-  if (isFs) {
+  if (isFs || STANDALONE) {
+    // In fullscreen and in standalone/pop-out mode the stage is sized
+    // directly to the window, so no whole-player scaling is needed.
     wrapEl.style.transform = "none";
     return;
   }
