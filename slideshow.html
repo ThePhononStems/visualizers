@@ -466,9 +466,9 @@ function onFullscreenChange(){
 document.addEventListener("fullscreenchange", onFullscreenChange);
 document.addEventListener("webkitfullscreenchange", onFullscreenChange);
 
-if (document.fullscreenEnabled === false) {
-  fullscreenBtn.style.display = "none";
-}
+/* Keep the fullscreen button visible even inside an embedded iframe.
+   When fullscreen isn't permitted by the frame, the click handler
+   shows a friendly fallback message instead of silently doing nothing. */
 
 let transitioning = false;
 
