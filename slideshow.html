@@ -438,14 +438,27 @@ window.addEventListener("resize", fitStageToRatio);
 const wrapEl = document.getElementById("wrap");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
 
+/* Are we running inside an embed (iframe), e.g. a Google Sites page? */
+function isEmbedded(){
+  try { return window.self !== window.top; }
+  catch (e) { return true; }
+}
+
 function toggleFullscreen(){
+  // Inside an embed, the browser's Fullscreen API is blocked by the parent
+  // frame, so instead pop the slideshow out into its own window -- the
+  // behavior this page had originally. In a standalone tab, use real fullscreen.
+  if (isEmbedded()) {
+    window.open(window.location.href, "_blank", "noopener");
+    return;
+  }
+
   const fsElement = document.fullscreenElement || document.webkitFullscreenElement;
   if (!fsElement) {
-    const request = wrapEl.requestFullscreen ? wrapEl.requestFullscreen() : (wrapEl.webkitRequestFullscreen ? wrapEl.webkitRequestFullscreen() : null);
-    if (request && request.catch) {
-      request.catch(function(){
-        alert("Fullscreen isn't available here. Try opening this page directly in its own browser tab instead of an embedded view.");
-      });
+    if (wrapEl.requestFullscreen) {
+      wrapEl.requestFullscreen();
+    } else if (wrapEl.webkitRequestFullscreen) {
+      wrapEl.webkitRequestFullscreen();
     }
   } else {
     if (document.exitFullscreen) {
