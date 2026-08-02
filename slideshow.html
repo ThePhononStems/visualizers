@@ -692,7 +692,7 @@ async function loadFlickrAlbum(userId, photosetId){
 
   return allPhotos
     .map(function(p){
-      const display = p.url_z || p.url_m || p.url_c || p.url_l || p.url_o;
+      const display = p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
       if (!display) return null;
       return { src: normalizeUrl(display), id: p.id, secret: p.secret };
     })
