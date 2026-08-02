@@ -86,7 +86,7 @@ body{
 }
 .frameOuter{
   width:100%;
-  height:70vh;
+  height:64vh;
   display:flex;
   align-items:flex-start;
   justify-content:center;
@@ -147,8 +147,11 @@ body{
   gap:12px;
   margin-top:26px;
 }
+.controls.navRow{
+  margin-top:40px;   /* push the nav row down, farther from the image */
+}
 .navRow + .catRow{
-  margin-top:44px;
+  margin-top:14px;   /* pull the category buttons up, closer to the nav row */
 }
 .catRow + .catRow{
   margin-top:2px;
