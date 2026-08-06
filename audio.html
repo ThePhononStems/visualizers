@@ -6,7 +6,7 @@
 <title>Audio Visualizer</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IM+Fell+English&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=IM+Fell+English&family=Raleway:wght@500;600&display=swap" rel="stylesheet">
 <style>
   * { box-sizing: border-box; }
 
@@ -154,10 +154,11 @@
     align-self: flex-start;
   }
   #trackList li {
-    font-family: "IM Fell English", Georgia, "Times New Roman", serif;
-    font-size: 21px;                 /* smaller, so the visualizer dominates */
+    font-family: "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+    font-size: 16.59px;              /* title size, reduced another 3% (parens held fixed below) */
     line-height: 1.5;
-    font-variant-caps: small-caps;
+    text-transform: uppercase;
+    font-variant-caps: normal;
     letter-spacing: 0.5px;
     color: #1fbfd4;                  /* teal-blue default */
     cursor: pointer;
@@ -171,6 +172,12 @@
     content: "\25B6  ";              /* ▶ marker on the playing track */
     font-size: 0.7em;
   }
+
+  /* Parenthetical text renders at ~60% of the surrounding text size */
+  .paren { font-size: 0.6em; }
+  /* In the track list, hold parentheses at their prior size so only the
+     title text shrank by 10%, not the parenthetical text. */
+  #trackList li .paren { font-size: 11.4px; }
 
   /* On narrow screens, stack the list above the visualizer */
   @media (max-width: 560px) {
@@ -239,7 +246,7 @@ const TRACKS = [
   { title: "Crack of Dawn",   file: "audios/SWTAFX - CRACKOFDAWN.mp3" },
   { title: "Brown",           file: "audios/SWTAFX - BROWN.mp3" },
   { title: "Melancholy (Quiet Plea instrumental)", file: "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3" },
-  { title: "Quiet Plea",           file: "audios/SWTAFX - Quiet Plea" },
+  { title: "Quiet Plea",           file: "audios/SWTAFX - Quiet Plea.mp3" },
 
 ];
 
@@ -609,11 +616,19 @@ function stop() {
 /* ============================================================
    TRANSPORT / UI WIRING
    ============================================================ */
+/* Escape, then shrink any (parenthetical) portion to ~60% size */
+function escHtml(s){
+  return s.replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;");
+}
+function formatTitle(s){
+  return escHtml(s).replace(/(\([^)]*\))/g, '<span class="paren">$1</span>');
+}
+
 function loadTrack(idx) {
   idx = (idx + TRACKS.length) % TRACKS.length;
   const t = TRACKS[idx];
   audio.src = encodeURI(t.file);
-  trackTitle.textContent = t.title;
+  trackTitle.innerHTML = formatTitle(t.title);
   timeEl.textContent = "0:00 / 0:00";
   // highlight the active item in the list
   trackList.querySelectorAll("li").forEach((li, i) =>
@@ -629,7 +644,7 @@ function fmt(s) {
 // build clickable track list
 TRACKS.forEach((t, i) => {
   const li = document.createElement("li");
-  li.textContent = t.title;
+  li.innerHTML = formatTitle(t.title);
   li.addEventListener("click", () => {
     startIdx = i;
     loadTrack(i);
