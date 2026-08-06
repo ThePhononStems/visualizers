@@ -200,6 +200,37 @@ body{
 .navIcon:hover{
   color:#8fb0a8;
 }
+/* "Play some music?" button — pushed to the far right of the nav row */
+.musicBtn{
+  margin-left:auto;               /* shove it to the right edge of the row */
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  font-family:"Raleway",Arial,Helvetica,sans-serif;
+  font-weight:600;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  font-size:12px;
+  padding:8px 14px;
+  border-radius:8px;
+  cursor:pointer;
+  color:#5ec8ff;
+  background:rgba(94,200,255,0.10);
+  border:1px solid #5ec8ff;
+  box-shadow:0 0 10px rgba(94,200,255,0.35);
+  transition:background .2s, box-shadow .2s, color .2s;
+}
+.musicBtn:hover{
+  background:rgba(94,200,255,0.20);
+  box-shadow:0 0 16px rgba(94,200,255,0.55);
+}
+.musicBtn.playing{
+  color:#ddb459;
+  border-color:#ddb459;
+  background:rgba(221,180,89,0.12);
+  box-shadow:0 0 14px rgba(221,180,89,0.5);
+}
+.musicBtn .mIcon{ font-size:13px; line-height:1; }
 .catCount{
   font-family:"Special Elite","Courier New",Courier,monospace;
   font-size:11px;
@@ -257,7 +288,13 @@ body.standalone .stage{
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Open full screen</button>
+    <button id="musicBtn" class="musicBtn" aria-label="Play some music">
+      <span class="mIcon" id="musicIcon">&#9654;</span>
+      <span id="musicLabel">Play some music?</span>
+    </button>
   </div>
+
+  <audio id="bgMusic" preload="none"></audio>
 
   <div class="controls catRow">
     <div class="catCol">
@@ -761,6 +798,64 @@ Object.keys(catButtons).forEach(function(name){
 
 const savedUrl = localStorage.getItem(STORAGE_KEY) || CATEGORY_ALBUMS.Favorites;
 switchAlbum(savedUrl, savedUrl === CATEGORY_ALBUMS.Favorites ? "Favorites" : null);
+
+/* ============================================================
+   BACKGROUND MUSIC — the "Play some music?" button.
+   Plays the same playlist as your audio page, in order, looping
+   back to the top after the last track. Files are read from the
+   audios/ folder next to this page (same as the audio embed).
+   Press once to start; press again to pause.
+   ============================================================ */
+const MUSIC_TRACKS = [
+  "audios/SWTAFX - STOMPING GROUND.mp3",
+  "audios/SWTAFX - EXPANSE.mp3",
+  "audios/SWTAFX - Worlds Apart.mp3",
+  "audios/SWTAFX - Espero Al Final.mp3",
+  "audios/SWTAFX - Color Burn.mp3",
+  "audios/SWTAFX - Fading.mp3",
+  "audios/SWTAFX - Fanfare.mp3",
+  "audios/SWTAFX - CRACKOFDAWN.mp3",
+  "audios/SWTAFX - BROWN.mp3",
+  "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3",
+  "audios/SWTAFX - Quiet Plea"
+];
+
+const bgMusic    = document.getElementById("bgMusic");
+const musicBtn   = document.getElementById("musicBtn");
+const musicIcon  = document.getElementById("musicIcon");
+const musicLabel = document.getElementById("musicLabel");
+let musicIdx = 0;
+let musicLoaded = false;
+
+function loadMusicTrack(i){
+  musicIdx = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
+  bgMusic.src = encodeURI(MUSIC_TRACKS[musicIdx]);
+  musicLoaded = true;
+}
+
+musicBtn.addEventListener("click", function(){
+  if (!musicLoaded) loadMusicTrack(0);
+  if (bgMusic.paused) {
+    bgMusic.play();
+  } else {
+    bgMusic.pause();
+  }
+});
+
+bgMusic.addEventListener("play", function(){
+  musicBtn.classList.add("playing");
+  musicIcon.innerHTML = "&#10073;&#10073;"; /* pause bars */
+  musicLabel.textContent = "Pause the music";
+});
+bgMusic.addEventListener("pause", function(){
+  musicBtn.classList.remove("playing");
+  musicIcon.innerHTML = "&#9654;";          /* play triangle */
+  musicLabel.textContent = "Play some music?";
+});
+bgMusic.addEventListener("ended", function(){
+  loadMusicTrack(musicIdx + 1);            /* advance to next track */
+  bgMusic.play();
+});
 </script>
 
 </body>
