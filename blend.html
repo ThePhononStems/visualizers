@@ -33,6 +33,7 @@ body{
 <body>
 
 <div class="wrap">
+  <div class="viewerCol">
   <div class="stage" id="stage">
     <div class="stageInner" id="stageInner">
       <div class="layer" id="layerA">
@@ -47,7 +48,9 @@ body{
     </div>
     <div class="flash" id="flash"></div>
   </div>
+  </div><!-- /viewerCol -->
 
+  <div class="controlsCol">
   <div class="controls">
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="layerAToggle" checked>
@@ -144,7 +147,6 @@ body{
       Full-resolution captures
     </label>
     <button id="fullscreenBtn" class="btn">Fullscreen</button>
-    <a id="newTabLink" class="btn" target="_blank" rel="noopener" style="text-decoration:none;">Open in new tab</a>
     <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
@@ -154,21 +156,63 @@ body{
   </div>
 
   <div class="sheet" id="sheet"></div>
+  </div><!-- /controlsCol -->
 </div>
 
 <style>
+/* Two-column layout: viewer on the left, all controls on the right,
+   so the whole thing fits within the browser window without the page
+   scrolling. The controls column scrolls on its own if it's tall. */
 .wrap{
-  max-width:900px;
-  margin:0 auto;
-  padding:40px 20px;
+  display:flex;
+  gap:22px;
+  align-items:flex-start;
+  padding:20px;
+  height:100vh;
+}
+.viewerCol{
+  flex:0 0 auto;
+}
+.controlsCol{
+  flex:1 1 auto;
+  min-width:0;
+  height:100%;
+  overflow-y:auto;
+  padding-right:6px;
+}
+/* first control row shouldn't push down from the top of the column */
+.controlsCol .controls:first-child{
+  margin-top:0;
 }
 .stage{
   position:relative;
-  width:100%;
-  aspect-ratio:1/1;
+  /* square, sized to whichever is smaller: ~58% of width, or the full
+     available height — so the viewer always fits on screen */
+  width:min(58vw, calc(100vh - 40px));
+  height:min(58vw, calc(100vh - 40px));
   background:#000;
   border-radius:12px;
   overflow:hidden;
+}
+
+/* Stage-only "fullscreen page" (opened via ?stage=1 from the embed):
+   hide the controls and let the viewer fill the whole window. */
+body.stageOnly .wrap{
+  padding:0;
+  height:100vh;
+}
+body.stageOnly .controlsCol{
+  display:none;
+}
+body.stageOnly .viewerCol{
+  flex:1 1 auto;
+  width:100vw;
+  height:100vh;
+}
+body.stageOnly .stage{
+  width:100vw;
+  height:100vh;
+  border-radius:0;
 }
 .stage:fullscreen{
   width:100vw;
@@ -387,8 +431,6 @@ const postBtn = document.getElementById("postBtn");
 const fullResToggle = document.getElementById("fullResToggle");
 const cropToggle = document.getElementById("cropToggle");
 const fullscreenBtn = document.getElementById("fullscreenBtn");
-const newTabLink = document.getElementById("newTabLink");
-newTabLink.href = window.location.href;
 const imgAEl = document.getElementById("imgA");
 const imgBEl = document.getElementById("imgB");
 const imgCEl = document.getElementById("imgC");
@@ -440,13 +482,33 @@ function toggleFullscreen(){
   }
 }
 
-fullscreenBtn.addEventListener("click", toggleFullscreen);
-stage.addEventListener("dblclick", toggleFullscreen);
-
-if (document.fullscreenEnabled === false) {
-  fullscreenBtn.textContent = "Fullscreen unavailable here";
-  fullscreenBtn.disabled = true;
+function isEmbedded(){
+  try { return window.self !== window.top; }
+  catch (e) { return true; }
 }
+
+/* Stage-only "fullscreen page" mode, requested via ?stage=1. */
+const STAGE_ONLY = new URLSearchParams(window.location.search).get("stage") === "1";
+if (STAGE_ONLY) {
+  document.body.classList.add("stageOnly");
+}
+
+/* One button does the right thing. Inside a Google Sites embed the real
+   Fullscreen API is blocked, so pop the projector out into its own tab
+   showing just the big viewer (?stage=1) -- no separate "open in new tab"
+   step. In a standalone tab, use real browser fullscreen directly. */
+function goFullscreen(){
+  if (isEmbedded()) {
+    const url = new URL(window.location.href);
+    url.searchParams.set("stage", "1");
+    window.open(url.href, "_blank", "noopener");
+    return;
+  }
+  toggleFullscreen();
+}
+
+fullscreenBtn.addEventListener("click", goFullscreen);
+stage.addEventListener("dblclick", goFullscreen);
 
 function updateFullscreenLabel(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
