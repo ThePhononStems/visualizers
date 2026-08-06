@@ -211,23 +211,23 @@ body{
 .musicBtn{
   font-family:"Caveat",cursive;
   font-weight:600;
-  text-transform:lowercase;
-  letter-spacing:0.3px;
+  text-transform:uppercase;
+  letter-spacing:0.6px;
   font-size:17px;
   line-height:1;
   padding:3px 9px;
   border-radius:6px;
   cursor:pointer;
-  /* starts hot: red-orange */
-  color:#ff5a1f;
-  background:rgba(255,90,31,0.10);
-  border:1px solid #ff5a1f;
-  box-shadow:0 0 8px rgba(255,90,31,0.4);
+  /* starts deep yellow / gold */
+  color:#ddb459;
+  background:rgba(221,180,89,0.12);
+  border:1px solid #ddb459;
+  box-shadow:0 0 8px rgba(221,180,89,0.4);
   transition:background .2s, box-shadow .2s, color .2s, border-color .2s;
 }
 .musicBtn:hover{
-  background:rgba(255,90,31,0.20);
-  box-shadow:0 0 12px rgba(255,90,31,0.6);
+  background:rgba(221,180,89,0.22);
+  box-shadow:0 0 12px rgba(221,180,89,0.6);
 }
 /* once started, cool down to the site's accent teal */
 .musicBtn.started{
@@ -289,6 +289,53 @@ body.standalone .stage{
   background:transparent;   /* no white matte */
   padding:0;                /* image goes edge to edge of the stage */
 }
+
+/* ===== "Go bigger" fill mode =====
+   Every photo fills the entire browser window edge to edge. Cropping is
+   allowed; the top edge of the image is kept in view (object-position top).
+   No white matte, no grey gradient glow, no margins. */
+body.fillmode{
+  background:#000;
+  overflow:hidden;
+}
+body.fillmode #scaleOuter{
+  width:100vw;
+  height:100vh;
+  padding:0;
+}
+body.fillmode .wrap{
+  max-width:none !important;
+  width:100vw !important;
+  height:100vh !important;
+  margin:0 !important;
+  padding:0 !important;
+  transform:none !important;   /* cancel the whole-player auto-scaling */
+}
+body.fillmode .frameOuter{
+  width:100vw !important;
+  height:100vh !important;
+  align-items:stretch;
+  justify-content:stretch;
+}
+body.fillmode .stage{
+  width:100vw !important;
+  height:100vh !important;
+  padding:0 !important;
+  background:transparent !important;
+  border-radius:0 !important;
+  box-shadow:none !important;   /* kills the grey gradient glow */
+}
+body.fillmode .photoViewport{
+  width:100vw;
+  height:100vh;
+}
+body.fillmode .photoImg{
+  object-fit:cover !important;        /* fill window, crop as needed */
+  object-position:top center !important; /* keep the top edge in view */
+}
+body.fillmode .controls{
+  display:none;
+}
 </style>
 </head>
 <body>
@@ -308,10 +355,11 @@ body.standalone .stage{
     <button id="prevBtn" class="navIcon" aria-label="Previous">&#9664;</button>
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
-    <button id="fullscreenBtn" class="btn">Open full screen</button>
+    <button id="fullscreenBtn" class="btn">Go big</button>
+    <button id="goBiggerBtn" class="btn">Go bigger</button>
     <span class="musicGroup">
       <button id="musicBtn" class="musicBtn" aria-label="Play some music">
-        <span id="musicLabel">Play some music?</span>
+        <span id="musicLabel">PLAY SOME MUSIC?</span>
       </button>
       <button id="musicPrev" class="musicNav" aria-label="Previous song">&#9664;</button>
       <button id="musicNext" class="musicNav" aria-label="Next song">&#9654;</button>
@@ -468,6 +516,12 @@ if (STANDALONE) {
   document.body.classList.add("standalone");
 }
 
+/* "Go bigger" fill mode is requested via ?fill=1 on the URL. */
+const FILLMODE = new URLSearchParams(window.location.search).get("fill") === "1";
+if (FILLMODE) {
+  document.body.classList.add("fillmode");
+}
+
 function currentMatte(){
   if (STANDALONE) return 0; /* no white matte in pop-out mode */
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
@@ -580,9 +634,24 @@ function toggleFullscreen(){
 
 fullscreenBtn.addEventListener("click", toggleFullscreen);
 
+/* "Go bigger": same as Go big, but opens the fill-mode view where every
+   photo fills the whole window (cropping allowed, top edge kept in view). */
+const goBiggerBtn = document.getElementById("goBiggerBtn");
+function goBigger(){
+  const url = new URL(window.location.href);
+  url.searchParams.set("fill", "1");
+  if (isEmbedded()) {
+    window.open(url.href, "_blank", "noopener");
+    return;
+  }
+  // Standalone tab: navigate this window into fill mode, then go fullscreen.
+  window.open(url.href, "_blank", "noopener");
+}
+goBiggerBtn.addEventListener("click", goBigger);
+
 function onFullscreenChange(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-  fullscreenBtn.textContent = isFs ? "Exit full screen" : "Open full screen";
+  fullscreenBtn.textContent = isFs ? "Exit full screen" : "Go big";
   setTimeout(fitStageToRatio, 50);
 }
 document.addEventListener("fullscreenchange", onFullscreenChange);
@@ -841,7 +910,7 @@ const MUSIC_TRACKS = [
   "audios/SWTAFX - CRACKOFDAWN.mp3",
   "audios/SWTAFX - BROWN.mp3",
   "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3",
-  "audios/SWTAFX - Quiet Plea"
+  "audios/SWTAFX - Quiet Plea.mp3"
 ];
 
 const bgMusic    = document.getElementById("bgMusic");
@@ -879,10 +948,10 @@ musicPrev.addEventListener("click", function(){
 
 bgMusic.addEventListener("play", function(){
   musicBtn.classList.add("started");        /* cool down from red-orange */
-  musicLabel.textContent = "playing music";
+  musicLabel.textContent = "PLAYING MUSIC";
 });
 bgMusic.addEventListener("pause", function(){
-  musicLabel.textContent = "music paused";
+  musicLabel.textContent = "MUSIC PAUSED";
 });
 bgMusic.addEventListener("ended", function(){
   loadMusicTrack(musicIdx + 1);            /* advance to next track */
