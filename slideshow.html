@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flickr Slideshow</title>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Raleway:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Raleway:wght@600&family=Caveat:wght@600&display=swap" rel="stylesheet">
 <style>
 *{
   box-sizing:border-box;
@@ -200,37 +200,58 @@ body{
 .navIcon:hover{
   color:#8fb0a8;
 }
-/* "Play some music?" button — pushed to the far right of the nav row */
-.musicBtn{
-  margin-left:auto;               /* shove it to the right edge of the row */
+/* Music controls — pushed to the far right of the nav row */
+.musicGroup{
+  margin-left:auto;               /* shove the whole cluster to the right edge */
   display:inline-flex;
   align-items:center;
-  gap:7px;
-  font-family:"Raleway",Arial,Helvetica,sans-serif;
+  gap:6px;
+}
+/* "Play some music?" button — soft cursive, ~60% of the old scale */
+.musicBtn{
+  font-family:"Caveat",cursive;
   font-weight:600;
-  text-transform:uppercase;
-  letter-spacing:1px;
-  font-size:12px;
-  padding:8px 14px;
-  border-radius:8px;
+  text-transform:lowercase;
+  letter-spacing:0.3px;
+  font-size:17px;
+  line-height:1;
+  padding:3px 9px;
+  border-radius:6px;
   cursor:pointer;
-  color:#5ec8ff;
-  background:rgba(94,200,255,0.10);
-  border:1px solid #5ec8ff;
-  box-shadow:0 0 10px rgba(94,200,255,0.35);
-  transition:background .2s, box-shadow .2s, color .2s;
+  /* starts hot: red-orange */
+  color:#ff5a1f;
+  background:rgba(255,90,31,0.10);
+  border:1px solid #ff5a1f;
+  box-shadow:0 0 8px rgba(255,90,31,0.4);
+  transition:background .2s, box-shadow .2s, color .2s, border-color .2s;
 }
 .musicBtn:hover{
-  background:rgba(94,200,255,0.20);
-  box-shadow:0 0 16px rgba(94,200,255,0.55);
+  background:rgba(255,90,31,0.20);
+  box-shadow:0 0 12px rgba(255,90,31,0.6);
 }
-.musicBtn.playing{
-  color:#ddb459;
-  border-color:#ddb459;
-  background:rgba(221,180,89,0.12);
-  box-shadow:0 0 14px rgba(221,180,89,0.5);
+/* once started, cool down to the site's accent teal */
+.musicBtn.started{
+  color:#5ec8ff;
+  border-color:#5ec8ff;
+  background:rgba(94,200,255,0.12);
+  box-shadow:0 0 10px rgba(94,200,255,0.45);
 }
-.musicBtn .mIcon{ font-size:13px; line-height:1; }
+.musicBtn.started:hover{
+  background:rgba(94,200,255,0.22);
+  box-shadow:0 0 14px rgba(94,200,255,0.6);
+}
+/* prev / next song arrows */
+.musicNav{
+  background:none;
+  border:none;
+  padding:0 2px;
+  font-size:15px;
+  line-height:1;
+  color:#6e918a;
+  cursor:pointer;
+  transition:color .15s;
+}
+.musicNav:hover{ color:#8fb0a8; }
 .catCount{
   font-family:"Special Elite","Courier New",Courier,monospace;
   font-size:11px;
@@ -288,10 +309,13 @@ body.standalone .stage{
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Open full screen</button>
-    <button id="musicBtn" class="musicBtn" aria-label="Play some music">
-      <span class="mIcon" id="musicIcon">&#9654;</span>
-      <span id="musicLabel">Play some music?</span>
-    </button>
+    <span class="musicGroup">
+      <button id="musicBtn" class="musicBtn" aria-label="Play some music">
+        <span id="musicLabel">Play some music?</span>
+      </button>
+      <button id="musicPrev" class="musicNav" aria-label="Previous song">&#9664;</button>
+      <button id="musicNext" class="musicNav" aria-label="Next song">&#9654;</button>
+    </span>
   </div>
 
   <audio id="bgMusic" preload="none"></audio>
@@ -822,8 +846,9 @@ const MUSIC_TRACKS = [
 
 const bgMusic    = document.getElementById("bgMusic");
 const musicBtn   = document.getElementById("musicBtn");
-const musicIcon  = document.getElementById("musicIcon");
 const musicLabel = document.getElementById("musicLabel");
+const musicPrev  = document.getElementById("musicPrev");
+const musicNext  = document.getElementById("musicNext");
 let musicIdx = 0;
 let musicLoaded = false;
 
@@ -842,15 +867,22 @@ musicBtn.addEventListener("click", function(){
   }
 });
 
+/* skip to the next / previous song and keep it playing */
+musicNext.addEventListener("click", function(){
+  loadMusicTrack(musicIdx + 1);
+  bgMusic.play();
+});
+musicPrev.addEventListener("click", function(){
+  loadMusicTrack(musicIdx - 1);
+  bgMusic.play();
+});
+
 bgMusic.addEventListener("play", function(){
-  musicBtn.classList.add("playing");
-  musicIcon.innerHTML = "&#10073;&#10073;"; /* pause bars */
-  musicLabel.textContent = "Pause the music";
+  musicBtn.classList.add("started");        /* cool down from red-orange */
+  musicLabel.textContent = "playing music";
 });
 bgMusic.addEventListener("pause", function(){
-  musicBtn.classList.remove("playing");
-  musicIcon.innerHTML = "&#9654;";          /* play triangle */
-  musicLabel.textContent = "Play some music?";
+  musicLabel.textContent = "music paused";
 });
 bgMusic.addEventListener("ended", function(){
   loadMusicTrack(musicIdx + 1);            /* advance to next track */
