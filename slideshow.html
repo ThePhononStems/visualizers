@@ -290,13 +290,14 @@ body.standalone .stage{
   padding:0;                /* image goes edge to edge of the stage */
 }
 
-/* ===== "Go bigger" fill mode =====
-   Every photo fills the entire browser window edge to edge. Cropping is
-   allowed; the top edge of the image is kept in view (object-position top).
-   No white matte, no grey gradient glow, no margins. */
+/* ===== "Go bigger" immersive mode =====
+   Each photo shown whole (no cropping), scaled to fit the screen with black
+   bars where shapes differ. No white matte, no grey gradient glow, no margins.
+   On the popped-out page a click enters true browser fullscreen. */
 body.fillmode{
   background:#000;
   overflow:hidden;
+  cursor:pointer;
 }
 body.fillmode #scaleOuter{
   width:100vw;
@@ -330,12 +331,35 @@ body.fillmode .photoViewport{
   height:100vh;
 }
 body.fillmode .photoImg{
-  object-fit:cover !important;        /* fill window, crop as needed */
-  object-position:top center !important; /* keep the top edge in view */
+  object-fit:contain !important;         /* whole photo, no cropping */
+  object-position:center center !important;
 }
 body.fillmode .controls{
   display:none;
 }
+
+/* "Click anywhere for full screen" hint on the popped-out page */
+#fsHint{
+  position:fixed;
+  bottom:26px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:9999;
+  padding:9px 16px;
+  border-radius:999px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.25);
+  color:#fff;
+  font-family:"Raleway",Arial,Helvetica,sans-serif;
+  font-size:13px;
+  letter-spacing:0.5px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .4s ease;
+}
+#fsHint.show{ opacity:1; }
+body:fullscreen #fsHint,
+body:-webkit-full-screen #fsHint{ display:none; }
 </style>
 </head>
 <body>
@@ -520,6 +544,31 @@ if (STANDALONE) {
 const FILLMODE = new URLSearchParams(window.location.search).get("fill") === "1";
 if (FILLMODE) {
   document.body.classList.add("fillmode");
+
+  /* Show a fading "click anywhere for full screen" hint, then wire the whole
+     page so the first click enters true browser fullscreen (like a movie).
+     Fullscreen must be triggered by a user gesture, so we can't auto-enter. */
+  const fsHint = document.createElement("div");
+  fsHint.id = "fsHint";
+  fsHint.textContent = "Click anywhere for full screen";
+  document.addEventListener("DOMContentLoaded", function(){
+    document.body.appendChild(fsHint);
+    requestAnimationFrame(function(){ fsHint.classList.add("show"); });
+    setTimeout(function(){ fsHint.classList.remove("show"); }, 6000);
+  });
+
+  function enterRealFullscreen(){
+    const el = document.documentElement;
+    const req = el.requestFullscreen || el.webkitRequestFullscreen;
+    if (req) {
+      try { req.call(el); } catch (e) {}
+    }
+    fsHint.classList.remove("show");
+  }
+  document.addEventListener("click", function(){
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFs) enterRealFullscreen();
+  });
 }
 
 function currentMatte(){
