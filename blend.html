@@ -75,27 +75,30 @@ body{
   </div>
 
   <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer A album:</span>
-    <input type="text" id="urlInputA" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <span class="ctrlLabel urlLabel">Layer A</span>
+    <input type="text" id="urlInputA" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadA" class="btn btnSmall">Load</button>
     <button id="urlClearA" class="btn btnSmall">Clear</button>
     <button id="uploadBtnA" class="btn btnSmall">Upload your own photos</button>
+    <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
     <input type="file" id="uploadInputA" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer B album:</span>
-    <input type="text" id="urlInputB" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <span class="ctrlLabel urlLabel">Layer B</span>
+    <input type="text" id="urlInputB" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadB" class="btn btnSmall">Load</button>
     <button id="urlClearB" class="btn btnSmall">Clear</button>
     <button id="uploadBtnB" class="btn btnSmall">Upload your own photos</button>
+    <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
     <input type="file" id="uploadInputB" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer C album:</span>
-    <input type="text" id="urlInputC" class="urlInput" placeholder="Paste a flickr.com/photos/.../albums/... URL">
+    <span class="ctrlLabel urlLabel">Layer C</span>
+    <input type="text" id="urlInputC" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadC" class="btn btnSmall">Load</button>
     <button id="urlClearC" class="btn btnSmall">Clear</button>
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
+    <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
     <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls">
@@ -164,6 +167,23 @@ body{
 
   <div class="sheet" id="sheet"></div>
   </div><!-- /controlsCol -->
+</div>
+
+<!-- Help pop-out: what you can load into a layer -->
+<div id="helpModal">
+  <div class="helpCard">
+    <h3>What can I load into a layer?</h3>
+    <p>This projector needs images to blend. For each layer you can load:</p>
+    <ul>
+      <li>A <strong>Flickr album URL</strong> — e.g. <code>flickr.com/photos/name/albums/123</code> (album pages only, not single-photo pages).</li>
+      <li>A <strong>direct image URL</strong> — a link ending in an image file, e.g. <code>https://example.com/photo.jpg</code>.</li>
+      <li>A <strong>remote list</strong> — a URL to a plain-text <code>.txt</code> file with one image URL per line.</li>
+    </ul>
+    <p>Or click <strong>Upload your own photos</strong> to use images straight from your device.</p>
+    <div class="closeRow">
+      <button id="helpModalClose" class="btn btnSmall">Got it</button>
+    </div>
+  </div>
 </div>
 
 <style>
@@ -314,11 +334,13 @@ select{
 }
 .urlLabel{
   flex:none;
-  width:100px;
+  width:auto;
+  min-width:52px;
 }
 .urlInput{
-  flex:1;
-  min-width:200px;
+  flex:0 0 auto;
+  width:160px;          /* ~1/3 of the old full-width bar */
+  min-width:0;
   background:#242424;
   color:#fff;
   border:1px solid #2a2a2a;
@@ -329,6 +351,66 @@ select{
 .urlInput:focus{
   border-color:#5ec8ff;
   outline:none;
+}
+/* Circular "?" help button */
+.helpBtn{
+  flex:0 0 auto;
+  width:24px;
+  height:24px;
+  border-radius:50%;
+  border:1px solid #2a2a2a;
+  background:#242424;
+  color:#9a9a9a;
+  font-size:13px;
+  font-weight:700;
+  line-height:1;
+  cursor:pointer;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+}
+.helpBtn:hover{
+  border-color:#5ec8ff;
+  color:#5ec8ff;
+}
+/* Help pop-out overlay */
+#helpModal{
+  position:fixed;
+  inset:0;
+  z-index:10000;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:rgba(0,0,0,0.6);
+}
+#helpModal.open{ display:flex; }
+.helpCard{
+  max-width:420px;
+  width:calc(100% - 40px);
+  background:#161616;
+  border:1px solid #2a2a2a;
+  border-radius:12px;
+  padding:22px 24px;
+  color:#e8e8e8;
+  font-size:13px;
+  line-height:1.5;
+  box-shadow:0 20px 60px rgba(0,0,0,0.6);
+}
+.helpCard h3{
+  margin:0 0 10px;
+  font-size:15px;
+}
+.helpCard ul{ margin:8px 0; padding-left:18px; }
+.helpCard li{ margin:6px 0; }
+.helpCard code{
+  background:#242424;
+  border-radius:4px;
+  padding:1px 5px;
+  font-size:12px;
+}
+.helpCard .closeRow{
+  margin-top:16px;
+  text-align:right;
 }
 .hint{
   font-size:12px;
@@ -755,6 +837,9 @@ function loadLayerSource(cfg){
   if (cfg.type === "flickr-page") {
     return loadFlickrPage(cfg);
   }
+  if (cfg.type === "url") {
+    return loadListFromAnyUrl(cfg.rawUrl);
+  }
   return loadManifest(cfg.manifest, cfg.folder);
 }
 
@@ -762,6 +847,47 @@ function parseFlickrAlbumUrl(text){
   const m = text.match(/flickr\.com\/photos\/([^\/\s]+)\/albums\/(\d+)/);
   if (!m) return null;
   return { userId: m[1], photosetId: m[2] };
+}
+
+/* ---- Non-Flickr sources: direct image URLs and remote .txt lists ---- */
+function looksLikeImageUrl(u){
+  return /^https?:\/\/.+\.(jpe?g|png|gif|webp|avif|bmp|svg)(\?.*)?$/i.test(u.trim());
+}
+function looksLikeManifestUrl(u){
+  return /^https?:\/\/.+\.txt(\?.*)?$/i.test(u.trim());
+}
+function urlBaseName(u){
+  try { return decodeURIComponent(u.split("?")[0].split("/").pop()) || u; }
+  catch (e) { return u; }
+}
+function singleImageItem(u){
+  return { display: u, full: u, title: urlBaseName(u), album: "Direct image URL", dateupload: null };
+}
+async function loadRemoteImageList(rawUrl){
+  const res = await fetch(rawUrl);
+  if (!res.ok) throw new Error("Could not fetch that list (" + res.status + "). The host may block cross-site requests.");
+  const text = await res.text();
+  const items = text.split("\n")
+    .map(function(line){ return line.trim(); })
+    .filter(function(line){ return line.length > 0 && line[0] !== "#"; })
+    .map(function(u){ return singleImageItem(u); });
+  if (items.length === 0) throw new Error("That list had no image URLs in it.");
+  return items;
+}
+/* Detect what kind of link was pasted and load accordingly. */
+async function loadListFromAnyUrl(rawUrl){
+  const url = (rawUrl || "").trim();
+  const parsed = parseFlickrAlbumUrl(url);
+  if (parsed) {
+    return loadFlickrAlbum({ type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: url });
+  }
+  if (looksLikeManifestUrl(url)) {
+    return loadRemoteImageList(url);
+  }
+  if (looksLikeImageUrl(url)) {
+    return [ singleImageItem(url) ];
+  }
+  throw new Error("Unrecognized link. Load a Flickr album URL, a direct image URL ending in .jpg/.png/etc., or a .txt list of image URLs. (Click the ? for details.)");
 }
 
 const URL_STORAGE_PREFIX = "blendLayerAlbumUrl_";
@@ -794,22 +920,16 @@ function applyLayerList(key, list){
 }
 
 async function switchLayerToAlbumUrl(key, rawUrl){
-  const parsed = parseFlickrAlbumUrl(rawUrl);
-  if (!parsed) {
-    alert("That doesn't look like a Flickr album URL. Expected something like:\nflickr.com/photos/username/albums/72177720123456789");
-    return;
-  }
-  const cfg = { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: rawUrl };
   try {
-    const list = await loadLayerSource(cfg);
+    const list = await loadListFromAnyUrl(rawUrl);
     if (list.length === 0) {
-      alert("That album returned no photos.");
+      alert("That link returned no images.");
       return;
     }
     applyLayerList(key, list);
-    localStorage.setItem(URL_STORAGE_PREFIX + key, rawUrl);
+    localStorage.setItem(URL_STORAGE_PREFIX + key, (rawUrl || "").trim());
   } catch (err) {
-    alert("Could not load that album: " + err.message);
+    alert(err.message);
   }
 }
 
@@ -880,6 +1000,20 @@ function wireUrlInput(key){
 wireUrlInput("A");
 wireUrlInput("B");
 wireUrlInput("C");
+
+/* Help "?" pop-out: any ? button opens it; click the backdrop or "Got it" closes. */
+(function(){
+  const modal = document.getElementById("helpModal");
+  const closeBtn = document.getElementById("helpModalClose");
+  function openHelp(){ modal.classList.add("open"); }
+  function closeHelp(){ modal.classList.remove("open"); }
+  document.querySelectorAll(".helpBtn").forEach(function(btn){
+    btn.addEventListener("click", openHelp);
+  });
+  closeBtn.addEventListener("click", closeHelp);
+  modal.addEventListener("click", function(e){ if (e.target === modal) closeHelp(); });
+  document.addEventListener("keydown", function(e){ if (e.key === "Escape") closeHelp(); });
+})();
 
 document.getElementById("shareLinkBtn").addEventListener("click", function(){
   const base = window.location.origin + window.location.pathname;
@@ -1061,12 +1195,18 @@ function resolveInitialConfig(key, defaultCfg){
     if (parsed) {
       return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: fromQuery };
     }
+    if (looksLikeImageUrl(fromQuery) || looksLikeManifestUrl(fromQuery)) {
+      return { type: "url", rawUrl: fromQuery };
+    }
   }
   const saved = savedAlbumUrl(key);
   if (saved) {
     const parsed = parseFlickrAlbumUrl(saved);
     if (parsed) {
       return { type: "flickr", apiKey: FLICKR_API_KEY, userId: parsed.userId, photosetId: parsed.photosetId, sourceUrl: saved };
+    }
+    if (looksLikeImageUrl(saved) || looksLikeManifestUrl(saved)) {
+      return { type: "url", rawUrl: saved };
     }
   }
   return defaultCfg;
