@@ -112,12 +112,11 @@ body{
       <input type="checkbox" id="blendCycleToggle">
       Cycle blend modes
     </label>
-    <span class="captureHint">Press &ldquo; i &rdquo; to capture the current blend</span>
+    <button id="compareToggle" class="btn btnSmall pauseBtn" aria-label="Pause and compare" title="Pause and compare">&#10073;&#10073;</button>
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="autoBalance">
       Auto-balance exposure
     </label>
-    <button id="compareToggle" class="btn btnSmall pauseBtn" aria-label="Pause and compare" title="Pause and compare">&#10073;&#10073;</button>
     <span class="hint" id="compareButtons" style="display:none;">
       <button id="preBtn" class="btn btnSmall">Pre-balance</button>
       <button id="postBtn" class="btn btnSmall">Post-balance</button>
@@ -137,6 +136,7 @@ body{
   <hr class="sectionDivider">
   <div class="captureHead">
     <span class="sectionLabel">Capture &amp; export</span>
+    <span class="captureHint">Press &ldquo; i &rdquo; to capture the current blend</span>
     <label class="ctrlLabel toggleLabel fullResLabel">
       <input type="checkbox" id="fullResToggle" checked>
       Full-resolution captures
@@ -145,7 +145,7 @@ body{
 
   <div class="controls">
     <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
-    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
+    <span class="hint shareHint">Anyone who opens that link sees the same albums you have loaded right now.</span>
   </div>
 
   <div class="controls">
@@ -450,11 +450,17 @@ select{
   font-weight:700;
 }
 .sectionLabel{
-  font-size:11px;
+  font-size:13px;
   text-transform:uppercase;
   letter-spacing:1.2px;
-  color:#6a6a6a;
+  color:#8a8a8a;
   margin:12px 0 2px;
+}
+/* Share-link note: wraps into ~two lines to the right of the button */
+.shareHint{
+  max-width:230px;
+  line-height:1.35;
+  white-space:normal;
 }
 /* "Capture & export" label + inline capture hint, on one line */
 .captureHead{
