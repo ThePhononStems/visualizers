@@ -56,7 +56,7 @@
     border: none;
     background: #fff;
     color: #000;
-    font-size: 18px;
+    font-size: 23px;              /* play symbol enlarged a touch */
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -65,6 +65,26 @@
   }
   #playBtn:hover { transform: scale(1.06); }
   #playBtn:active { transform: scale(0.96); }
+
+  /* Shuffle button, sits next to Play */
+  #shuffleBtn {
+    flex: 0 0 auto;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 1px solid rgba(255,255,255,0.18);
+    background: #1a1a1a;
+    color: #fff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: transform .12s ease, background .2s ease, border-color .2s ease, color .2s ease;
+  }
+  #shuffleBtn:hover { transform: scale(1.06); border-color: rgba(255,255,255,0.4); }
+  #shuffleBtn:active { transform: scale(0.96); }
+  #shuffleBtn[data-active="1"] { background: #ddb459; color: #000; border-color: #ddb459; }
+  #shuffleBtn svg { width: 18px; height: 18px; display: block; }
 
   .meta {
     flex: 1 1 160px;
@@ -138,6 +158,7 @@
     align-items: stretch;
     gap: 8px;
     background: #000;
+    padding-bottom: 18px;   /* lift the visualizer off the very bottom edge */
   }
   #wrap { flex: 1 1 auto; min-width: 0; }        /* visualizer takes the rest */
 
@@ -152,7 +173,20 @@
     background: #000;
     font-family: "Special Elite", "Courier New", Courier, monospace;
     align-self: flex-start;
+    /* Scroll the list on its own when it gets long, without moving the
+       visualizer. Height tracks the visualizer + controls area. */
+    max-height: 460px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: #333 #000;
   }
+  #trackList::-webkit-scrollbar { width: 8px; }
+  #trackList::-webkit-scrollbar-thumb {
+    background: #333;
+    border-radius: 4px;
+  }
+  #trackList::-webkit-scrollbar-track { background: #000; }
   #trackList li {
     font-family: "Raleway", -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
     font-size: 16.59px;              /* title size, reduced another 3% (parens held fixed below) */
@@ -196,6 +230,16 @@
 
   <div id="bar">
     <button id="playBtn" aria-label="Play">&#9654;</button>
+
+    <button id="shuffleBtn" aria-label="Shuffle" title="Shuffle">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M16 3h5v5"/>
+        <path d="M4 20 21 3"/>
+        <path d="M21 16v5h-5"/>
+        <path d="M15 15l6 6"/>
+        <path d="M4 4l5 5"/>
+      </svg>
+    </button>
 
     <div class="meta">
       <div id="trackTitle">—</div>
@@ -247,11 +291,6 @@ const TRACKS = [
   { title: "Brown",           file: "audios/SWTAFX - BROWN.mp3" },
   { title: "Melancholy (Quiet Plea instrumental)", file: "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3" },
   { title: "Quiet Plea",           file: "audios/SWTAFX - Quiet Plea.mp3" },
-  { title: "Nocturnal",           file: "audios/SWTAFX - Nocturnal.mp3" },
-  { title: "ODWABD",           file: "audios/SWTAFX - ODWABD.mp3" },
-  { title: "Peo Sear",           file: "audios/SWTAFX - PEO SEAR.mp3" },
-  { title: "Sorry",           file: "audios/SWTAFX - SORRY.mp3" },
-  { title: "Foray",           file: "audios/SWTAFX - FORAY.mp3" },
 
 ];
 
@@ -677,9 +716,26 @@ playBtn.addEventListener("click", () => {
   if (audio.paused) audio.play(); else audio.pause();
 });
 
+/* Shuffle: when on, the next track (after one ends) is chosen at random
+   instead of playing in order. */
+const shuffleBtn = document.getElementById("shuffleBtn");
+let shuffle = false;
+shuffleBtn.addEventListener("click", () => {
+  shuffle = !shuffle;
+  shuffleBtn.dataset.active = shuffle ? "1" : "0";
+});
+function nextTrackIndex(){
+  if (shuffle && TRACKS.length > 1) {
+    let r;
+    do { r = Math.floor(Math.random() * TRACKS.length); } while (r === startIdx);
+    return r;
+  }
+  return (startIdx + 1) % TRACKS.length;
+}
+
 audio.addEventListener("play", () => { playBtn.innerHTML = "&#10073;&#10073;"; start(); });
 audio.addEventListener("pause", () => { playBtn.innerHTML = "&#9654;"; stop(); });
-audio.addEventListener("ended", () => { loadTrack(startIdx = (startIdx + 1)); audio.play(); });
+audio.addEventListener("ended", () => { loadTrack(startIdx = nextTrackIndex()); audio.play(); });
 
 audio.addEventListener("timeupdate", () => {
   if (audio.duration) {
