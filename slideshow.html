@@ -4,7 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Flickr Slideshow</title>
-<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Raleway:wght@600&family=Caveat:wght@600&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Raleway:wght@600&family=Dancing+Script:wght@600;700&display=swap" rel="stylesheet">
 <style>
 *{
   box-sizing:border-box;
@@ -147,6 +147,7 @@ body{
 }
 .controls.navRow{
   margin-top:40px;   /* push the nav row down, farther from the image */
+  position:relative; /* anchor the right-aligned music group */
 }
 .navRow + .catRow{
   margin-top:14px;   /* pull the category buttons up, closer to the nav row */
@@ -200,18 +201,23 @@ body{
 }
 /* Music controls — pushed to the far right of the nav row */
 .musicGroup{
-  margin-left:auto;               /* shove the whole cluster to the right edge */
+  /* Pin the music cluster to the right without shifting the centered nav
+     buttons (prev / pause / next / go big stay centered in the full row). */
+  position:absolute;
+  right:0;
+  top:50%;
+  transform:translateY(-50%);
   display:inline-flex;
   align-items:center;
   gap:6px;
 }
 /* "Play some music?" button — soft cursive, ~60% of the old scale */
 .musicBtn{
-  font-family:"Caveat",cursive;
-  font-weight:600;
-  text-transform:uppercase;
-  letter-spacing:0.6px;
-  font-size:17px;
+  font-family:"Dancing Script",cursive;
+  font-weight:700;
+  text-transform:lowercase;
+  letter-spacing:0.3px;
+  font-size:19px;
   line-height:1;
   padding:3px 9px;
   border-radius:6px;
@@ -384,7 +390,7 @@ body:-webkit-full-screen #fsHint{ display:none; }
     <button id="fullscreenBtn" class="btn">Go big</button>
     <span class="musicGroup">
       <button id="musicBtn" class="musicBtn" aria-label="Play some music">
-        <span id="musicLabel">PLAY SOME MUSIC?</span>
+        <span id="musicLabel">play music</span>
       </button>
       <button id="musicPrev" class="musicNav" aria-label="Previous song">&#9664;</button>
       <button id="musicNext" class="musicNav" aria-label="Next song">&#9654;</button>
@@ -970,8 +976,18 @@ const MUSIC_TRACKS = [
   "audios/SWTAFX - CRACKOFDAWN.mp3",
   "audios/SWTAFX - BROWN.mp3",
   "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3",
-  "audios/SWTAFX - Quiet Plea.mp3"
+  "audios/SWTAFX - Quiet Plea.mp3",
+  "audios/SWTAFX - Nocturnal.mp3",
+  "audios/SWTAFX - ODWABD.mp3",
+  "audios/SWTAFX - PEO SEAR.mp3",
+  "audios/SWTAFX - SORRY.mp3",
+  "audios/SWTAFX - FORAY.mp3"
 ];
+
+/* Which track the button starts on (matches the audio page default). */
+const MUSIC_START = Math.max(0, MUSIC_TRACKS.findIndex(function(f){
+  return f.indexOf("Espero Al Final") !== -1;
+}));
 
 const bgMusic    = document.getElementById("bgMusic");
 const musicBtn   = document.getElementById("musicBtn");
@@ -988,7 +1004,7 @@ function loadMusicTrack(i){
 }
 
 musicBtn.addEventListener("click", function(){
-  if (!musicLoaded) loadMusicTrack(0);
+  if (!musicLoaded) loadMusicTrack(MUSIC_START);
   if (bgMusic.paused) {
     bgMusic.play();
   } else {
@@ -1008,10 +1024,10 @@ musicPrev.addEventListener("click", function(){
 
 bgMusic.addEventListener("play", function(){
   musicBtn.classList.add("started");        /* cool down from red-orange */
-  musicLabel.textContent = "PLAYING MUSIC";
+  musicLabel.textContent = "playing music";
 });
 bgMusic.addEventListener("pause", function(){
-  musicLabel.textContent = "MUSIC PAUSED";
+  musicLabel.textContent = "music paused";
 });
 bgMusic.addEventListener("ended", function(){
   loadMusicTrack(musicIdx + 1);            /* advance to next track */
