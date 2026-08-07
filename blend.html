@@ -12,7 +12,6 @@ html,
 body{
   margin:0;
   width:100%;
-  height:100%;
   background:#111;
   color:#fff;
   font-family:Arial,Helvetica,sans-serif;
@@ -56,7 +55,7 @@ body{
       <input type="checkbox" id="layerAToggle" checked>
       Layer A
     </label>
-    <input type="text" id="urlInputA" class="urlInput" placeholder="paste flickr album">
+    <input type="text" id="urlInputA" class="urlInput" placeholder="paste flickr album URL">
     <button id="urlLoadA" class="btn btnSmall">Load</button>
     <button id="urlClearA" class="btn btnSmall">Clear</button>
     <button id="uploadBtnA" class="btn btnSmall">Upload your own photos</button>
@@ -70,7 +69,7 @@ body{
       <input type="checkbox" id="layerBToggle" checked>
       Layer B
     </label>
-    <input type="text" id="urlInputB" class="urlInput" placeholder="paste flickr album">
+    <input type="text" id="urlInputB" class="urlInput" placeholder="paste flickr album URL">
     <button id="urlLoadB" class="btn btnSmall">Load</button>
     <button id="urlClearB" class="btn btnSmall">Clear</button>
     <button id="uploadBtnB" class="btn btnSmall">Upload your own photos</button>
@@ -84,7 +83,7 @@ body{
       <input type="checkbox" id="layerCToggle" checked>
       Layer C
     </label>
-    <input type="text" id="urlInputC" class="urlInput" placeholder="paste flickr album">
+    <input type="text" id="urlInputC" class="urlInput" placeholder="paste flickr album URL">
     <button id="urlLoadC" class="btn btnSmall">Load</button>
     <button id="urlClearC" class="btn btnSmall">Clear</button>
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
@@ -113,6 +112,7 @@ body{
       <input type="checkbox" id="blendCycleToggle">
       Cycle blend modes
     </label>
+    <span class="captureHint">Press &ldquo; i &rdquo; to capture the current blend</span>
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="autoBalance">
       Auto-balance exposure
@@ -137,7 +137,6 @@ body{
   <hr class="sectionDivider">
   <div class="captureHead">
     <span class="sectionLabel">Capture &amp; export</span>
-    <span class="captureHint">Press &ldquo;i&rdquo; to capture the current blend</span>
     <label class="ctrlLabel toggleLabel fullResLabel">
       <input type="checkbox" id="fullResToggle" checked>
       Full-resolution captures
@@ -185,8 +184,9 @@ body{
   display:flex;
   gap:22px;
   align-items:flex-start;
-  padding:20px;
-  height:100vh;
+  padding:20px 20px 12px;
+  /* height sizes to the content so there's no empty black space below the
+     last row — the embed crops right after the controls. */
 }
 .viewerCol{
   flex:0 0 auto;
@@ -194,8 +194,6 @@ body{
 .controlsCol{
   flex:1 1 auto;
   min-width:0;
-  height:100%;
-  overflow-y:auto;
   padding-right:6px;
 }
 /* first control row shouldn't push down from the top of the column */
@@ -436,15 +434,20 @@ select{
 .fullResLabel{
   margin-left:auto;
 }
-/* Pause-and-compare icon button (matches the layer arrow buttons) */
+/* Pause-and-compare icon button — sits next to the rest, ~30% larger */
 .pauseBtn{
-  margin-left:auto;
-  font-size:12px;
+  font-size:16px;
+  padding:8px 14px;
   line-height:1;
 }
 .btn.active{
   border-color:#5ec8ff;
   color:#5ec8ff;
+}
+/* Highlight the currently keyboard-selected layer (keys 1/2/3) */
+.layerToggle.selected{
+  color:#5ec8ff;
+  font-weight:700;
 }
 .sectionLabel{
   font-size:11px;
@@ -1637,11 +1640,63 @@ function downloadCaptureImage(entry){
   });
 }
 
+/* ============================================================
+   KEYBOARD CONTROLS
+     1 / 2 / 3  select Layer A / B / C (highlights that layer)
+     F          turn the selected layer off / on
+     J          previous photo in the selected layer
+     L          next photo in the selected layer
+     I          capture the current blend
+     P          pause everything (pause & compare)
+     B B        double-tap toggles "cycle blend modes"
+   ============================================================ */
+let selectedLayer = "A";
+function setSelectedLayer(k){
+  selectedLayer = k;
+  ["A", "B", "C"].forEach(function(x){
+    const cb = document.getElementById("layer" + x + "Toggle");
+    const label = cb ? cb.closest(".layerToggle") : null;
+    if (label) label.classList.toggle("selected", x === k);
+  });
+}
+setSelectedLayer("A");
+
+let lastBTime = 0;
 document.addEventListener("keydown", function(e){
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  if (e.key.toLowerCase() === "i") {
-    e.preventDefault();
-    capture();
+  const k = e.key.toLowerCase();
+
+  if (k === "1") { setSelectedLayer("A"); e.preventDefault(); return; }
+  if (k === "2") { setSelectedLayer("B"); e.preventDefault(); return; }
+  if (k === "3") { setSelectedLayer("C"); e.preventDefault(); return; }
+
+  if (k === "f") {
+    const t = document.getElementById("layer" + selectedLayer + "Toggle");
+    if (t && !t.disabled) { t.checked = !t.checked; t.dispatchEvent(new Event("change")); }
+    e.preventDefault(); return;
+  }
+  if (k === "j") {
+    const b = document.getElementById("skipBack" + selectedLayer);
+    if (b) b.click();
+    e.preventDefault(); return;
+  }
+  if (k === "l") {
+    const b = document.getElementById("skipFwd" + selectedLayer);
+    if (b) b.click();
+    e.preventDefault(); return;
+  }
+  if (k === "i") { capture(); e.preventDefault(); return; }
+  if (k === "p") { compareToggle.click(); e.preventDefault(); return; }
+  if (k === "b") {
+    const now = Date.now();
+    if (now - lastBTime < 450) {                     // double-tap
+      blendCycleToggle.checked = !blendCycleToggle.checked;
+      blendCycleToggle.dispatchEvent(new Event("change"));
+      lastBTime = 0;
+    } else {
+      lastBTime = now;
+    }
+    e.preventDefault(); return;
   }
 });
 
