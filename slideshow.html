@@ -73,12 +73,12 @@ body{
   display:none;
 }
 .wrap:fullscreen .stage{
-  padding:40px;
+  padding:0;                /* image flush to the screen edges (no crop) */
   background:#000;
   box-shadow:none;
 }
 .wrap:-webkit-full-screen .stage{
-  padding:40px;
+  padding:0;                /* image flush to the screen edges (no crop) */
   background:#000;
   box-shadow:none;
 }
@@ -573,14 +573,17 @@ if (FILLMODE) {
 }
 
 function currentMatte(){
-  if (STANDALONE) return 0; /* no white matte in pop-out mode */
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
-  return isFs ? 80 : MATTE_TOTAL;
+  if (isFs) return 0;       /* fullscreen: image flush to the edges */
+  if (STANDALONE) return 0; /* no white matte in pop-out mode */
+  return MATTE_TOTAL;
 }
 
 function fitStageToRatio(){
   const matte = currentMatte();
-  const screenMargin = STANDALONE ? STANDALONE_MARGIN : 0;
+  const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+  /* No breathing-room margin in fullscreen -- fill the screen edge to edge. */
+  const screenMargin = (STANDALONE && !isFs) ? STANDALONE_MARGIN : 0;
   const availW = frameOuter.clientWidth - screenMargin;
   const availH = frameOuter.clientHeight - screenMargin;
   const contentAvailW = Math.max(availW - matte, 10);
