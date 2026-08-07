@@ -176,10 +176,10 @@ body{
     <p>This projector needs images to blend. For each layer you can load:</p>
     <ul>
       <li>A <strong>Flickr album URL</strong> — e.g. <code>flickr.com/photos/name/albums/123</code> (album pages only, not single-photo pages).</li>
-      <li>A <strong>direct image URL</strong> — a link ending in an image file, e.g. <code>https://example.com/photo.jpg</code>.</li>
-      <li>A <strong>remote list</strong> — a URL to a plain-text <code>.txt</code> file with one image URL per line.</li>
+      <li><strong>Any direct image URL</strong> — a link ending in an image file, e.g. <code>https://example.com/photo.jpg</code>.</li>
+      <li>A <strong>remote list of direct image URLs</strong> — a link to a hosted <code>.txt</code> file with one image URL per line.</li>
+      <li><strong>Your own files</strong> — upload <code>.jpg</code>, <code>.png</code>, and other image files straight from your computer with the <strong>Upload your own photos</strong> button.</li>
     </ul>
-    <p>Or click <strong>Upload your own photos</strong> to use images straight from your device.</p>
     <div class="closeRow">
       <button id="helpModalClose" class="btn btnSmall">Got it</button>
     </div>
@@ -213,10 +213,12 @@ body{
 }
 .stage{
   position:relative;
-  /* square, sized to whichever is smaller: ~58% of width, or the full
-     available height — so the viewer always fits on screen */
-  width:min(58vw, calc(100vh - 40px));
-  height:min(58vw, calc(100vh - 40px));
+  /* square, sized to whichever is smaller: ~52% of width (10% narrower than
+     before, giving the controls more room so their rows don't wrap), or the
+     full available height minus padding — so the viewer always fits on screen
+     without the page scrolling. */
+  width:min(52vw, calc(100vh - 52px));
+  height:min(52vw, calc(100vh - 52px));
   background:#000;
   border-radius:12px;
   overflow:hidden;
@@ -416,11 +418,16 @@ select{
   font-size:12px;
   color:#8a8a8a;
 }
-/* Divider between the viewing options and the capture/export section */
+/* Divider between the viewing options and the capture/export section:
+   a triple line — two darker outer lines with a slightly lighter middle line. */
 .sectionDivider{
   border:none;
-  border-top:1px solid #2a2a2a;
+  height:5px;
   margin:20px 0 0;
+  background:
+    linear-gradient(#2a2a2a,#2a2a2a) top/100% 1px no-repeat,
+    linear-gradient(#3b3b3b,#3b3b3b) center/100% 1px no-repeat,
+    linear-gradient(#2a2a2a,#2a2a2a) bottom/100% 1px no-repeat;
 }
 .sectionLabel{
   font-size:11px;
