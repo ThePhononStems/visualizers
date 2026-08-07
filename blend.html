@@ -136,7 +136,6 @@ body{
   <hr class="sectionDivider">
   <div class="captureHead">
     <span class="sectionLabel">Capture &amp; export</span>
-    <span class="captureHint">Press &ldquo; i &rdquo; to capture the current blend</span>
     <label class="ctrlLabel toggleLabel fullResLabel">
       <input type="checkbox" id="fullResToggle" checked>
       Full-resolution captures
@@ -156,6 +155,16 @@ body{
   </div>
 
   <div class="sheet" id="sheet"></div>
+
+  <!-- Keyboard key legend -->
+  <div class="keyLegend">
+    <span class="keyBlue">I</span> to capture
+    &nbsp;·&nbsp; <strong>1</strong>, <strong>2</strong>, <strong>3</strong> select the layers
+    &nbsp;·&nbsp; <strong>F</strong> turns the layer on/off
+    &nbsp;·&nbsp; <strong>P</strong> pauses the slideshow
+    &nbsp;·&nbsp; <strong>J</strong> previous image
+    &nbsp;·&nbsp; <strong>L</strong> next image
+  </div>
   </div><!-- /controlsCol -->
 </div>
 
@@ -434,11 +443,14 @@ select{
 .fullResLabel{
   margin-left:auto;
 }
-/* Pause-and-compare icon button — sits next to the rest, ~30% larger */
+/* Pause-and-compare icon button — larger, with the two bars spaced apart
+   so it reads clearly as a pause symbol */
 .pauseBtn{
-  font-size:16px;
-  padding:8px 14px;
+  font-size:21px;
+  padding:9px 16px;
   line-height:1;
+  letter-spacing:4px;
+  text-indent:4px;   /* offset trailing letter-spacing so the bars look centered */
 }
 .btn.active{
   border-color:#5ec8ff;
@@ -461,6 +473,21 @@ select{
   max-width:230px;
   line-height:1.35;
   white-space:normal;
+}
+/* Keyboard key legend at the bottom */
+.keyLegend{
+  margin-top:16px;
+  font-size:12px;
+  color:#8a8a8a;
+  line-height:1.7;
+}
+.keyLegend strong{
+  color:#c4c4c4;
+  font-weight:700;
+}
+.keyLegend .keyBlue{
+  color:#5ec8ff;
+  font-weight:700;
 }
 /* "Capture & export" label + inline capture hint, on one line */
 .captureHead{
