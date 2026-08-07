@@ -98,11 +98,6 @@ body{
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
     <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
-  <div class="controls urlRow">
-    <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
-    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
-  </div>
-
   <div class="controls">
     <label class="ctrlLabel" for="blendSelect">Blend mode</label>
     <select id="blendSelect">
@@ -142,17 +137,29 @@ body{
       <input type="checkbox" id="cropToggle" checked>
       Crop to fill (square)
     </label>
+    <button id="fullscreenBtn" class="btn">Fullscreen</button>
+    <button id="resetDefaultsBtn" class="btn">Reset to defaults</button>
+  </div>
+
+  <!-- ===== divider: viewing options above, capture/export below ===== -->
+  <hr class="sectionDivider">
+  <div class="sectionLabel">Capture &amp; export</div>
+
+  <div class="controls">
+    <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
+    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
+  </div>
+
+  <div class="controls">
     <label class="ctrlLabel toggleLabel">
       <input type="checkbox" id="fullResToggle">
       Full-resolution captures
     </label>
-    <button id="fullscreenBtn" class="btn">Fullscreen</button>
     <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
     <button id="downloadSheetBtn" class="btn">Download contact sheet</button>
     <button id="clearBtn" class="btn">Clear</button>
-    <button id="resetDefaultsBtn" class="btn">Reset to defaults</button>
   </div>
 
   <div class="sheet" id="sheet"></div>
@@ -214,6 +221,26 @@ body.stageOnly .stage{
   height:100vh;
   border-radius:0;
 }
+/* "Click for full screen" hint on the popped-out stage page */
+#fsHint{
+  position:fixed;
+  bottom:26px;
+  left:50%;
+  transform:translateX(-50%);
+  z-index:9999;
+  padding:9px 16px;
+  border-radius:999px;
+  background:rgba(0,0,0,0.55);
+  border:1px solid rgba(255,255,255,0.25);
+  color:#fff;
+  font-family:Arial,Helvetica,sans-serif;
+  font-size:13px;
+  letter-spacing:0.5px;
+  pointer-events:none;
+  opacity:0;
+  transition:opacity .4s ease;
+}
+#fsHint.show{ opacity:1; }
 .stage:fullscreen{
   width:100vw;
   height:100vh;
@@ -306,6 +333,19 @@ select{
 .hint{
   font-size:12px;
   color:#8a8a8a;
+}
+/* Divider between the viewing options and the capture/export section */
+.sectionDivider{
+  border:none;
+  border-top:1px solid #2a2a2a;
+  margin:20px 0 0;
+}
+.sectionLabel{
+  font-size:11px;
+  text-transform:uppercase;
+  letter-spacing:1.2px;
+  color:#6a6a6a;
+  margin:12px 0 2px;
 }
 kbd{
   background:#242424;
@@ -487,10 +527,28 @@ function isEmbedded(){
   catch (e) { return true; }
 }
 
-/* Stage-only "fullscreen page" mode, requested via ?stage=1. */
+/* Stage-only "fullscreen page" mode, requested via ?stage=1. On this popped-out
+   page a click enters true browser fullscreen (chrome hidden), with the
+   projector flush to the screen edges -- cropped only if "Crop to fill" is on. */
 const STAGE_ONLY = new URLSearchParams(window.location.search).get("stage") === "1";
 if (STAGE_ONLY) {
   document.body.classList.add("stageOnly");
+
+  const bigHint = document.createElement("div");
+  bigHint.id = "fsHint";
+  bigHint.textContent = "Click for full screen";
+  document.body.appendChild(bigHint);
+  requestAnimationFrame(function(){ bigHint.classList.add("show"); });
+  setTimeout(function(){ bigHint.classList.remove("show"); }, 6000);
+
+  stage.addEventListener("click", function(){
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFs) {
+      const req = stage.requestFullscreen || stage.webkitRequestFullscreen;
+      if (req) { try { req.call(stage); } catch (e) {} }
+    }
+    bigHint.classList.remove("show");
+  });
 }
 
 /* One button does the right thing. Inside a Google Sites embed the real
