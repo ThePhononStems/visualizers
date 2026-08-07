@@ -146,11 +146,9 @@ body{
 
   <!-- ===== divider: viewing options above, capture/export below ===== -->
   <hr class="sectionDivider">
-  <div class="sectionLabel">Capture &amp; export</div>
-
-  <div class="controls">
-    <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
-    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
+  <div class="captureHead">
+    <span class="sectionLabel">Capture &amp; export</span>
+    <span class="hint">— Press <kbd>space bar</kbd> to capture the current pairing</span>
   </div>
 
   <div class="controls">
@@ -158,7 +156,14 @@ body{
       <input type="checkbox" id="fullResToggle">
       Full-resolution captures
     </label>
-    <span class="hint">Press <kbd>I</kbd> to capture this pairing</span>
+  </div>
+
+  <div class="controls">
+    <button id="shareLinkBtn" class="btn">Copy shareable link (with these 3 albums)</button>
+    <span class="hint">Anyone who opens that link sees the same albums you have loaded right now.</span>
+  </div>
+
+  <div class="controls">
     <span class="hint" id="captureCount">0 captured</span>
     <button id="downloadBtn" class="btn">Download captures</button>
     <button id="downloadSheetBtn" class="btn">Download contact sheet</button>
@@ -436,6 +441,15 @@ select{
   color:#6a6a6a;
   margin:12px 0 2px;
 }
+/* "Capture & export" label + inline capture hint, on one line */
+.captureHead{
+  display:flex;
+  align-items:center;
+  flex-wrap:wrap;
+  gap:8px;
+  margin:12px 0 2px;
+}
+.captureHead .sectionLabel{ margin:0; }
 kbd{
   background:#242424;
   border:1px solid #2a2a2a;
@@ -1612,7 +1626,7 @@ function downloadCaptureImage(entry){
 
 document.addEventListener("keydown", function(e){
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  if (e.key.toLowerCase() === "i") {
+  if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
     e.preventDefault();
     capture();
   }
