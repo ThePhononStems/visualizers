@@ -382,7 +382,6 @@ body:-webkit-full-screen #fsHint{ display:none; }
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Go big</button>
-    <button id="goBiggerBtn" class="btn">Go bigger</button>
     <span class="musicGroup">
       <button id="musicBtn" class="musicBtn" aria-label="Play some music">
         <span id="musicLabel">PLAY SOME MUSIC?</span>
@@ -685,20 +684,27 @@ function toggleFullscreen(){
 
 fullscreenBtn.addEventListener("click", toggleFullscreen);
 
-/* "Go bigger": same as Go big, but opens the fill-mode view where every
-   photo fills the whole window (cropping allowed, top edge kept in view). */
-const goBiggerBtn = document.getElementById("goBiggerBtn");
-function goBigger(){
-  const url = new URL(window.location.href);
-  url.searchParams.set("fill", "1");
-  if (isEmbedded()) {
-    window.open(url.href, "_blank", "noopener");
-    return;
-  }
-  // Standalone tab: navigate this window into fill mode, then go fullscreen.
-  window.open(url.href, "_blank", "noopener");
+/* "Go bigger" without a separate page: on the popped-out "Go big" tab, a hint
+   invites the viewer to click any image to go fully immersive (true browser
+   fullscreen -- whole photo, no crop, no chrome). Real fullscreen needs a user
+   gesture, so we trigger it from a click on the photo itself. */
+if (STANDALONE) {
+  const bigHint = document.createElement("div");
+  bigHint.id = "fsHint";
+  bigHint.textContent = "Click any image to go bigger";
+  document.body.appendChild(bigHint);
+  requestAnimationFrame(function(){ bigHint.classList.add("show"); });
+  setTimeout(function(){ bigHint.classList.remove("show"); }, 6000);
+
+  stage.addEventListener("click", function(){
+    const isFs = document.fullscreenElement || document.webkitFullscreenElement;
+    if (!isFs) {
+      const req = wrapEl.requestFullscreen || wrapEl.webkitRequestFullscreen;
+      if (req) { try { req.call(wrapEl); } catch (e) {} }
+    }
+    bigHint.classList.remove("show");
+  });
 }
-goBiggerBtn.addEventListener("click", goBigger);
 
 function onFullscreenChange(){
   const isFs = document.fullscreenElement || document.webkitFullscreenElement;
