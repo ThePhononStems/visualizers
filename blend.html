@@ -51,54 +51,46 @@ body{
   </div><!-- /viewerCol -->
 
   <div class="controlsCol">
-  <div class="controls">
-    <label class="ctrlLabel toggleLabel">
+  <div class="controls urlRow">
+    <label class="ctrlLabel toggleLabel layerToggle">
       <input type="checkbox" id="layerAToggle" checked>
       Layer A
     </label>
-    <button id="skipBackA" class="btn btnSmall">&#9664;</button>
-    <button id="skipFwdA" class="btn btnSmall">&#9654;</button>
-
-    <label class="ctrlLabel toggleLabel">
-      <input type="checkbox" id="layerBToggle" checked>
-      Layer B
-    </label>
-    <button id="skipBackB" class="btn btnSmall">&#9664;</button>
-    <button id="skipFwdB" class="btn btnSmall">&#9654;</button>
-
-    <label class="ctrlLabel toggleLabel" id="layerCLabel">
-      <input type="checkbox" id="layerCToggle" checked>
-      Layer C
-    </label>
-    <button id="skipBackC" class="btn btnSmall">&#9664;</button>
-    <button id="skipFwdC" class="btn btnSmall">&#9654;</button>
-  </div>
-
-  <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer A</span>
     <input type="text" id="urlInputA" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadA" class="btn btnSmall">Load</button>
     <button id="urlClearA" class="btn btnSmall">Clear</button>
     <button id="uploadBtnA" class="btn btnSmall">Upload your own photos</button>
     <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
+    <button id="skipBackA" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdA" class="btn btnSmall">&#9654;</button>
     <input type="file" id="uploadInputA" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer B</span>
+    <label class="ctrlLabel toggleLabel layerToggle">
+      <input type="checkbox" id="layerBToggle" checked>
+      Layer B
+    </label>
     <input type="text" id="urlInputB" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadB" class="btn btnSmall">Load</button>
     <button id="urlClearB" class="btn btnSmall">Clear</button>
     <button id="uploadBtnB" class="btn btnSmall">Upload your own photos</button>
     <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
+    <button id="skipBackB" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdB" class="btn btnSmall">&#9654;</button>
     <input type="file" id="uploadInputB" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls urlRow">
-    <span class="ctrlLabel urlLabel">Layer C</span>
+    <label class="ctrlLabel toggleLabel layerToggle" id="layerCLabel">
+      <input type="checkbox" id="layerCToggle" checked>
+      Layer C
+    </label>
     <input type="text" id="urlInputC" class="urlInput" placeholder="paste flickr album">
     <button id="urlLoadC" class="btn btnSmall">Load</button>
     <button id="urlClearC" class="btn btnSmall">Clear</button>
     <button id="uploadBtnC" class="btn btnSmall">Upload your own photos</button>
     <button class="helpBtn" aria-label="Help — what can I load?" title="What can I load here?">?</button>
+    <button id="skipBackC" class="btn btnSmall">&#9664;</button>
+    <button id="skipFwdC" class="btn btnSmall">&#9654;</button>
     <input type="file" id="uploadInputC" accept="image/*" multiple style="display:none;">
   </div>
   <div class="controls">
@@ -125,10 +117,7 @@ body{
       <input type="checkbox" id="autoBalance">
       Auto-balance exposure
     </label>
-    <label class="ctrlLabel toggleLabel">
-      <input type="checkbox" id="compareToggle">
-      Pause and compare
-    </label>
+    <button id="compareToggle" class="btn btnSmall pauseBtn" aria-label="Pause and compare" title="Pause and compare">&#10073;&#10073;</button>
     <span class="hint" id="compareButtons" style="display:none;">
       <button id="preBtn" class="btn btnSmall">Pre-balance</button>
       <button id="postBtn" class="btn btnSmall">Post-balance</button>
@@ -148,12 +137,9 @@ body{
   <hr class="sectionDivider">
   <div class="captureHead">
     <span class="sectionLabel">Capture &amp; export</span>
-    <span class="hint">— Press <kbd>space bar</kbd> to capture the current pairing</span>
-  </div>
-
-  <div class="controls">
-    <label class="ctrlLabel toggleLabel">
-      <input type="checkbox" id="fullResToggle">
+    <span class="captureHint">Press &ldquo;i&rdquo; to capture the current blend</span>
+    <label class="ctrlLabel toggleLabel fullResLabel">
+      <input type="checkbox" id="fullResToggle" checked>
       Full-resolution captures
     </label>
   </div>
@@ -424,15 +410,41 @@ select{
   color:#8a8a8a;
 }
 /* Divider between the viewing options and the capture/export section:
-   a triple line — two darker outer lines with a slightly lighter middle line. */
+   a triple line — two darker outer lines with a slightly lighter middle line,
+   thicker and farther apart. */
 .sectionDivider{
   border:none;
-  height:5px;
-  margin:20px 0 0;
+  height:12px;
+  margin:24px 0 4px;
   background:
-    linear-gradient(#2a2a2a,#2a2a2a) top/100% 1px no-repeat,
-    linear-gradient(#3b3b3b,#3b3b3b) center/100% 1px no-repeat,
-    linear-gradient(#2a2a2a,#2a2a2a) bottom/100% 1px no-repeat;
+    linear-gradient(#2a2a2a,#2a2a2a) top/100% 2px no-repeat,
+    linear-gradient(#3d3d3d,#3d3d3d) center/100% 2px no-repeat,
+    linear-gradient(#2a2a2a,#2a2a2a) bottom/100% 2px no-repeat;
+}
+/* Layer name + checkbox at the start of each album row (fixed width so the
+   paste boxes line up under one another) */
+.layerToggle{
+  flex:0 0 auto;
+  width:78px;
+}
+/* Blue, slightly larger "Press i to capture" hint, on the Capture & export line */
+.captureHint{
+  color:#5ec8ff;
+  font-size:15px;
+}
+/* Full-resolution captures pushed to the right of the Capture & export line */
+.fullResLabel{
+  margin-left:auto;
+}
+/* Pause-and-compare icon button (matches the layer arrow buttons) */
+.pauseBtn{
+  margin-left:auto;
+  font-size:12px;
+  line-height:1;
+}
+.btn.active{
+  border-color:#5ec8ff;
+  color:#5ec8ff;
 }
 .sectionLabel{
   font-size:11px;
@@ -1160,8 +1172,9 @@ blendCycleToggle.addEventListener("change", function(){
   startCurrentMode();
 });
 
-compareToggle.addEventListener("change", function(){
-  paused = compareToggle.checked;
+compareToggle.addEventListener("click", function(){
+  paused = !paused;
+  compareToggle.classList.toggle("active", paused);
   if (paused) {
     stopTimer();
     compareButtons.style.display = "inline-flex";
@@ -1626,7 +1639,7 @@ function downloadCaptureImage(entry){
 
 document.addEventListener("keydown", function(e){
   if (e.target.tagName === "INPUT" || e.target.tagName === "TEXTAREA") return;
-  if (e.code === "Space" || e.key === " " || e.key === "Spacebar") {
+  if (e.key.toLowerCase() === "i") {
     e.preventDefault();
     capture();
   }
