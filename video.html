@@ -533,6 +533,45 @@ const videos = [
     runtime: "--:--",
     tags: ["Documentary"],
     description: "Placeholder description for Bernie Sanders: Maybe, Just Maybe. Replace this text with the real summary of the video's content."
+  },
+  {
+    id: "fluentsee-2-two-way-street",
+    title: "Fluentsee 2: 2-Way Street",
+    titleNote: "(spanish)",
+    src: "videos/Fluentsee2-2WayStreet-Spanish-640x320.mp4",
+    poster: "",
+    runtime: "--:--",
+    tags: ["Fluentsee"],
+    description: "Placeholder description for Fluentsee 2: 2-Way Street. Replace this text with the real summary of the video's content."
+  },
+  {
+    id: "fluentsee-3-conjugacion-aaa",
+    title: "Fluentsee 3: Conjugación AAA",
+    titleNote: "(spanish)",
+    src: "videos/Fluentsee3-ConjugacionAAA.mp4",
+    poster: "",
+    runtime: "--:--",
+    tags: ["Fluentsee"],
+    description: "Placeholder description for Fluentsee 3: Conjugación AAA. Replace this text with the real summary of the video's content."
+  },
+  {
+    id: "fluentsee-5-negativo",
+    title: "Fluentsee 5: Negativo",
+    titleNote: "(spanish)",
+    src: "videos/Fluentsee5-Negativo.mp4",
+    poster: "",
+    runtime: "--:--",
+    tags: ["Fluentsee"],
+    description: "Placeholder description for Fluentsee 5: Negativo. Replace this text with the real summary of the video's content."
+  },
+  {
+    id: "bombogenesis-boston-2018",
+    title: "Bombogenesis: Boston 2018",
+    src: "videos/bombogenesis-boston-2018_compressed.mp4",
+    poster: "",
+    runtime: "--:--",
+    tags: ["Documentary"],
+    description: "Placeholder description for Bombogenesis: Boston 2018. Replace this text with the real summary of the video's content."
   }
 ];
 
@@ -556,7 +595,7 @@ let seeking = false;
 
 function loadVideo(item, autoplay){
   video.pause();
-  video.poster = item.poster;
+  video.poster = item.poster || "";
   video.src = item.src;
   video.load();
   timeline.value = 0;
