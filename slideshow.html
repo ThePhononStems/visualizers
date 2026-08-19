@@ -147,7 +147,6 @@ body{
 }
 .controls.navRow{
   margin-top:40px;   /* push the nav row down, farther from the image */
-  position:relative; /* anchor the right-aligned music group */
 }
 .navRow + .catRow{
   margin-top:14px;   /* pull the category buttons up, closer to the nav row */
@@ -199,63 +198,6 @@ body{
 .navIcon:hover{
   color:#8fb0a8;
 }
-/* Music controls — pushed to the far right of the nav row */
-.musicGroup{
-  /* Pin the music cluster to the right without shifting the centered nav
-     buttons (prev / pause / next / go big stay centered in the full row). */
-  position:absolute;
-  right:0;
-  top:50%;
-  transform:translateY(-50%);
-  display:inline-flex;
-  align-items:center;
-  gap:6px;
-}
-/* "Play some music?" button — soft cursive, ~60% of the old scale */
-.musicBtn{
-  font-family:"Dancing Script",cursive;
-  font-weight:700;
-  text-transform:lowercase;
-  letter-spacing:0.3px;
-  font-size:19px;
-  line-height:1;
-  padding:3px 9px;
-  border-radius:6px;
-  cursor:pointer;
-  /* starts deep yellow / gold */
-  color:#ddb459;
-  background:rgba(221,180,89,0.12);
-  border:1px solid #ddb459;
-  box-shadow:0 0 8px rgba(221,180,89,0.4);
-  transition:background .2s, box-shadow .2s, color .2s, border-color .2s;
-}
-.musicBtn:hover{
-  background:rgba(221,180,89,0.22);
-  box-shadow:0 0 12px rgba(221,180,89,0.6);
-}
-/* once started, cool down to the site's accent teal */
-.musicBtn.started{
-  color:#5ec8ff;
-  border-color:#5ec8ff;
-  background:rgba(94,200,255,0.12);
-  box-shadow:0 0 10px rgba(94,200,255,0.45);
-}
-.musicBtn.started:hover{
-  background:rgba(94,200,255,0.22);
-  box-shadow:0 0 14px rgba(94,200,255,0.6);
-}
-/* prev / next song arrows */
-.musicNav{
-  background:none;
-  border:none;
-  padding:0 2px;
-  font-size:15px;
-  line-height:1;
-  color:#6e918a;
-  cursor:pointer;
-  transition:color .15s;
-}
-.musicNav:hover{ color:#8fb0a8; }
 .catCount{
   font-family:"Special Elite","Courier New",Courier,monospace;
   font-size:11px;
@@ -388,16 +330,7 @@ body:-webkit-full-screen #fsHint{ display:none; }
     <button id="playPauseBtn" class="navIcon" aria-label="Pause">&#9208;</button>
     <button id="nextBtn" class="navIcon" aria-label="Next">&#9654;</button>
     <button id="fullscreenBtn" class="btn">Go big</button>
-    <span class="musicGroup">
-      <button id="musicBtn" class="musicBtn" aria-label="Play some music">
-        <span id="musicLabel">play music</span>
-      </button>
-      <button id="musicPrev" class="musicNav" aria-label="Previous song">&#9664;</button>
-      <button id="musicNext" class="musicNav" aria-label="Next song">&#9654;</button>
-    </span>
   </div>
-
-  <audio id="bgMusic" preload="none"></audio>
 
   <div class="controls catRow">
     <div class="catCol">
@@ -957,82 +890,6 @@ Object.keys(catButtons).forEach(function(name){
 
 const savedUrl = localStorage.getItem(STORAGE_KEY) || CATEGORY_ALBUMS.Favorites;
 switchAlbum(savedUrl, savedUrl === CATEGORY_ALBUMS.Favorites ? "Favorites" : null);
-
-/* ============================================================
-   BACKGROUND MUSIC — the "Play some music?" button.
-   Plays the same playlist as your audio page, in order, looping
-   back to the top after the last track. Files are read from the
-   audios/ folder next to this page (same as the audio embed).
-   Press once to start; press again to pause.
-   ============================================================ */
-const MUSIC_TRACKS = [
-  "audios/SWTAFX - Espero Al Final.mp3",
-  "audios/SWTAFX - Fading.mp3",
-  "audios/SWTAFX - Color Burn.mp3",
-  "audios/SWTAFX - STOMPING GROUND.mp3",
-  "audios/SWTAFX - Worlds Apart.mp3",
-  "audios/SWTAFX - EXPANSE.mp3",
-  "audios/SWTAFX - Fanfare.mp3",
-  "audios/SWTAFX - CRACKOFDAWN.mp3",
-  "audios/SWTAFX - BROWN.mp3",
-  "audios/SWTAFX - Melancholy (Quiet Plea Instrumental).mp3",
-  "audios/SWTAFX - Quiet Plea.mp3",
-  "audios/SWTAFX - Nocturnal.mp3",
-  "audios/SWTAFX - ODWABD.mp3",
-  "audios/SWTAFX - PEO SEAR.mp3",
-  "audios/SWTAFX - SORRY.mp3",
-  "audios/SWTAFX - FORAY.mp3"
-];
-
-/* Which track the button starts on (matches the audio page default). */
-const MUSIC_START = Math.max(0, MUSIC_TRACKS.findIndex(function(f){
-  return f.indexOf("Espero Al Final") !== -1;
-}));
-
-const bgMusic    = document.getElementById("bgMusic");
-const musicBtn   = document.getElementById("musicBtn");
-const musicLabel = document.getElementById("musicLabel");
-const musicPrev  = document.getElementById("musicPrev");
-const musicNext  = document.getElementById("musicNext");
-let musicIdx = 0;
-let musicLoaded = false;
-
-function loadMusicTrack(i){
-  musicIdx = (i + MUSIC_TRACKS.length) % MUSIC_TRACKS.length;
-  bgMusic.src = encodeURI(MUSIC_TRACKS[musicIdx]);
-  musicLoaded = true;
-}
-
-musicBtn.addEventListener("click", function(){
-  if (!musicLoaded) loadMusicTrack(MUSIC_START);
-  if (bgMusic.paused) {
-    bgMusic.play();
-  } else {
-    bgMusic.pause();
-  }
-});
-
-/* skip to the next / previous song and keep it playing */
-musicNext.addEventListener("click", function(){
-  loadMusicTrack(musicIdx + 1);
-  bgMusic.play();
-});
-musicPrev.addEventListener("click", function(){
-  loadMusicTrack(musicIdx - 1);
-  bgMusic.play();
-});
-
-bgMusic.addEventListener("play", function(){
-  musicBtn.classList.add("started");        /* cool down from red-orange */
-  musicLabel.textContent = "playing music";
-});
-bgMusic.addEventListener("pause", function(){
-  musicLabel.textContent = "music paused";
-});
-bgMusic.addEventListener("ended", function(){
-  loadMusicTrack(musicIdx + 1);            /* advance to next track */
-  bgMusic.play();
-});
 </script>
 
 </body>
