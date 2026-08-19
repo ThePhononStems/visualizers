@@ -326,6 +326,8 @@ body{
   overflow:hidden;
   background:#000;
   cursor:pointer;
+  border-top-left-radius:16px;
+  border-top-right-radius:16px;
 }
 video{
   width:100%;
@@ -356,6 +358,10 @@ video{
 .controls{
   padding:14px 18px 18px;
   background:#000;
+  /* round the bottom corners here too, so browsers that leak the parent's
+     overflow-clip at the corners still show a fully rounded card */
+  border-bottom-left-radius:16px;
+  border-bottom-right-radius:16px;
 }
 .progress-wrap{
   position:relative;
