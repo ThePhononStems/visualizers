@@ -9,11 +9,11 @@
   html,body{ margin:0; background:transparent; }
 
   .swt-nav{
-    /* --s controls overall size; each item scales from it, keeping the
-       four graphics at their original relative proportions. */
-    --s:clamp(48px, 7.2vw, 122px);
+    --s:clamp(48px, 7.2vw, 122px);   /* overall size */
+    --ink:#5c5c5c;                   /* resting gray */
+    --hl:#56C6D8;                    /* hover highlight color */
     display:grid;
-    grid-template-columns:repeat(4, 1fr);   /* four equal columns = even spacing */
+    grid-template-columns:repeat(4, 1fr);   /* even columns */
     align-items:center;
     justify-items:center;
     gap:2%;
@@ -25,33 +25,37 @@
     align-items:center;
     justify-content:center;
     line-height:0;
-    transition:transform .2s ease, filter .25s ease;
-  }
-  .item img{
-    display:block;
-    width:auto;
-    /* baked-in gray; hover brightens the graphic toward white */
-    transition:filter .25s ease;
+    transition:transform .2s ease;
   }
   .item:hover{ transform:translateY(-2px); }
-  .item:hover img{
-    filter:brightness(3) drop-shadow(0 0 12px rgba(255,255,255,0.28));
+
+  /* the shape is the slice used as a mask, so we can paint it any color */
+  .shape{
+    display:block;
+    background:var(--ink);
+    -webkit-mask:var(--img) center / contain no-repeat;
+            mask:var(--img) center / contain no-repeat;
+    transition:background .25s ease, filter .25s ease;
+  }
+  .item:hover .shape{
+    background:var(--hl);
+    filter:drop-shadow(0 0 12px rgba(86,198,216,0.35));
   }
 
-  /* original pixel heights: 244 / 190 / 199 / 217  -> scaled off --s */
-  .photo  img{ height:var(--s); }
-  .video  img{ height:calc(var(--s) * 0.779); }
-  .audio  img{ height:calc(var(--s) * 0.816); }
-  .motion img{ height:calc(var(--s) * 0.889); }
+  /* per item: slice, native aspect ratio, and height (kept in original proportion) */
+  .photo  .shape{ --img:url(nav-slices/item1.png); aspect-ratio:440/244; height:var(--s); }
+  .video  .shape{ --img:url(nav-slices/item2.png); aspect-ratio:405/190; height:calc(var(--s) * 0.779); }
+  .audio  .shape{ --img:url(nav-slices/item3.png); aspect-ratio:460/199; height:calc(var(--s) * 0.816); }
+  .motion .shape{ --img:url(nav-slices/item4.png); aspect-ratio:351/217; height:calc(var(--s) * 0.889); }
 </style>
 </head>
 <body>
 
 <nav class="swt-nav" aria-label="SWT Media sections">
-  <a class="item photo"  target="_top" href="https://www.swtmedia.com/home_2/photography-slideshow"><img src="nav-slices/item1.png" alt="Photo & Photoshop"></a>
-  <a class="item video"  target="_top" href="https://www.swtmedia.com/home_2/video-player"><img src="nav-slices/item2.png" alt="Video & Edit"></a>
-  <a class="item audio"  target="_top" href="https://www.swtmedia.com/home_2/music"><img src="nav-slices/item3.png" alt="Music & Audio"></a>
-  <a class="item motion" target="_top" href="https://www.swtmedia.com/home_2/motiongfx"><img src="nav-slices/item4.png" alt="Motion GFX"></a>
+  <a class="item photo"  target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/photography-slideshow"><span class="shape" role="img" aria-label="Photo & Photoshop"></span></a>
+  <a class="item video"  target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/video-player"><span class="shape" role="img" aria-label="Video & Edit"></span></a>
+  <a class="item audio"  target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/music"><span class="shape" role="img" aria-label="Music & Audio"></span></a>
+  <a class="item motion" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/motiongfx"><span class="shape" role="img" aria-label="Motion GFX"></span></a>
 </nav>
 
 </body>
