@@ -104,6 +104,8 @@ body{
 
 <div class="layout" id="layout">
 
+  <div class="icon-rail" id="iconRail"></div>
+
   <div class="title-list-wrap">
     <div class="search-wrap">
       <svg class="search-icon" viewBox="0 0 24 24" width="16" height="16" aria-hidden="true">
@@ -157,6 +159,56 @@ body{
   display:flex;
   height:100vh;
   background:#111;
+}
+.icon-rail{
+  flex:0 0 96px;
+  height:100%;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:16px;
+  padding:20px 8px;
+  background:#141414;
+  overflow-y:auto;
+  border-right:1px solid #242424;
+}
+.pl-btn{
+  width:78px;
+  border:none;
+  background:none;
+  cursor:pointer;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:6px;
+  padding:4px 2px;
+}
+.pl-thumb{
+  width:64px;
+  height:64px;
+  border-radius:14px;
+  object-fit:cover;
+  background:#242424;
+  border:2px solid transparent;
+  transition:border-color .25s, transform .15s;
+}
+.pl-btn:hover .pl-thumb{
+  transform:scale(1.06);
+  border-color:#5ec8ff;
+}
+.pl-btn.active .pl-thumb{
+  border-color:#5ec8ff;
+}
+.pl-label{
+  font-size:11px;
+  line-height:1.2;
+  text-align:center;
+  color:#bbb;
+  transition:color .25s;
+}
+.pl-btn:hover .pl-label,
+.pl-btn.active .pl-label{
+  color:#5ec8ff;
 }
 .title-list-wrap{
   flex:0 0 30%;
@@ -439,6 +491,17 @@ video{
     flex-direction:column;
     height:auto;
   }
+  .icon-rail{
+    flex:none;
+    width:100%;
+    height:auto;
+    flex-direction:row;
+    gap:14px;
+    overflow-x:auto;
+    overflow-y:hidden;
+    border-right:none;
+    border-bottom:1px solid #242424;
+  }
   .title-list-wrap{
     flex:none;
     width:100%;
@@ -581,8 +644,44 @@ const videos = [
   }
 ];
 
+/* ============================================================
+   EDIT HERE: playlists shown as icons in the left rail.
+   - PLAYLISTS: order, label, and icon image for each playlist.
+   - PLAYLIST_MEMBERS: which video ids (from the list above)
+     belong to each playlist. A video can appear in more than
+     one playlist; a video in none simply won't show.
+   ============================================================ */
+const PLAYLISTS = [
+  { key: "palestina", label: "Palestina",  icon: "video playlist buttons/Palestina.jpg" },
+  { key: "bernie",    label: "Bernie",     icon: "video playlist buttons/Bernie.jpg" },
+  { key: "climate",   label: "Climate",    icon: "video playlist buttons/climatechange copy.png" },
+  { key: "fluentsee", label: "Fluentsee",  icon: "video playlist buttons/fluentsee.jpg" },
+  { key: "misc",      label: "Misc",       icon: "video playlist buttons/MISC button3.jpg" }
+];
+const PLAYLIST_MEMBERS = {
+  palestina: ["palestina"],
+  bernie:    ["bernie-listen-science", "bernie-sanders-maybe-just-maybe"],
+  climate:   ["crematorium", "crematorium-abridged", "media-distorts-climate-science", "bombogenesis-boston-2018"],
+  fluentsee: ["fluentsee-2-two-way-street", "fluentsee-3-conjugacion-aaa", "fluentsee-5-negativo"],
+  misc:      ["portada", "e3-excerpt"]
+};
+
+function playlistVideos(key){
+  const ids = PLAYLIST_MEMBERS[key] || [];
+  return ids
+    .map(function(id){ return videos.find(function(v){ return v.id === id; }); })
+    .filter(function(v){ return !!v; });
+}
+function playlistOf(id){
+  for (let i = 0; i < PLAYLISTS.length; i++) {
+    if ((PLAYLIST_MEMBERS[PLAYLISTS[i].key] || []).indexOf(id) !== -1) return PLAYLISTS[i].key;
+  }
+  return PLAYLISTS[0].key;
+}
+
 const MOBILE_BREAKPOINT = 700;
 
+const iconRail = document.getElementById("iconRail");
 const titleList = document.getElementById("titleList");
 const searchBox = document.getElementById("searchBox");
 const playerCol = document.getElementById("playerCol");
@@ -598,6 +697,7 @@ const startId = params.get("id") || videos[0].id;
 let activeId = null;
 let openId = null;
 let seeking = false;
+let activePlaylist = PLAYLISTS[0].key;
 
 function loadVideo(item, autoplay){
   video.pause();
@@ -646,7 +746,7 @@ function matchesSearch(item, query){
 function renderList(){
   titleList.innerHTML = "";
   const query = searchBox.value.trim().toLowerCase();
-  const visible = videos.filter(function(item){
+  const visible = playlistVideos(activePlaylist).filter(function(item){
     return matchesSearch(item, query);
   });
 
@@ -685,6 +785,36 @@ function renderList(){
 
     titleList.appendChild(wrap);
   });
+}
+
+function renderRail(){
+  iconRail.innerHTML = "";
+  PLAYLISTS.forEach(function(pl){
+    const btn = document.createElement("button");
+    btn.className = "pl-btn" + (activePlaylist === pl.key ? " active" : "");
+    btn.title = pl.label;
+    btn.innerHTML =
+      '<img class="pl-thumb" src="' + pl.icon + '" alt="' + pl.label + '">' +
+      '<span class="pl-label">' + pl.label + '</span>';
+    btn.addEventListener("click", function(){
+      selectPlaylist(pl.key, { play: false });
+    });
+    iconRail.appendChild(btn);
+  });
+}
+
+function selectPlaylist(key, opts){
+  opts = opts || {};
+  activePlaylist = key;
+  searchBox.value = "";
+  renderRail();
+  const list = playlistVideos(key);
+  const first = list[0];
+  if (first) {
+    selectTitle(first, { toggle: false, scroll: !!opts.scroll });
+  } else {
+    renderList();
+  }
 }
 
 searchBox.addEventListener("input", function(){
@@ -734,6 +864,8 @@ timeline.addEventListener("change", function(){
 paintTimeline();
 
 const initial = videos.find(function(v){ return v.id === startId; }) || videos[0];
+activePlaylist = playlistOf(initial.id);
+renderRail();
 selectTitle(initial, { scroll: false, toggle: false });
 </script>
 
