@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SWT Media — Section Nav</title>
+
+<!-- Approximate matches for your four styles -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Kaushan+Script&family=Archivo+Black&family=Baloo+2:wght@800&family=Permanent+Marker&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    /* darker gray so it contrasts against a bright white logo to the left.
+       Bump toward #4a4a4a for darker, toward #777 for lighter. */
+    --ink:#565656;
+    --hover:#ffffff;
+  }
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; background:transparent; }
+
+  .swt-nav{
+    display:grid;
+    grid-template-columns:repeat(4, 1fr);   /* four equal columns = even alignment */
+    align-items:center;
+    gap:2%;
+    width:100%;
+    padding:10px 2%;
+    font-family:Arial, Helvetica, sans-serif;
+  }
+  .item{
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    text-align:center;
+    text-decoration:none;
+    color:var(--ink);
+    line-height:0.95;
+    transition:color .25s ease, transform .2s ease, filter .25s ease;
+  }
+  .item:hover{
+    color:var(--hover);
+    transform:translateY(-2px);
+    filter:drop-shadow(0 0 14px rgba(255,255,255,0.25));
+  }
+  .l1,.l2{ display:block; white-space:nowrap; }
+
+  /* ---- Photo & Photoshop (brush script) ---- */
+  .photo .l1{ font-family:"Kaushan Script", cursive; font-size:clamp(26px,4.6vw,64px); }
+  .photo .l2{ font-family:"Kaushan Script", cursive; font-size:clamp(15px,2.4vw,33px); margin-top:.15em; }
+
+  /* ---- VIDEO & EDIT (heavy geometric sans) ---- */
+  .video .l1{ font-family:"Archivo Black", Arial, sans-serif; font-size:clamp(26px,4.8vw,66px); letter-spacing:.01em; }
+  .video .l2{ font-family:"Archivo Black", Arial, sans-serif; font-size:clamp(18px,3.1vw,44px); margin-top:.05em; }
+
+  /* ---- music & AUDIO (rounded heavy sans) ---- */
+  .audio .l1{ font-family:"Baloo 2", Arial, sans-serif; font-weight:800; font-size:clamp(14px,2.2vw,30px); }
+  .audio .l2{ font-family:"Baloo 2", Arial, sans-serif; font-weight:800; font-size:clamp(30px,5.4vw,74px); margin-top:-.05em; }
+
+  /* ---- motion GFX (marker) ---- */
+  .motion .l1{ font-family:"Permanent Marker", cursive; font-size:clamp(18px,3.1vw,44px); }
+  .motion .l2{ font-family:"Permanent Marker", cursive; font-size:clamp(30px,5.4vw,74px); margin-top:-.08em; letter-spacing:.02em; }
+
+  @media (max-width:560px){
+    .swt-nav{ gap:4%; padding:8px 3%; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ============================================================
+     EDIT HERE: replace each href="#..." with the real page URL.
+     ============================================================ -->
+<nav class="swt-nav" aria-label="SWT Media sections">
+
+  <a class="item photo" href="https://www.swtmedia.com/home_2/photography-slideshow">
+    <span class="l1">Photo</span>
+    <span class="l2">&amp; Photoshop</span>
+  </a>
+
+  <a class="item video" href="https://www.swtmedia.com/home_2/video-player">
+    <span class="l1">VIDEO</span>
+    <span class="l2">&amp; EDIT</span>
+  </a>
+
+  <a class="item audio" href="https://www.swtmedia.com/home_2/music">
+    <span class="l1">music&amp;</span>
+    <span class="l2">AUDIO</span>
+  </a>
+
+  <a class="item motion" href="https://www.swtmedia.com/home_2/motiongfx">
+    <span class="l1">motion</span>
+    <span class="l2">GFX</span>
+  </a>
+
+</nav>
+
+</body>
+</html>
