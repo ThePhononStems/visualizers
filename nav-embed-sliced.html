@@ -10,7 +10,7 @@
 
   .swt-nav{
     --s:clamp(48px, 7.2vw, 122px);   /* overall size */
-    --ink:#5c5c5c;                   /* resting gray */
+    --ink:#7a7a7a;                   /* resting gray */
     --hl:#56C6D8;                    /* hover highlight color */
     display:grid;
     grid-template-columns:repeat(4, 1fr);   /* even columns */
@@ -42,6 +42,18 @@
     filter:drop-shadow(0 0 12px rgba(86,198,216,0.35));
   }
 
+  /* "you are here": the current page's button is lit by default ... */
+  .item.active .shape{
+    background:var(--hl);
+    filter:drop-shadow(0 0 12px rgba(86,198,216,0.35));
+  }
+  /* ... but while the cursor is over the nav, the active button steps aside
+     for whichever button is actually being hovered (and relights on leave). */
+  .swt-nav:hover .item.active:not(:hover) .shape{
+    background:var(--ink);
+    filter:none;
+  }
+
   /* per item: slice, native aspect ratio, and height (kept in original proportion) */
   .photo  .shape{ --img:url(nav-slices/item1.png); aspect-ratio:440/244; height:var(--s); }
   .video  .shape{ --img:url(nav-slices/item2.png); aspect-ratio:405/190; height:calc(var(--s) * 0.779); }
@@ -57,6 +69,18 @@
   <a class="item audio"  target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/music"><span class="shape" role="img" aria-label="Music & Audio"></span></a>
   <a class="item motion" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/motiongfx"><span class="shape" role="img" aria-label="Motion GFX"></span></a>
 </nav>
+
+<script>
+  /* Which button is "you are here" is set per page via the embed URL, e.g.
+       nav-embed-sliced.html?active=video
+     Valid values: photo | video | audio | motion */
+  (function(){
+    var a = (new URLSearchParams(location.search).get("active") || "").replace(/[^a-z]/gi, "");
+    if (!a) return;
+    var el = document.querySelector(".item." + a);
+    if (el) el.classList.add("active");
+  })();
+</script>
 
 </body>
 </html>
