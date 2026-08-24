@@ -329,6 +329,20 @@ body{
 .title-wrap{
   border-radius:12px;
 }
+.playlist-intro{
+  margin-top:8px;
+  padding:16px 18px 20px;
+  color:#b7b7b7;
+  font-size:13px;
+  line-height:1.6;
+  border-top:1px solid #2a2a2a;
+}
+.playlist-intro p{
+  margin:0 0 12px;
+}
+.playlist-intro p:last-child{
+  margin-bottom:0;
+}
 .info-panel{
   padding:14px 18px 18px;
   margin-top:6px;
@@ -695,6 +709,15 @@ const PLAYLIST_MEMBERS = {
   misc:      ["portada", "e3-excerpt"]
 };
 
+/* Optional intro text shown under the title buttons when a playlist is active.
+   Add other playlists here the same way if you want blurbs for them too. */
+const PLAYLIST_INTRO = {
+  fluentsee:
+    '<p>Fluency in a language has less to do with the amount of vocabulary learned and more to do with the degree to which the essential elements of grammar are acquired and maneuvered to legibly communicate thoughts clearly and engage in sustained dialogue. These “FluentSee” videos depict the elements of grammar in distinct visual forms to help the student identify patterns of placement and use in modern English conversation.</p>' +
+    '<p>La fluidez en un idioma tiene menos que ver con la cantidad de vocabulario aprendido y más con el grado en que se adquieren y se manejan los elementos esenciales de la gramática para comunicar pensamientos de forma clara y participar en un diálogo sostenido.</p>' +
+    '<p>Estos vídeos de “FluentSee” representan los elementos de la gramática mediante formas visuales diferenciadas para ayudar al estudiante a identificar patrones de colocación y uso en el inglés conversacional moderno.</p>'
+};
+
 function playlistVideos(key){
   const ids = PLAYLIST_MEMBERS[key] || [];
   return ids
@@ -784,6 +807,7 @@ function renderList(){
     empty.className = "no-results";
     empty.textContent = "No videos match your search.";
     titleList.appendChild(empty);
+    appendIntro();
     return;
   }
 
@@ -814,6 +838,17 @@ function renderList(){
 
     titleList.appendChild(wrap);
   });
+
+  appendIntro();
+}
+
+function appendIntro(){
+  const html = PLAYLIST_INTRO[activePlaylist];
+  if (!html) return;
+  const intro = document.createElement("div");
+  intro.className = "playlist-intro";
+  intro.innerHTML = html;
+  titleList.appendChild(intro);
 }
 
 function renderRail(){
