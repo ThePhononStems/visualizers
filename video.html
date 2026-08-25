@@ -144,7 +144,7 @@ body{
     </button>
     <div class="player">
       <div class="video-area" id="videoArea">
-        <video id="video" preload="metadata" playsinline></video>
+        <video id="video" preload="metadata" playsinline disablePictureInPicture controlsList="nodownload noplaybackrate"></video>
         <div class="play-badge" id="playBadge">
           <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff">
             <path d="M8 5v14l11-7z"></path>
@@ -1034,8 +1034,20 @@ searchBox.addEventListener("blur", function(){
 
 document.getElementById("backBtn").addEventListener("click", enterGallery);
 
-/* Fullscreen the video area */
+/* Fullscreen the video. Inside a Google Sites embed the Fullscreen API is
+   blocked, so pop the player out into its own tab (with the current video)
+   where fullscreen works. In a standalone tab, go fullscreen directly. */
+function isEmbedded(){
+  try { return window.self !== window.top; }
+  catch (e) { return true; }
+}
 document.getElementById("fsBtn").addEventListener("click", function(){
+  if (isEmbedded()) {
+    const url = new URL("https://thephononstems.github.io/visualizers/video.html");
+    if (activeId) url.searchParams.set("id", activeId);
+    window.open(url.href, "_blank", "noopener");
+    return;
+  }
   const el = videoArea;
   const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
   if (!fsEl) {
