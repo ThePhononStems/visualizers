@@ -106,7 +106,8 @@ body{
 
   <div class="icon-rail" id="iconRail"></div>
 
-  <div class="title-list-wrap">
+  <div class="content">
+  <div class="gallery-col">
     <div class="search-wrap" id="searchWrap">
       <button class="search-toggle" id="searchToggle" aria-label="Search" title="Search">
         <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
@@ -135,6 +136,7 @@ body{
   </div>
 
   <div class="player-col" id="playerCol">
+    <button class="back-btn" id="backBtn" aria-label="Back to all videos">&larr; All videos</button>
     <div class="player">
       <div class="video-area" id="videoArea">
         <video id="video" preload="metadata" playsinline></video>
@@ -163,26 +165,33 @@ body{
       </div>
     </div>
   </div>
+  </div><!-- /content -->
 
 </div>
 
 <style>
 .layout{
   display:flex;
+  flex-direction:column;        /* categories on top, then content below */
   height:100vh;
   background:#111;
 }
 .icon-rail{
-  flex:0 0 190px;
-  height:100%;
+  flex:0 0 auto;
   display:flex;
-  flex-direction:column;
+  flex-direction:row;           /* category buttons across the top */
   align-items:center;
   gap:16px;
-  padding:20px 12px;
+  padding:12px 20px;
   background:#141414;
-  overflow-y:auto;
-  border-right:1px solid #242424;
+  overflow-x:auto;
+  overflow-y:hidden;
+  border-bottom:1px solid #242424;
+}
+.content{
+  flex:1 1 auto;
+  display:flex;
+  min-height:0;                 /* let the columns scroll inside */
 }
 .pl-btn{
   width:166px;
@@ -222,13 +231,19 @@ body{
 .pl-btn.active .pl-label{
   color:#5ec8ff;
 }
-.title-list-wrap{
-  flex:0 0 24%;
-  min-width:220px;
+/* Gallery column: fills the whole content area by default; shrinks to a
+   narrow left column when a video is playing (body.playing). */
+.gallery-col{
+  flex:1 1 100%;
+  min-width:0;
   height:100%;
   display:flex;
   flex-direction:column;
   background:#1b1b1b;
+  transition:flex-basis .35s ease;
+}
+body.playing .gallery-col{
+  flex:0 1 320px;
 }
 .search-wrap{
   display:inline-flex;
@@ -306,25 +321,50 @@ body{
 }
 .title-list{
   flex:1;
-  display:flex;
-  flex-direction:column;
-  gap:12px;
+  display:grid;
+  grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));
+  gap:14px;
+  align-content:start;
   overflow-y:auto;
-  padding:14px 30px 30px;
+  padding:18px 24px 28px;
 }
+/* Player column: collapsed to nothing by default, expands when playing. */
 .player-col{
-  flex:1;
+  flex:0 1 0;
+  width:0;
   min-width:0;
   height:100%;
   display:flex;
   flex-direction:column;
   align-items:center;
   justify-content:flex-start;
-  gap:22px;
+  gap:16px;
   background:#0b0b0b;
-  padding:40px 60px 60px;
-  overflow-y:auto;
+  padding:0;
+  overflow:hidden;
+  opacity:0;
+  transition:flex-basis .35s ease, opacity .3s ease, padding .35s ease;
 }
+body.playing .player-col{
+  flex:1 1 auto;
+  width:auto;
+  padding:34px 50px 50px;
+  overflow-y:auto;
+  opacity:1;
+}
+.back-btn{
+  align-self:flex-start;
+  padding:6px 12px;
+  border:1px solid #2a2a2a;
+  border-radius:8px;
+  background:#1a1a1a;
+  color:#bbb;
+  font-size:12px;
+  font-family:inherit;
+  cursor:pointer;
+  transition:color .2s, border-color .2s;
+}
+.back-btn:hover{ color:#5ec8ff; border-color:#5ec8ff; }
 /* Bilingual description below the player: English blue, Spanish yellow.
    Hidden by default — only shown for FluentSee videos. */
 .video-desc{
@@ -360,25 +400,30 @@ body{
   width:min(1000px,100%);
 }
 
+/* Each title is a small 16:9 tile (placeholder for the eventual gif preview) */
 .title-btn{
-  display:block;
   width:100%;
-  text-align:left;
-  padding:14px 18px;
-  border:1px solid transparent;
-  border-radius:12px;
+  aspect-ratio:16 / 9;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  text-align:center;
+  padding:8px 12px;
+  border:1px solid #2a2a2a;
+  border-radius:10px;
   background:#242424;
   color:#fff;
-  font-size:15px;
+  font-size:13px;
+  line-height:1.3;
   font-family:inherit;
   cursor:pointer;
-  transition:background .25s, border-color .25s, transform .15s, color .25s;
+  transition:background .2s, border-color .2s, transform .15s, color .2s;
 }
 .title-btn:hover{
   background:#303030;
   border-color:#5ec8ff;
   color:#5ec8ff;
-  transform:translateX(6px);
+  transform:translateY(-3px);
 }
 .title-btn.active{
   border-color:#5ec8ff;
@@ -580,7 +625,11 @@ video{
     border-right:none;
     border-bottom:1px solid #242424;
   }
-  .title-list-wrap{
+  .content{
+    flex-direction:column;    /* stack gallery over player on mobile */
+  }
+  .gallery-col,
+  body.playing .gallery-col{
     flex:none;
     width:100%;
     height:auto;
@@ -588,14 +637,16 @@ video{
   .title-list{
     height:auto;
     overflow-y:visible;
-    padding:14px 20px 20px;
+    padding:14px 16px 20px;
+    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
   }
   .search-wrap{
     margin:20px 20px 0;
   }
-  .player-col{
+  body.playing .player-col{
+    flex:none;
+    width:100%;
     height:auto;
-    display:block;
     padding:20px;
   }
 }
@@ -768,6 +819,7 @@ const videos = [
      one playlist; a video in none simply won't show.
    ============================================================ */
 const PLAYLISTS = [
+  { key: "reel3",     label: "Reel 3",     icon: "video playlist buttons/REEL3.jpg" },
   { key: "fluentsee", label: "Fluentsee",  icon: "video playlist buttons/fluentsee.jpg" },
   { key: "climate",   label: "Climate",    icon: "video playlist buttons/climatechange copy.png" },
   { key: "bernie",    label: "Bernie",     icon: "video playlist buttons/Bernie.jpg" },
@@ -779,7 +831,8 @@ const PLAYLIST_MEMBERS = {
   bernie:    ["bernie-listen-science", "bernie-sanders-maybe-just-maybe", "bernie-21st-century-bill-of-rights", "bernie-what-patriotism"],
   climate:   ["crematorium", "crematorium-abridged", "media-distorts-climate-science", "bombogenesis-boston-2018"],
   fluentsee: ["fluentsee-empieza-aqui", "fluentsee-2-two-way-street", "fluentsee-3-conjugacion-aaa", "fluentsee-5-negativo", "fluentsee-exclamativa"],
-  misc:      ["portada", "e3-excerpt"]
+  misc:      ["portada", "e3-excerpt"],
+  reel3:     []   /* add the video ids that belong in the Reel 3 tab, e.g. "portada" */
 };
 
 /* Optional intro text shown under the title buttons when a playlist is active.
@@ -842,19 +895,17 @@ function loadVideo(item, autoplay){
   }
 }
 
-function selectTitle(item, opts){
-  opts = opts || {};
+function selectTitle(item){
   activeId = item.id;
-  if (opts.toggle === false) {
-    openId = null;
-  } else {
-    openId = (openId === item.id) ? null : item.id;
-  }
-  loadVideo(item, false);
+  document.body.classList.add("playing");   // slide the player in, gallery scoots left
+  loadVideo(item, true);                     // autoplay (the tile click is a user gesture)
   renderList();
-  if (opts.scroll) {
-    maybeScrollToPlayer();
-  }
+  maybeScrollToPlayer();
+}
+
+function enterGallery(){
+  document.body.classList.remove("playing");
+  video.pause();
 }
 
 function maybeScrollToPlayer(){
@@ -884,41 +935,19 @@ function renderList(){
   if (visible.length === 0) {
     const empty = document.createElement("div");
     empty.className = "no-results";
-    empty.textContent = "No videos match your search.";
+    empty.textContent = query ? "No videos match your search." : "No videos in this category yet.";
     titleList.appendChild(empty);
-    appendIntro();
     return;
   }
 
   visible.forEach(function(item){
-    const wrap = document.createElement("div");
-    wrap.className = "title-wrap";
-
     const btn = document.createElement("button");
     btn.className = "title-btn" + (activeId === item.id ? " active" : "");
     btn.innerHTML = item.title +
       (item.titleNote ? ' <span class="title-note">' + item.titleNote + '</span>' : '');
-    btn.addEventListener("click", function(){
-      selectTitle(item, { scroll: true });
-    });
-    wrap.appendChild(btn);
-
-    if (openId === item.id) {
-      const panel = document.createElement("div");
-      panel.className = "info-panel";
-      panel.innerHTML =
-        '<p>' + item.description + '</p>' +
-        '<div class="info-meta">' + item.runtime + '</div>' +
-        '<div class="info-tags">' +
-        item.tags.map(function(t){ return '<span class="tag">' + t + '</span>'; }).join("") +
-        '</div>';
-      wrap.appendChild(panel);
-    }
-
-    titleList.appendChild(wrap);
+    btn.addEventListener("click", function(){ selectTitle(item); });
+    titleList.appendChild(btn);
   });
-
-  appendIntro();
 }
 
 function appendIntro(){
@@ -940,25 +969,20 @@ function renderRail(){
       '<img class="pl-thumb" src="' + pl.icon + '" alt="' + pl.label + '">' +
       '<span class="pl-label">' + pl.label + '</span>';
     btn.addEventListener("click", function(){
-      selectPlaylist(pl.key, { play: false });
+      selectPlaylist(pl.key);
     });
     iconRail.appendChild(btn);
   });
 }
 
-function selectPlaylist(key, opts){
-  opts = opts || {};
+function selectPlaylist(key){
   activePlaylist = key;
   updateVideoDesc();
   searchBox.value = "";
+  document.body.classList.remove("playing");   // show the full gallery for this category
+  video.pause();
   renderRail();
-  const list = playlistVideos(key);
-  const first = list[0];
-  if (first) {
-    selectTitle(first, { toggle: false, scroll: !!opts.scroll });
-  } else {
-    renderList();
-  }
+  renderList();
 }
 
 searchBox.addEventListener("input", function(){
@@ -981,6 +1005,8 @@ searchToggle.addEventListener("click", function(){
 searchBox.addEventListener("blur", function(){
   if (!searchBox.value.trim()) searchWrap.classList.remove("open");
 });
+
+document.getElementById("backBtn").addEventListener("click", enterGallery);
 
 videoArea.addEventListener("click", function(){
   if (video.paused) {
@@ -1024,11 +1050,31 @@ timeline.addEventListener("change", function(){
 
 paintTimeline();
 
-const initial = videos.find(function(v){ return v.id === startId; }) || videos[0];
-activePlaylist = playlistOf(initial.id);
-updateVideoDesc();
-renderRail();
-selectTitle(initial, { scroll: false, toggle: false });
+/* Start in the full-screen gallery. Default to the first category that has
+   videos so the opening view isn't empty. If a specific ?id= is requested,
+   open straight into that video's player. */
+function firstNonEmptyPlaylist(){
+  for (let i = 0; i < PLAYLISTS.length; i++){
+    if (playlistVideos(PLAYLISTS[i].key).length) return PLAYLISTS[i].key;
+  }
+  return PLAYLISTS[0].key;
+}
+
+const requestedId = params.get("id");
+const requested = requestedId ? videos.find(function(v){ return v.id === requestedId; }) : null;
+
+if (requested) {
+  activePlaylist = playlistOf(requested.id);
+  renderRail();
+  renderList();
+  updateVideoDesc();
+  selectTitle(requested);
+} else {
+  activePlaylist = firstNonEmptyPlaylist();
+  renderRail();
+  renderList();
+  updateVideoDesc();
+}
 </script>
 
 </body>
