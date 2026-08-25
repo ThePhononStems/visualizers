@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Photo sphere</title>
+<style>
+  *{ box-sizing:border-box; }
+  html,body{ margin:0; height:100%; background:transparent; overflow:hidden; }
+  #wrap{ position:fixed; inset:0; }
+  canvas{ display:block; width:100%; height:100%; }
+  /* Fallback shown if WebGL isn't available: the plain video as a circle */
+  #fallback{
+    position:fixed; inset:0; display:none;
+    align-items:center; justify-content:center;
+  }
+  #fallback video{
+    width:min(100vw,100vh); height:min(100vw,100vh);
+    object-fit:cover; border-radius:50%;
+  }
+</style>
+</head>
+<body>
+
+<div id="wrap"></div>
+<div id="fallback"><video autoplay muted loop playsinline></video></div>
+
+<!-- hidden source video used as the sphere's texture -->
+<video id="tex" src="spheres/photo.mp4" autoplay muted loop playsinline crossorigin="anonymous" style="display:none"></video>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script>
+(function(){
+  const vid = document.getElementById("tex");
+
+  function showFallback(){
+    document.getElementById("wrap").style.display = "none";
+    const fb = document.getElementById("fallback");
+    fb.style.display = "flex";
+    fb.querySelector("video").src = "spheres/photo.mp4";
+  }
+
+  if (!window.WebGLRenderingContext) { showFallback(); return; }
+
+  let renderer, scene, camera, sphere, texture;
+  try {
+    renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
+  } catch (e) { showFallback(); return; }
+
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+  const wrap = document.getElementById("wrap");
+  wrap.appendChild(renderer.domElement);
+
+  scene = new THREE.Scene();
+  camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
+  camera.position.z = 3.2;
+
+  // Lighting: a key light gives the highlight + shaded terminator of a sphere.
+  const key = new THREE.DirectionalLight(0xffffff, 1.15);
+  key.position.set(-0.6, 0.8, 1.0);
+  scene.add(key);
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+
+  texture = new THREE.VideoTexture(vid);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+
+  const geo = new THREE.SphereGeometry(1, 96, 96);
+  const mat = new THREE.MeshStandardMaterial({
+    map: texture,
+    roughness: 0.9,
+    metalness: 0.0
+  });
+  sphere = new THREE.Mesh(geo, mat);
+  sphere.rotation.x = 0.12;   // slight tilt
+  scene.add(sphere);
+
+  function resize(){
+    const w = wrap.clientWidth, h = wrap.clientHeight;
+    renderer.setSize(w, h, false);
+    camera.aspect = w / h;
+    camera.updateProjectionMatrix();
+  }
+  window.addEventListener("resize", resize);
+  resize();
+
+  let last = performance.now();
+  function animate(now){
+    requestAnimationFrame(animate);
+    const dt = (now - last) / 1000; last = now;
+    sphere.rotation.y += dt * 0.35;   // slow spin, like CC Sphere Rotation Y
+    renderer.render(scene, camera);
+  }
+  vid.play().catch(function(){ /* autoplay allowed when muted */ });
+  requestAnimationFrame(animate);
+})();
+</script>
+
+</body>
+</html>
