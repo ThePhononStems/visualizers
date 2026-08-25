@@ -150,6 +150,16 @@ body{
         </div>
       </div>
     </div>
+
+    <div class="video-desc" id="videoDesc">
+      <div class="desc-col desc-en">
+        <p>Fluency in a language has less to do with the amount of vocabulary learned and more to do with the degree to which the essential elements of grammar are acquired and maneuvered to legibly communicate thoughts clearly and engage in sustained dialogue. These &ldquo;FluentSee&rdquo; videos depict the elements of grammar in distinct visual forms to help the student identify patterns of placement and use in modern English conversation.</p>
+      </div>
+      <div class="desc-col desc-es">
+        <p>La fluidez en un idioma tiene menos que ver con la cantidad de vocabulario aprendido y más con el grado en que se adquieren y se manejan los elementos esenciales de la gramática para comunicar pensamientos de forma clara y participar en un diálogo sostenido.</p>
+        <p>Estos vídeos de &ldquo;FluentSee&rdquo; representan los elementos de la gramática mediante formas visuales diferenciadas para ayudar al estudiante a identificar patrones de colocación y uso en el inglés conversacional moderno.</p>
+      </div>
+    </div>
   </div>
 
 </div>
@@ -287,11 +297,44 @@ body{
   min-width:0;
   height:100%;
   display:flex;
-  align-items:flex-start;
-  justify-content:center;
+  flex-direction:column;
+  align-items:center;
+  justify-content:flex-start;
+  gap:22px;
   background:#0b0b0b;
   padding:40px 60px 60px;
   overflow-y:auto;
+}
+/* Bilingual description below the player: English blue, Spanish yellow.
+   Hidden by default — only shown for FluentSee videos. */
+.video-desc{
+  display:none;
+  width:min(1000px, 100%);
+  font-size:14px;
+  line-height:1.6;
+}
+.video-desc.show{
+  display:flex;          /* two columns: English left, Spanish right */
+  gap:32px;
+}
+.desc-col{
+  flex:1 1 0;
+  min-width:0;
+}
+.desc-col p{
+  margin:0 0 10px;
+}
+.desc-col p:last-child{
+  margin-bottom:0;
+}
+.desc-en{ color:#5ec8ff; }
+.desc-es{ color:#e6c34a; }
+/* Stack the two columns on narrow screens */
+@media (max-width:700px){
+  .video-desc.show{
+    flex-direction:column;
+    gap:16px;
+  }
 }
 .player-col .player{
   width:min(1000px,100%);
@@ -619,6 +662,16 @@ const videos = [
     description: "Placeholder description for Bernie Sanders: Maybe, Just Maybe. Replace this text with the real summary of the video's content."
   },
   {
+    id: "fluentsee-empieza-aqui",
+    title: "¿Quieres aprender inglés? Empieza aquí",
+    titleNote: "(spanish)",
+    src: "videos/Fluentsee 1 - Intro.mp4",
+    poster: "",
+    runtime: "6:01",
+    tags: ["Fluentsee"],
+    description: "Placeholder description for ¿Quieres aprender inglés? Empieza aquí. Replace this text with the real summary of the video's content."
+  },
+  {
     id: "fluentsee-2-two-way-street",
     title: "Fluentsee 2: 2-Way Street",
     titleNote: "(spanish)",
@@ -705,7 +758,7 @@ const PLAYLIST_MEMBERS = {
   palestina: ["palestina"],
   bernie:    ["bernie-listen-science", "bernie-sanders-maybe-just-maybe", "bernie-21st-century-bill-of-rights", "bernie-what-patriotism"],
   climate:   ["crematorium", "crematorium-abridged", "media-distorts-climate-science", "bombogenesis-boston-2018"],
-  fluentsee: ["fluentsee-2-two-way-street", "fluentsee-3-conjugacion-aaa", "fluentsee-5-negativo", "fluentsee-exclamativa"],
+  fluentsee: ["fluentsee-empieza-aqui", "fluentsee-2-two-way-street", "fluentsee-3-conjugacion-aaa", "fluentsee-5-negativo", "fluentsee-exclamativa"],
   misc:      ["portada", "e3-excerpt"]
 };
 
@@ -742,6 +795,12 @@ const videoArea = document.getElementById("videoArea");
 const playBadge = document.getElementById("playBadge");
 const timeline = document.getElementById("timeline");
 const progressFill = document.getElementById("progressFill");
+const videoDesc = document.getElementById("videoDesc");
+
+/* Show the bilingual blurb below the viewer only while the FluentSee tab is active. */
+function updateVideoDesc(){
+  videoDesc.classList.toggle("show", activePlaylist === "fluentsee");
+}
 
 const params = new URLSearchParams(window.location.search);
 const startId = params.get("id") || videos[0].id;
@@ -870,6 +929,7 @@ function renderRail(){
 function selectPlaylist(key, opts){
   opts = opts || {};
   activePlaylist = key;
+  updateVideoDesc();
   searchBox.value = "";
   renderRail();
   const list = playlistVideos(key);
@@ -929,6 +989,7 @@ paintTimeline();
 
 const initial = videos.find(function(v){ return v.id === startId; }) || videos[0];
 activePlaylist = playlistOf(initial.id);
+updateVideoDesc();
 renderRail();
 selectTitle(initial, { scroll: false, toggle: false });
 </script>
