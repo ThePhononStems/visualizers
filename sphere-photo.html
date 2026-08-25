@@ -9,15 +9,8 @@
   html,body{ margin:0; height:100%; background:transparent; overflow:hidden; }
   #wrap{ position:fixed; inset:0; }
   canvas{ display:block; width:100%; height:100%; }
-  /* Fallback shown if WebGL isn't available: the plain video as a circle */
-  #fallback{
-    position:fixed; inset:0; display:none;
-    align-items:center; justify-content:center;
-  }
-  #fallback video{
-    width:min(100vw,100vh); height:min(100vw,100vh);
-    object-fit:cover; border-radius:50%;
-  }
+  #fallback{ position:fixed; inset:0; display:none; align-items:center; justify-content:center; }
+  #fallback video{ width:min(100vw,100vh); height:min(100vw,100vh); object-fit:cover; border-radius:50%; }
 </style>
 </head>
 <body>
@@ -25,74 +18,100 @@
 <div id="wrap"></div>
 <div id="fallback"><video autoplay muted loop playsinline></video></div>
 
-<!-- hidden source video used as the sphere's texture -->
 <video id="tex" src="spheres/photo.mp4" autoplay muted loop playsinline crossorigin="anonymous" style="display:none"></video>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
 <script>
 (function(){
   const vid = document.getElementById("tex");
+  const wrap = document.getElementById("wrap");
 
   function showFallback(){
-    document.getElementById("wrap").style.display = "none";
+    wrap.style.display = "none";
     const fb = document.getElementById("fallback");
     fb.style.display = "flex";
     fb.querySelector("video").src = "spheres/photo.mp4";
   }
-
   if (!window.WebGLRenderingContext) { showFallback(); return; }
 
-  let renderer, scene, camera, sphere, texture;
-  try {
-    renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true });
-  } catch (e) { showFallback(); return; }
-
+  let renderer;
+  try { renderer = new THREE.WebGLRenderer({ alpha:true, antialias:true }); }
+  catch (e) { showFallback(); return; }
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
-  const wrap = document.getElementById("wrap");
   wrap.appendChild(renderer.domElement);
 
-  scene = new THREE.Scene();
-  camera = new THREE.PerspectiveCamera(35, 1, 0.1, 100);
-  camera.position.z = 3.2;
+  const scene = new THREE.Scene();
+  const camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
 
-  // Lighting: a key light gives the highlight + shaded terminator of a sphere.
-  const key = new THREE.DirectionalLight(0xffffff, 1.15);
-  key.position.set(-0.6, 0.8, 1.0);
-  scene.add(key);
-  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
-
-  texture = new THREE.VideoTexture(vid);
+  const texture = new THREE.VideoTexture(vid);
   texture.minFilter = THREE.LinearFilter;
   texture.magFilter = THREE.LinearFilter;
 
-  const geo = new THREE.SphereGeometry(1, 96, 96);
-  const mat = new THREE.MeshStandardMaterial({
-    map: texture,
-    roughness: 0.9,
-    metalness: 0.0
+  const uniforms = {
+    uTex:      { value: texture },
+    uRes:      { value: new THREE.Vector2(1,1) },
+    uLightDir: { value: new THREE.Vector3(-0.55, 0.65, 0.85) },
+    uAmbient:  { value: 0.60 },
+    uStrength: { value: 0.55 }
+  };
+
+  const vertexShader = `
+    varying vec2 vUv;
+    void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }
+  `;
+
+  /* Spherize: map the flat image onto a bulging ball (whole image stays
+     visible, magnified at center, gently compressed toward the rim), then
+     shade it like a lit sphere. This is the CC-Sphere-style 2D look. */
+  const fragmentShader = `
+    precision mediump float;
+    varying vec2 vUv;
+    uniform sampler2D uTex;
+    uniform vec2 uRes;
+    uniform vec3 uLightDir;
+    uniform float uAmbient;
+    uniform float uStrength;
+    const float PI = 3.14159265;
+    void main(){
+      vec2 p = (vUv - 0.5) * 2.0;
+      float a = uRes.x / uRes.y;
+      if (a > 1.0) p.x *= a; else p.y /= a;   // keep the ball circular
+      float r = length(p);
+      if (r > 1.0) discard;
+      float theta = asin(clamp(r, 0.0, 1.0));
+      float ir = (r > 0.0) ? (theta / (PI * 0.5)) : 0.0;
+      vec2 dir = (r > 0.0) ? p / r : vec2(0.0);
+      vec2 uv = 0.5 + 0.5 * dir * ir;
+      vec4 col = texture2D(uTex, uv);
+      vec3 N = vec3(p.x, p.y, sqrt(max(0.0, 1.0 - r*r)));
+      float diff = clamp(dot(normalize(N), normalize(uLightDir)), 0.0, 1.0);
+      float shade = min(uAmbient + uStrength * diff, 1.15);
+      col.rgb *= shade;
+      float edge = smoothstep(1.0, 0.98, r);   // soft antialiased rim
+      gl_FragColor = vec4(col.rgb, col.a * edge);
+    }
+  `;
+
+  const material = new THREE.ShaderMaterial({
+    uniforms, vertexShader, fragmentShader, transparent:true
   });
-  sphere = new THREE.Mesh(geo, mat);
-  sphere.rotation.x = 0.12;   // slight tilt
-  scene.add(sphere);
+  const quad = new THREE.Mesh(new THREE.PlaneGeometry(2,2), material);
+  scene.add(quad);
 
   function resize(){
     const w = wrap.clientWidth, h = wrap.clientHeight;
     renderer.setSize(w, h, false);
-    camera.aspect = w / h;
-    camera.updateProjectionMatrix();
+    uniforms.uRes.value.set(w, h);
   }
   window.addEventListener("resize", resize);
   resize();
 
-  let last = performance.now();
-  function animate(now){
+  function animate(){
     requestAnimationFrame(animate);
-    const dt = (now - last) / 1000; last = now;
-    sphere.rotation.y += dt * 0.35;   // slow spin, like CC Sphere Rotation Y
     renderer.render(scene, camera);
   }
-  vid.play().catch(function(){ /* autoplay allowed when muted */ });
-  requestAnimationFrame(animate);
+  vid.play().catch(function(){});
+  animate();
 })();
 </script>
 
