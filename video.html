@@ -214,11 +214,7 @@ body{
   border-color:#5ec8ff;
 }
 .pl-label{
-  font-size:13px;
-  line-height:1.2;
-  text-align:center;
-  color:#bbb;
-  transition:color .25s;
+  display:none;   /* labels removed — the button images speak for themselves */
 }
 .pl-btn:hover .pl-label{
   color:#5ec8ff;
@@ -322,6 +318,7 @@ body.playing .gallery-col{
 }
 /* Player column: collapsed to nothing by default, expands when playing. */
 .player-col{
+  position:relative;            /* anchor the floating back button */
   flex:0 1 0;
   width:0;
   min-width:0;
@@ -340,16 +337,20 @@ body.playing .gallery-col{
 body.playing .player-col{
   flex:1 1 auto;
   width:auto;
-  padding:34px 50px 50px;
+  padding:16px 50px 50px;       /* small top padding so the viewer sits high */
   overflow-y:auto;
   opacity:1;
 }
+/* Floats over the top-left corner so it doesn't take a row above the player */
 .back-btn{
-  align-self:flex-start;
+  position:absolute;
+  top:12px;
+  left:14px;
+  z-index:5;
   padding:6px 12px;
   border:1px solid #2a2a2a;
   border-radius:8px;
-  background:#1a1a1a;
+  background:rgba(20,20,20,0.82);
   color:#bbb;
   font-size:12px;
   font-family:inherit;
