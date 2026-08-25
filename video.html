@@ -1034,28 +1034,33 @@ searchBox.addEventListener("blur", function(){
 
 document.getElementById("backBtn").addEventListener("click", enterGallery);
 
-/* Fullscreen the video. Inside a Google Sites embed the Fullscreen API is
-   blocked, so pop the player out into its own tab (with the current video)
-   where fullscreen works. In a standalone tab, go fullscreen directly. */
-function isEmbedded(){
-  try { return window.self !== window.top; }
-  catch (e) { return true; }
+/* Fullscreen. If fullscreen is actually permitted here (including inside the
+   embed, when Google Sites allows it), do it in place. Only if it's genuinely
+   blocked do we fall back to popping the player out into its own tab. */
+function popoutPlayer(){
+  const url = new URL("https://thephononstems.github.io/visualizers/video.html");
+  if (activeId) url.searchParams.set("id", activeId);
+  window.open(url.href, "_blank", "noopener");
 }
 document.getElementById("fsBtn").addEventListener("click", function(){
-  if (isEmbedded()) {
-    const url = new URL("https://thephononstems.github.io/visualizers/video.html");
-    if (activeId) url.searchParams.set("id", activeId);
-    window.open(url.href, "_blank", "noopener");
+  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
+  if (fsEl) {
+    const exit = document.exitFullscreen || document.webkitExitFullscreen;
+    if (exit) { try { exit.call(document); } catch (e) {} }
     return;
   }
   const el = videoArea;
-  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-  if (!fsEl) {
-    const req = el.requestFullscreen || el.webkitRequestFullscreen;
-    if (req) { try { req.call(el); } catch (e) {} }
+  const req = el.requestFullscreen || el.webkitRequestFullscreen;
+  const allowed = document.fullscreenEnabled || document.webkitFullscreenEnabled;
+  if (allowed && req) {
+    try {
+      const p = req.call(el);
+      if (p && p.catch) p.catch(popoutPlayer);   // blocked despite the flag → pop out
+    } catch (e) {
+      popoutPlayer();
+    }
   } else {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if (exit) { try { exit.call(document); } catch (e) {} }
+    popoutPlayer();
   }
 });
 
