@@ -135,28 +135,9 @@ body{
 
   <div class="player-col" id="playerCol">
     <button class="back-btn" id="backBtn" aria-label="Back to all videos">&larr; All videos</button>
-    <button class="fs-btn" id="fsBtn" aria-label="Fullscreen" title="Fullscreen">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-        <path d="M5 5 L13 13"></path>
-        <path d="M13 8 L13 13 L8 13"></path>
-        <rect x="15" y="15" width="5" height="5" rx="1" fill="currentColor" stroke="none"></rect>
-      </svg>
-    </button>
     <div class="player">
       <div class="video-area" id="videoArea">
-        <video id="video" preload="metadata" playsinline disablePictureInPicture controlsList="nodownload noplaybackrate"></video>
-        <div class="play-badge" id="playBadge">
-          <svg viewBox="0 0 24 24" width="22" height="22" fill="#fff">
-            <path d="M8 5v14l11-7z"></path>
-          </svg>
-        </div>
-      </div>
-      <div class="controls">
-        <div class="progress-wrap">
-          <div class="progress-track"></div>
-          <div class="progress-fill" id="progressFill"></div>
-          <input id="timeline" class="timeline" type="range" min="0" max="1000" value="0" step="1">
-        </div>
+        <video id="video" preload="metadata" playsinline controls controlsList="nodownload noplaybackrate" disablePictureInPicture></video>
       </div>
     </div>
 
@@ -914,8 +895,6 @@ function loadVideo(item, autoplay){
   video.poster = item.poster || "";
   video.src = item.src;
   video.load();
-  timeline.value = 0;
-  paintTimeline();
   if (autoplay) {
     video.play();
   }
@@ -1034,77 +1013,8 @@ searchBox.addEventListener("blur", function(){
 
 document.getElementById("backBtn").addEventListener("click", enterGallery);
 
-/* Fullscreen. If fullscreen is actually permitted here (including inside the
-   embed, when Google Sites allows it), do it in place. Only if it's genuinely
-   blocked do we fall back to popping the player out into its own tab. */
-function popoutPlayer(){
-  const url = new URL("https://thephononstems.github.io/visualizers/video.html");
-  if (activeId) url.searchParams.set("id", activeId);
-  window.open(url.href, "_blank", "noopener");
-}
-document.getElementById("fsBtn").addEventListener("click", function(){
-  const fsEl = document.fullscreenElement || document.webkitFullscreenElement;
-  if (fsEl) {
-    const exit = document.exitFullscreen || document.webkitExitFullscreen;
-    if (exit) { try { exit.call(document); } catch (e) {} }
-    return;
-  }
-  const el = videoArea;
-  const req = el.requestFullscreen || el.webkitRequestFullscreen;
-  const allowed = document.fullscreenEnabled || document.webkitFullscreenEnabled;
-  if (allowed && req) {
-    try {
-      const p = req.call(el);
-      if (p && p.catch) p.catch(popoutPlayer);   // blocked despite the flag → pop out
-    } catch (e) {
-      popoutPlayer();
-    }
-  } else {
-    popoutPlayer();
-  }
-});
-
-videoArea.addEventListener("click", function(){
-  if (video.paused) {
-    video.play();
-  } else {
-    video.pause();
-  }
-});
-
-video.addEventListener("play", function(){
-  playBadge.classList.add("hidden");
-});
-video.addEventListener("pause", function(){
-  playBadge.classList.remove("hidden");
-});
-video.addEventListener("ended", function(){
-  playBadge.classList.remove("hidden");
-});
-
-function paintTimeline(){
-  const pct = (timeline.value / timeline.max) * 100;
-  progressFill.style.width = pct + "%";
-}
-
-video.addEventListener("timeupdate", function(){
-  if (!seeking && Number.isFinite(video.duration)) {
-    timeline.value = (video.currentTime / video.duration) * 1000;
-    paintTimeline();
-  }
-});
-timeline.addEventListener("input", function(){
-  seeking = true;
-  if (Number.isFinite(video.duration)) {
-    video.currentTime = (timeline.value / 1000) * video.duration;
-  }
-  paintTimeline();
-});
-timeline.addEventListener("change", function(){
-  seeking = false;
-});
-
-paintTimeline();
+/* Playback, seeking, and fullscreen are all handled by the browser's native
+   <video controls> UI now — no custom controls or fullscreen button. */
 
 /* Start in the full-screen gallery. Default to the first category that has
    videos so the opening view isn't empty. If a specific ?id= is requested,
