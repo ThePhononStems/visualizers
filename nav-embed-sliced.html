@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SWT Media — Section Nav</title>
+<link href="https://fonts.googleapis.com/css2?family=Raleway:wght@300;400&display=swap" rel="stylesheet">
 <style>
   *{ box-sizing:border-box; }
   html,body{ margin:0; background:transparent; }
@@ -59,6 +60,37 @@
   .video  .shape{ --img:url(nav-slices/item2.png); aspect-ratio:405/190; height:calc(var(--s) * 0.779); }
   .audio  .shape{ --img:url(nav-slices/item3.png); aspect-ratio:460/199; height:calc(var(--s) * 0.816); }
   .motion .shape{ --img:url(nav-slices/item4.png); aspect-ratio:351/217; height:calc(var(--s) * 0.889); }
+
+  /* Sub-nav (photo section) sits directly under the banner. Hidden unless a
+     ?sub=... value is present, so it only shows on the photo pages. */
+  .swt-subnav{
+    display:flex;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap:14px;
+    padding:0 2% 10px;
+    margin-top:-4px;
+    font-family:"Raleway", Arial, Helvetica, sans-serif;
+  }
+  .swt-subnav[hidden]{ display:none; }
+  .sublink{
+    color:#8a8a8a;
+    text-decoration:none;
+    text-transform:uppercase;
+    letter-spacing:2px;
+    font-size:clamp(11px, 1.6vw, 16px);
+    font-weight:300;
+    transition:color .2s ease;
+    white-space:nowrap;
+  }
+  .sublink:hover{ color:#56C6D8; }
+  .sublink.active{ color:#56C6D8; }
+  .subdot{
+    color:#666;
+    font-size:clamp(8px, 1.2vw, 12px);
+    user-select:none;
+  }
 </style>
 </head>
 <body>
@@ -70,15 +102,37 @@
   <a class="item motion" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/motiongfx"><span class="shape" role="img" aria-label="Motion GFX"></span></a>
 </nav>
 
+<nav class="swt-subnav" id="subNav" aria-label="Photography sections" hidden>
+  <a class="sublink" data-key="slideshow" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/photography-slideshow">Slideshow</a>
+  <span class="subdot">&bull;</span>
+  <a class="sublink" data-key="galleries" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/photography-slideshow/galleries">Galleries</a>
+  <span class="subdot">&bull;</span>
+  <a class="sublink" data-key="events" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/photography-slideshow/events">Events</a>
+  <span class="subdot">&bull;</span>
+  <a class="sublink" data-key="projects" target="_blank" rel="noopener" href="https://www.swtmedia.com/home_2/photography-slideshow/projects">Projects</a>
+</nav>
+
 <script>
   /* Which button is "you are here" is set per page via the embed URL, e.g.
        nav-embed-sliced.html?active=video
      Valid values: photo | video | audio | motion */
   (function(){
-    var a = (new URLSearchParams(location.search).get("active") || "").replace(/[^a-z]/gi, "");
-    if (!a) return;
-    var el = document.querySelector(".item." + a);
-    if (el) el.classList.add("active");
+    var params = new URLSearchParams(location.search);
+    var a = (params.get("active") || "").replace(/[^a-z]/gi, "");
+    if (a) {
+      var el = document.querySelector(".item." + a);
+      if (el) el.classList.add("active");
+    }
+    /* Show + highlight the photo sub-nav only when ?sub=... is given, e.g.
+         nav-embed-sliced.html?active=photo&sub=galleries
+       Valid sub values: slideshow | galleries | events | projects */
+    var sub = (params.get("sub") || "").replace(/[^a-z]/gi, "");
+    if (sub) {
+      var nav = document.getElementById("subNav");
+      nav.hidden = false;
+      var link = nav.querySelector('.sublink[data-key="' + sub + '"]');
+      if (link) link.classList.add("active");
+    }
   })();
 </script>
 
