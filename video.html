@@ -3,1045 +3,594 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<!-- ============================================================
-     EDIT HERE: replace every placeholder below with real text.
-     This is what Google shows in search results and what it
-     uses to understand/index this page and its videos.
-     ============================================================ -->
-<title>Portada &amp; Palestina — SWT Media Video Library</title>
-<meta name="description" content="Watch Portada and Palestina, two short videos from SWT Media.">
-<link rel="canonical" href="https://thephononstems.github.io/visualizers/video.html">
-
+<title>SWT Media — Video Library</title>
+<meta name="description" content="Video reel and library from SWT Media: documentaries, excerpts, and FluentSee English lessons.">
+<link rel="canonical" href="https://thephononstems.github.io/visualizers/video-v2.html">
 <meta property="og:type" content="video.other">
-<meta property="og:title" content="Portada &amp; Palestina — SWT Media Video Library">
-<meta property="og:description" content="Watch Portada and Palestina, two short videos from SWT Media.">
+<meta property="og:title" content="SWT Media — Video Library">
 <meta property="og:image" content="https://thephononstems.github.io/visualizers/posters/webportada-still.png">
-<meta property="og:url" content="https://thephononstems.github.io/visualizers/video.html">
-
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:title" content="Portada &amp; Palestina — SWT Media Video Library">
-<meta name="twitter:description" content="Watch Portada and Palestina, two short videos from SWT Media.">
-<meta name="twitter:image" content="https://thephononstems.github.io/visualizers/posters/webportada-still.png">
-
-<script type="application/ld+json">
-{
-  "@context": "https://schema.org",
-  "@graph": [
-    {
-      "@type": "VideoObject",
-      "name": "Excerpt: Bernie Sanders / Listen to the Science",
-      "description": "Placeholder description for Bernie Sanders / Listen to the Science. Replace this text with the real summary of the video's content.",
-      "thumbnailUrl": "https://thephononstems.github.io/visualizers/posters/BernieSanders-ListenToScience-still.jpg",
-      "contentUrl": "https://thephononstems.github.io/visualizers/videos/BernieSanders-ListenToScience-41mb.mp4",
-      "uploadDate": "2026-01-01"
-    },
-    {
-      "@type": "VideoObject",
-      "name": "Portada",
-      "description": "Placeholder description for Portada. Replace this text with the real summary of the video's content.",
-      "thumbnailUrl": "https://thephononstems.github.io/visualizers/posters/webportada-still.png",
-      "contentUrl": "https://thephononstems.github.io/visualizers/videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
-      "uploadDate": "2026-01-01"
-    },
-    {
-      "@type": "VideoObject",
-      "name": "Palestina",
-      "description": "Placeholder description for Palestina. Replace this text with the real summary of the video's content.",
-      "thumbnailUrl": "https://thephononstems.github.io/visualizers/posters/Palestina-still.png",
-      "contentUrl": "https://thephononstems.github.io/visualizers/videos/Palestina-94mb.mp4",
-      "uploadDate": "2026-01-01"
-    }
-  ]
-}
-</script>
-<!-- ============================================================ -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Raleway:wght@400;600&display=swap" rel="stylesheet">
 
 <style>
-*{
-  box-sizing:border-box;
+/* ============================================================
+   EDIT HERE: colors
+   ============================================================ */
+:root{
+  --panel:#1f1f1f;          /* dark grey rectangle */
+  --reel-a:#3a3a3a;         /* light grey reel column (gradient top) */
+  --reel-b:#4a4a4a;         /* light grey reel column (gradient bottom) */
+  --tile:#5d6e55;           /* dull green placeholder */
+  --tile-hover:#6b7e62;
+  --accent:#1e96e8;         /* blue arrow */
+  --accent-soft:#5ec8ff;    /* matches the site's VIDEO & EDIT blue */
+  --text:#ffffff;
+  --muted:#9a9a9a;
+  --speed:.5s;              /* curtain speed */
+  --gap:36px;
 }
-.sr-only{
-  position:absolute;
-  width:1px;
-  height:1px;
-  padding:0;
-  margin:-1px;
-  overflow:hidden;
-  clip:rect(0,0,0,0);
-  white-space:nowrap;
-  border:0;
-}
-html,
-body{
-  margin:0;
-  width:100%;
-  height:100%;
+*{ box-sizing:border-box; }
+html,body{
+  margin:0; width:100%; height:100%;
   background:transparent;
-  font-family:Arial,Helvetica,sans-serif;
+  font-family:Raleway,Arial,Helvetica,sans-serif;
+  color:var(--text);
+  overflow:hidden;
+}
+button{ font:inherit; color:inherit; }
+.sr-only{ position:absolute; width:1px; height:1px; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
+
+/* ---------- The dark grey rectangle ---------- */
+.panel{
+  display:flex;
+  width:100%; height:100vh;
+  background:var(--panel);
   overflow:hidden;
 }
 
-/* ============================================================
-   EDIT HERE: video list, stills, and info-panel text.
-   To add a video: add an entry below, add its file to /videos,
-   and add a still to /posters (or point "poster" at any image URL).
-   ============================================================ */
+/* ---------- Player panes (left = reel, right = videos) ---------- */
+.pane{
+  position:relative;
+  flex:0 0 0;
+  min-width:0;
+  overflow:hidden;
+  opacity:0;
+  background:#0b0b0b;
+  display:flex; flex-direction:column; align-items:center;
+  transition:flex-grow var(--speed) ease, flex-basis var(--speed) ease, opacity .35s ease;
+}
+.panel[data-mode="left"]  #paneLeft,
+.panel[data-mode="right"] #paneRight{
+  flex:1 1 0;
+  opacity:1;
+  overflow-y:auto;
+}
+.pane-inner{
+  width:100%; max-width:1100px;
+  padding:64px 40px 40px;
+  display:flex; flex-direction:column; gap:16px;
+}
+.stage{
+  width:100%;
+  height:calc(100vh - 170px);
+  min-height:240px;
+  background:#000;
+  border-radius:14px;
+  overflow:hidden;
+  box-shadow:0 20px 60px rgba(0,0,0,.6);
+}
+.stage video{ width:100%; height:100%; object-fit:contain; background:#000; display:block; }
+.now-title{
+  font-family:"Bebas Neue",Impact,sans-serif;
+  font-size:30px; letter-spacing:.5px; margin:0;
+}
+.back{
+  position:absolute; top:16px; z-index:5;
+  padding:7px 14px;
+  border:1px solid #333; border-radius:8px;
+  background:rgba(20,20,20,.85); color:#bbb;
+  font-size:13px; cursor:pointer;
+  transition:color .2s, border-color .2s;
+}
+.back:hover{ color:var(--accent-soft); border-color:var(--accent-soft); }
+#paneRight .back{ left:18px; }
+#paneLeft  .back{ right:18px; }
+
+/* FluentSee bilingual blurb under the player */
+.video-desc{ display:none; gap:32px; font-size:14px; line-height:1.6; }
+.video-desc.show{ display:flex; }
+.video-desc p{ margin:0 0 10px; }
+.desc-en{ flex:1; color:var(--accent-soft); }
+.desc-es{ flex:1; color:#e6c34a; }
+
+/* ---------- The curtain (reel column + browse area) ---------- */
+.curtain{
+  flex:1 1 0;
+  min-width:0;
+  display:flex;
+  overflow:hidden;
+  transition:flex-grow var(--speed) ease, flex-basis var(--speed) ease;
+}
+.panel[data-mode="left"] .curtain,
+.panel[data-mode="right"] .curtain{
+  flex:0 0 300px;
+}
+
+/* Light grey reel column */
+.reel-col{
+  flex:0 0 20.5%;
+  min-width:0;
+  display:flex; flex-direction:column;
+  padding:4.5vh 3% 5vh;
+  background:linear-gradient(160deg, var(--reel-a), var(--reel-b));
+  overflow:hidden;
+  transition:flex-basis var(--speed) ease, padding var(--speed) ease, opacity .3s ease;
+}
+.panel[data-mode="left"] .reel-col,
+.panel[data-mode="right"] .reel-col{
+  flex-basis:0; padding-left:0; padding-right:0; opacity:0;
+}
+
+/* Browse area */
+.browse{
+  flex:1 1 0;
+  min-width:0;
+  display:flex; flex-direction:column;
+  padding:4.5vh 0 5vh 3%;
+}
+.tabs{
+  display:flex; align-items:baseline; gap:6%;
+  height:12vh; min-height:56px;
+  padding-right:18%;
+  position:relative;
+}
+.tab, .reel-heading{
+  background:none; border:none; padding:0;
+  font-family:"Bebas Neue",Impact,sans-serif;
+  font-size:clamp(28px, 5.2vh, 56px);
+  letter-spacing:.5px;
+  line-height:1;
+  cursor:pointer;
+  white-space:nowrap;
+}
+.reel-heading{ height:12vh; min-height:56px; margin:0; font-weight:400; text-align:left; }
+.tab{ color:var(--muted); transition:color .2s; position:relative; }
+.tab:hover{ color:var(--text); }
+.tab.active{ color:var(--text); }
+.tab.active::after{
+  content:""; position:absolute; left:0; right:0; bottom:-8px;
+  height:3px; border-radius:2px; background:var(--accent-soft);
+}
+.tab-reel{ display:none; }
+.more{
+  margin-left:auto;
+  font-size:clamp(20px, 3.4vh, 36px);
+  color:var(--text);
+}
+.more.active::after{ display:none; }
+
+/* MORE OPTIONS: extra sort tabs slide open next to FAVORITE */
+.extra-tabs{
+  display:flex; align-items:baseline; gap:inherit;
+  max-width:0; overflow:hidden; opacity:0;
+  transition:max-width .5s ease, opacity .35s ease;
+}
+.tabs.expanded .extra-tabs{ max-width:2000px; opacity:1; overflow:visible; }
+.tabs.expanded{ gap:3.2%; padding-right:9%; }
+.tabs.expanded .tab{ font-size:clamp(20px, min(3.9vh, 2.3vw), 44px); }
+.tabs.expanded .more{ font-size:clamp(15px, min(2.6vh, 1.7vw), 28px); }
+.tabs.expanded .tab.active::after{ bottom:-6px; }
+
+/* Row of tiles + arrow */
+.row{
+  flex:1 1 auto; min-height:0;
+  display:flex; align-items:stretch;
+  position:relative;
+}
+.track{
+  flex:1 1 auto; min-width:0;
+  display:grid;
+  grid-auto-flow:column;
+  grid-auto-columns:calc((100% - 3 * var(--gap)) / 4);   /* 4 tiles per page */
+  gap:var(--gap);
+  overflow-x:auto; overflow-y:hidden;
+  scroll-snap-type:x mandatory;
+  scroll-behavior:smooth;
+  scrollbar-width:none;
+}
+.track::-webkit-scrollbar{ display:none; }
+.arrow{
+  flex:0 0 7%;
+  min-width:46px;
+  display:flex; align-items:center; justify-content:center;
+  background:none; border:none; padding:0; cursor:pointer;
+}
+.arrow svg{ width:62%; max-width:66px; fill:var(--accent); transition:transform .2s, opacity .2s; }
+.arrow:hover svg{ transform:translateX(4px); }
+.arrow[disabled]{ cursor:default; }
+.arrow[disabled] svg{ opacity:.2; transform:none; }
+.arrow-back{
+  position:absolute; left:-2.6%; top:50%; transform:translate(-50%,-50%);
+  width:34px; height:34px; border:none; background:none; padding:0; cursor:pointer;
+  opacity:0; pointer-events:none; transition:opacity .2s;
+}
+.arrow-back.show{ opacity:.8; pointer-events:auto; }
+.arrow-back svg{ width:100%; fill:var(--accent); }
+
+/* ---------- Tiles ---------- */
+.tile{
+  position:relative;
+  min-width:0; height:100%;
+  padding:0; border:none; border-radius:2px;
+  background:var(--tile);
+  overflow:hidden;
+  cursor:pointer;
+  scroll-snap-align:start;
+  text-align:left;
+  transition:background .2s, transform .2s;
+}
+.tile:hover{ background:var(--tile-hover); }
+.tile img{
+  position:absolute; inset:0; width:100%; height:100%;
+  object-fit:cover; display:block;
+}
+.tile .label{
+  position:absolute; left:0; right:0; bottom:0;
+  padding:30px 12px 12px;
+  font-size:13px; font-weight:600; line-height:1.3;
+  background:linear-gradient(transparent, rgba(0,0,0,.55));
+  transition:opacity .2s;
+}
+/* The black description box on hover */
+.tile .info{
+  position:absolute;
+  inset:7% 12% 7% 12%;
+  padding:16px;
+  background:#000;
+  font-size:13px; line-height:1.45;
+  opacity:0; transform:translateY(8px);
+  transition:opacity .25s ease, transform .25s ease;
+  overflow:hidden;
+  pointer-events:none;
+}
+.tile .info strong{ display:block; font-size:15px; margin-bottom:8px; }
+.tile .info .meta{ display:block; color:var(--muted); font-size:12px; margin-bottom:8px; }
+.tile .info .note{ color:#4caf7d; font-style:italic; }
+.tile:hover .info, .tile:focus-visible .info{ opacity:1; transform:none; }
+.tile:hover .label, .tile:focus-visible .label{ opacity:0; }
+.tile.active{ outline:3px solid var(--accent-soft); outline-offset:-3px; }
+.reel-tile{ flex:1 1 auto; width:100%; }
+.empty{ color:var(--muted); font-size:14px; padding:20px 0; }
+
+/* ---------- Narrow strip (after the curtain has squished) ---------- */
+.panel.narrow .browse{ padding:22px 16px 16px; }
+.panel.narrow .tabs, .panel.narrow .tabs.expanded{ gap:10px 16px; height:auto; min-height:0; padding:0 0 18px; flex-wrap:wrap; flex:none; }
+.panel.narrow .tab{ font-size:24px; }
+.panel.narrow .more{ font-size:18px; }
+.panel.narrow[data-mode="right"] .tab-reel{ display:inline; }
+.panel.narrow .tabs .tab{ font-size:22px; }
+.panel.narrow .tabs .more{ font-size:16px; margin-left:0; }
+.panel.narrow .extra-tabs{ display:none; }
+.panel.narrow .tabs.expanded .extra-tabs{ display:contents; }
+.panel.narrow .row{ display:block; overflow-y:auto; scrollbar-width:thin; }
+.panel.narrow .track{
+  grid-auto-flow:row;
+  grid-template-columns:1fr 1fr;
+  grid-auto-columns:auto;
+  gap:12px;
+  overflow:visible;
+  height:auto;
+  align-content:start;
+}
+.panel.narrow .tile{ height:auto; aspect-ratio:9/16; }
+.panel.narrow .tile .info{ inset:6%; padding:10px; font-size:11px; }
+.panel.narrow .tile .info strong{ font-size:12px; }
+.panel.narrow .tile .label{ font-size:11px; padding:20px 8px 8px; }
+.panel.narrow .arrow, .panel.narrow .arrow-back{ display:none; }
+
+/* ---------- Phones ---------- */
+@media (max-width:700px){
+  html,body{ height:auto; overflow:visible; }
+  .panel{ flex-direction:column; height:auto; min-height:100vh; }
+  .pane{ flex:none !important; height:0; }
+  .panel[data-mode="left"] #paneLeft,
+  .panel[data-mode="right"] #paneRight{ height:auto; }
+  .pane-inner{ padding:56px 16px 20px; }
+  .stage{ height:auto; aspect-ratio:16/9; }
+  .curtain, .panel[data-mode] .curtain{ flex:none; flex-direction:column; }
+  .reel-col, .panel[data-mode] .reel-col{ flex:none; padding:20px 16px; opacity:1; }
+  .panel[data-mode="left"] .reel-col, .panel[data-mode="right"] .reel-col{ display:none; }
+  .reel-heading{ height:auto; margin-bottom:12px; }
+  .reel-tile{ height:60vh; }
+  .browse, .panel.narrow .browse{ padding:20px 16px; }
+  .tabs, .tabs.expanded{ height:auto; padding:0 0 16px; gap:14px 18px; flex-wrap:wrap; }
+  .tabs.expanded .extra-tabs{ flex-wrap:wrap; gap:14px 18px; }
+  .row{ height:60vh; }
+  .track{ grid-auto-columns:calc((100% - var(--gap)) / 2.3); --gap:12px; }
+  .panel.narrow .row{ height:60vh; overflow:visible; }
+  .panel.narrow .track{ grid-auto-flow:column; grid-template-columns:none; grid-auto-columns:calc((100% - 12px) / 2.3); overflow-x:auto; }
+  .panel.narrow .tile{ height:100%; aspect-ratio:auto; }
+  .arrow{ display:none; }
+  .video-desc.show{ flex-direction:column; gap:12px; }
+}
 </style>
 </head>
 <body>
+<h1 class="sr-only">SWT Media — Video Library</h1>
 
-<h1 class="sr-only">Portada &amp; Palestina — SWT Media Video Library</h1>
+<div class="panel" id="panel" data-mode="browse">
 
-<noscript>
-  <p>This page requires JavaScript to play videos. Direct links:</p>
-  <ul>
-    <li><a href="videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4">Portada</a></li>
-    <li><a href="videos/Palestina-94mb.mp4">Palestina</a></li>
-    <li><a href="videos/BernieSanders-ListenToScience-41mb.mp4">Excerpt: Bernie Sanders / Listen to the Science</a></li>
-  </ul>
-</noscript>
+  <!-- Reel player: slides in from the LEFT (curtain goes right) -->
+  <section class="pane" id="paneLeft" aria-label="Reel player">
+    <button class="back" data-back>All videos &rarr;</button>
+    <div class="pane-inner" id="slotLeft"></div>
+  </section>
 
-<div class="layout" id="layout">
+  <!-- The curtain -->
+  <div class="curtain" id="curtain">
+    <aside class="reel-col">
+      <button class="reel-heading" id="reelHeading">REEL</button>
+      <button class="tile reel-tile" id="reelTile"></button>
+    </aside>
 
-  <div class="gallery-col">
-    <div class="icon-rail" id="iconRail"></div>
-    <div class="search-wrap" id="searchWrap">
-      <button class="search-toggle" id="searchToggle" aria-label="Search" title="Search">
-        <svg class="search-icon" viewBox="0 0 24 24" width="18" height="18" aria-hidden="true">
-          <defs>
-            <clipPath id="lensClip">
-              <circle cx="10.5" cy="10.5" r="6.5"></circle>
-            </clipPath>
-          </defs>
-          <g class="lens-group">
-            <g clip-path="url(#lensClip)">
-              <rect class="glass-shine" x="2" y="-2" width="4" height="26" fill="#ffffff" opacity="0.275"></rect>
-            </g>
-            <circle cx="10.5" cy="10.5" r="6.5" fill="none" stroke="currentColor" stroke-width="2"></circle>
-          </g>
-          <line class="handle" x1="15.5" y1="15.5" x2="21" y2="21" stroke="currentColor" stroke-width="2" stroke-linecap="round"></line>
-        </svg>
-      </button>
-      <input
-        id="searchBox"
-        class="search-box"
-        type="text"
-        placeholder="Search..."
-        autocomplete="off">
-    </div>
-    <div class="title-list" id="titleList"></div>
-  </div>
-
-  <div class="player-col" id="playerCol">
-    <button class="back-btn" id="backBtn" aria-label="Back to all videos">&larr; All videos</button>
-    <div class="player">
-      <div class="video-area" id="videoArea">
-        <video id="video" preload="metadata" playsinline controls controlsList="nodownload noplaybackrate" disablePictureInPicture></video>
+    <div class="browse">
+      <div class="tabs">
+        <button class="tab tab-reel" id="tabReel">REEL</button>
+        <button class="tab active" data-sort="newest">NEWEST</button>
+        <button class="tab" data-sort="favorite">FAVORITE</button>
+        <span class="extra-tabs" id="extraTabs"></span>
+        <button class="tab more" id="moreBtn" aria-expanded="false">MORE OPTIONS</button>
       </div>
-    </div>
-
-    <div class="video-desc" id="videoDesc">
-      <div class="desc-col desc-en">
-        <p>Fluency in a language has less to do with the amount of vocabulary learned and more to do with the degree to which the essential elements of grammar are acquired and maneuvered to legibly communicate thoughts clearly and engage in sustained dialogue. These &ldquo;FluentSee&rdquo; videos depict the elements of grammar in distinct visual forms to help the student identify patterns of placement and use in modern English conversation.</p>
-      </div>
-      <div class="desc-col desc-es">
-        <p>La fluidez en un idioma tiene menos que ver con la cantidad de vocabulario aprendido y más con el grado en que se adquieren y se manejan los elementos esenciales de la gramática para comunicar pensamientos de forma clara y participar en un diálogo sostenido.</p>
-        <p>Estos vídeos de &ldquo;FluentSee&rdquo; representan los elementos de la gramática mediante formas visuales diferenciadas para ayudar al estudiante a identificar patrones de colocación y uso en el inglés conversacional moderno.</p>
+      <div class="row">
+        <button class="arrow-back" id="arrowBack" aria-label="Scroll back">
+          <svg viewBox="0 0 10 10"><polygon points="10,0 10,10 0,5"/></svg>
+        </button>
+        <div class="track" id="track"></div>
+        <button class="arrow" id="arrowNext" aria-label="More videos">
+          <svg viewBox="0 0 66 70"><polygon points="0,0 66,35 0,70"/></svg>
+        </button>
       </div>
     </div>
   </div>
 
+  <!-- Video player: slides in from the RIGHT (curtain goes left) -->
+  <section class="pane" id="paneRight" aria-label="Video player">
+    <button class="back" data-back>&larr; All videos</button>
+    <div class="pane-inner" id="slotRight"></div>
+  </section>
 </div>
 
-<style>
-.layout{
-  display:flex;                 /* gallery column (with categories on top) | player */
-  height:100vh;
-  background:#111;
-}
-.icon-rail{
-  flex:0 0 auto;
-  display:flex;
-  flex-direction:row;           /* category buttons across the top */
-  align-items:center;
-  gap:16px;
-  padding:12px 20px;
-  background:#141414;
-  overflow-x:auto;
-  overflow-y:hidden;
-  border-bottom:1px solid #242424;
-}
-.content{
-  flex:1 1 auto;
-  display:flex;
-  min-height:0;                 /* let the columns scroll inside */
-}
-.pl-btn{
-  width:166px;
-  border:none;
-  background:none;
-  cursor:pointer;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  gap:6px;
-  padding:4px 2px;
-}
-.pl-thumb{
-  width:100%;
-  height:92px;
-  border-radius:12px;
-  object-fit:cover;
-  background:#242424;
-  border:2px solid transparent;
-  transition:border-color .25s, transform .15s;
-}
-.pl-btn:hover .pl-thumb{
-  transform:scale(1.06);
-  border-color:#5ec8ff;
-}
-.pl-label{
-  display:none;   /* labels removed — the button images speak for themselves */
-}
-.pl-btn:hover .pl-label{
-  color:#5ec8ff;
-}
-/* Gallery column: fills the whole content area by default; shrinks to a
-   narrow left column when a video is playing (body.playing). */
-.gallery-col{
-  flex:1 1 100%;
-  min-width:0;
-  height:100%;
-  display:flex;
-  flex-direction:column;
-  background:#1b1b1b;
-  transition:flex-basis .35s ease;
-}
-body.playing .gallery-col{
-  flex:0 1 320px;
-}
-.search-wrap{
-  display:inline-flex;
-  align-items:center;
-  margin:30px 30px 0;
-}
-.search-toggle{
-  flex:0 0 auto;
-  display:inline-flex;
-  align-items:center;
-  justify-content:center;
-  padding:6px;
-  border:none;
-  background:none;
-  color:#8a8a8a;
-  cursor:pointer;
-  transition:color .25s;
-}
-.search-toggle:hover,
-.search-wrap.open .search-toggle{
-  color:#5ec8ff;
-}
-.search-icon{
-  display:block;
-}
-.handle{
-  transform-box:fill-box;
-  transform-origin:center;
-}
-.glass-shine{
-  transform:rotate(20deg);
-  transform-origin:10.5px 10.5px;
-  animation:shineSweep 3s ease-in-out infinite;
-}
-@keyframes shineSweep{
-  0%{ transform:rotate(20deg) translateX(-14px); opacity:0; }
-  15%{ opacity:0.275; }
-  45%{ opacity:0.275; }
-  60%{ transform:rotate(20deg) translateX(14px); opacity:0; }
-  100%{ transform:rotate(20deg) translateX(14px); opacity:0; }
-}
-/* Collapsed by default: only the magnifier shows. Opens to a compact bar. */
-.search-box{
-  flex:0 0 auto;
-  width:0;
-  padding:0;
-  border:1px solid transparent;
-  border-radius:10px;
-  background:#242424;
-  color:#fff;
-  font-size:12px;
-  font-family:inherit;
-  outline:none;
-  opacity:0;
-  overflow:hidden;
-  transition:width .25s ease, padding .25s ease, opacity .2s ease, border-color .25s;
-}
-.search-wrap.open .search-box{
-  width:160px;
-  padding:6px 11px;
-  margin-left:6px;
-  border-color:#2a2a2a;
-  opacity:1;
-}
-.search-box::placeholder{
-  color:#8a8a8a;
-}
-.search-wrap.open .search-box:focus{
-  border-color:#5ec8ff;
-}
-.no-results{
-  color:#8a8a8a;
-  font-size:14px;
-  padding:14px 18px;
-}
-.title-list{
-  flex:1;
-  display:grid;
-  grid-template-columns:repeat(auto-fill, minmax(190px, 1fr));
-  gap:14px;
-  align-content:start;
-  overflow-y:auto;
-  padding:18px 24px 28px;
-}
-/* Player column: collapsed to nothing by default, expands when playing. */
-.player-col{
-  position:relative;            /* anchor the floating back button */
-  flex:0 1 0;
-  width:0;
-  min-width:0;
-  height:100%;
-  display:flex;
-  flex-direction:column;
-  align-items:center;
-  justify-content:flex-start;
-  gap:16px;
-  background:#0b0b0b;
-  padding:0;
-  overflow:hidden;
-  opacity:0;
-  transition:flex-basis .35s ease, opacity .3s ease, padding .35s ease;
-}
-body.playing .player-col{
-  flex:1 1 auto;
-  width:auto;
-  padding:16px 50px 50px;       /* small top padding so the viewer sits high */
-  overflow-y:auto;
-  opacity:1;
-}
-/* Floats over the top-left corner so it doesn't take a row above the player */
-.back-btn{
-  position:absolute;
-  top:12px;
-  left:14px;
-  z-index:5;
-  padding:6px 12px;
-  border:1px solid #2a2a2a;
-  border-radius:8px;
-  background:rgba(20,20,20,0.82);
-  color:#bbb;
-  font-size:12px;
-  font-family:inherit;
-  cursor:pointer;
-  transition:color .2s, border-color .2s;
-}
-.back-btn:hover{ color:#5ec8ff; border-color:#5ec8ff; }
-/* Fullscreen button, tucked just under the back button */
-.fs-btn{
-  position:absolute;
-  top:50px;
-  left:14px;
-  z-index:5;
-  width:34px;
-  height:34px;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  border:1px solid #2a2a2a;
-  border-radius:8px;
-  background:rgba(20,20,20,0.82);
-  color:#bbb;
-  cursor:pointer;
-  transition:color .2s, border-color .2s;
-}
-.fs-btn:hover{ color:#5ec8ff; border-color:#5ec8ff; }
-.video-area:fullscreen,
-.video-area:-webkit-full-screen{
-  width:100vw;
-  height:100vh;
-  aspect-ratio:auto;
-  border-radius:0;
-}
-/* Bilingual description below the player: English blue, Spanish yellow.
-   Hidden by default — only shown for FluentSee videos. */
-.video-desc{
-  display:none;
-  width:min(1000px, 100%);
-  font-size:14px;
-  line-height:1.6;
-}
-.video-desc.show{
-  display:flex;          /* two columns: English left, Spanish right */
-  gap:32px;
-}
-.desc-col{
-  flex:1 1 0;
-  min-width:0;
-}
-.desc-col p{
-  margin:0 0 10px;
-}
-.desc-col p:last-child{
-  margin-bottom:0;
-}
-.desc-en{ color:#5ec8ff; }
-.desc-es{ color:#e6c34a; }
-/* Stack the two columns on narrow screens */
-@media (max-width:700px){
-  .video-desc.show{
-    flex-direction:column;
-    gap:16px;
-  }
-}
-.player-col .player{
-  width:min(1000px,100%);
-}
-
-/* Each title is a small 16:9 tile (placeholder for the eventual gif preview) */
-.title-btn{
-  width:100%;
-  aspect-ratio:16 / 9;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  text-align:center;
-  padding:8px 12px;
-  border:1px solid #2a2a2a;
-  border-radius:10px;
-  background:#242424;
-  color:#fff;
-  font-size:13px;
-  line-height:1.3;
-  font-family:inherit;
-  cursor:pointer;
-  transition:background .2s, border-color .2s, transform .15s, color .2s;
-}
-.title-btn:hover{
-  background:#303030;
-  border-color:#5ec8ff;
-  color:#5ec8ff;
-  transform:translateY(-3px);
-}
-.title-btn.active{
-  border-color:#5ec8ff;
-  color:#5ec8ff;
-}
-.title-note{
-  font-style:italic;
-  font-size:0.8em;
-  color:#4caf7d;
-}
-.title-wrap{
-  border-radius:12px;
-}
-.playlist-intro{
-  margin-top:8px;
-  padding:16px 18px 20px;
-  color:#b7b7b7;
-  font-size:13px;
-  line-height:1.6;
-  border-top:1px solid #2a2a2a;
-}
-.playlist-intro p{
-  margin:0 0 12px;
-}
-.playlist-intro p:last-child{
-  margin-bottom:0;
-}
-.info-panel{
-  padding:14px 18px 18px;
-  margin-top:6px;
-  background:#151515;
-  border:1px solid #2a2a2a;
-  border-radius:12px;
-  color:#c9c9c9;
-  font-size:13px;
-  line-height:1.5;
-}
-.info-panel p{
-  margin:0 0 10px;
-}
-.info-meta{
-  display:flex;
-  align-items:center;
-  gap:6px;
-  color:#9a9a9a;
-  margin-bottom:8px;
-}
-.info-tags{
-  display:flex;
-  gap:6px;
-  flex-wrap:wrap;
-}
-.tag{
-  background:#242424;
-  color:#5ec8ff;
-  padding:3px 9px;
-  border-radius:6px;
-  font-size:12px;
-}
-
-.player{
-  display:flex;
-  flex-direction:column;
-  background:#000;
-  border-radius:16px;
-  overflow:hidden;
-  box-shadow:0 20px 60px rgba(0,0,0,.65);
-}
-.video-area{
-  position:relative;
-  aspect-ratio:16/9;
-  display:flex;
-  justify-content:center;
-  align-items:center;
-  overflow:hidden;
-  background:#000;
-  cursor:pointer;
-  border-top-left-radius:16px;
-  border-top-right-radius:16px;
-}
-video{
-  width:100%;
-  height:100%;
-  object-fit:contain;
-  background:#000;
-}
-.play-badge{
-  position:absolute;
-  inset:0;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  pointer-events:none;
-}
-.play-badge svg{
-  width:56px;
-  height:56px;
-  padding:16px;
-  background:rgba(0,0,0,0.35);
-  border:1.5px solid rgba(255,255,255,0.7);
-  border-radius:50%;
-  box-sizing:border-box;
-}
-.play-badge.hidden{
-  display:none;
-}
-.controls{
-  padding:14px 18px 18px;
-  background:#000;
-  /* round the bottom corners here too, so browsers that leak the parent's
-     overflow-clip at the corners still show a fully rounded card */
-  border-bottom-left-radius:16px;
-  border-bottom-right-radius:16px;
-}
-.progress-wrap{
-  position:relative;
-  height:13px;
-  display:flex;
-  align-items:center;
-}
-.progress-track{
-  position:absolute;
-  left:0;
-  right:0;
-  height:4px;
-  border-radius:2px;
-  background:#333333;
-  pointer-events:none;
-}
-.progress-fill{
-  position:absolute;
-  left:0;
-  height:4px;
-  border-radius:2px;
-  background:#1f6f6b;
-  width:0%;
-  pointer-events:none;
-}
-.timeline{
-  position:relative;
-  z-index:1;
-  -webkit-appearance:none;
-  appearance:none;
-  width:100%;
-  height:13px;
-  background:transparent;
-  cursor:pointer;
-  outline:none;
-  margin:0;
-}
-.timeline::-webkit-slider-runnable-track{
-  background:transparent;
-  height:4px;
-}
-.timeline::-webkit-slider-thumb{
-  -webkit-appearance:none;
-  width:13px;
-  height:13px;
-  border-radius:50%;
-  background:#1f6f6b;
-  cursor:pointer;
-  margin-top:-4.5px;
-}
-.timeline::-moz-range-track{
-  background:transparent;
-  height:4px;
-}
-.timeline::-moz-range-progress{
-  background:transparent;
-  height:4px;
-}
-.timeline::-moz-range-thumb{
-  width:13px;
-  height:13px;
-  border-radius:50%;
-  background:#1f6f6b;
-  border:none;
-  cursor:pointer;
-}
-
-@media (max-width:700px){
-  html,
-  body{
-    height:auto;
-    overflow:visible;
-  }
-  .layout{
-    flex-direction:column;
-    height:auto;
-  }
-  .icon-rail{
-    flex:none;
-    width:100%;
-    height:auto;
-    flex-direction:row;
-    gap:14px;
-    overflow-x:auto;
-    overflow-y:hidden;
-    border-right:none;
-    border-bottom:1px solid #242424;
-  }
-  .content{
-    flex-direction:column;    /* stack gallery over player on mobile */
-  }
-  .gallery-col,
-  body.playing .gallery-col{
-    flex:none;
-    width:100%;
-    height:auto;
-  }
-  .title-list{
-    height:auto;
-    overflow-y:visible;
-    padding:14px 16px 20px;
-    grid-template-columns:repeat(auto-fill, minmax(150px, 1fr));
-  }
-  .search-wrap{
-    margin:20px 20px 0;
-  }
-  body.playing .player-col{
-    flex:none;
-    width:100%;
-    height:auto;
-    padding:20px;
-  }
-}
-</style>
+<!-- The one video element; it moves to whichever side is open -->
+<div id="playerParts" hidden>
+  <div class="stage" id="stage">
+    <video id="video" preload="metadata" playsinline controls controlsList="nodownload noplaybackrate" disablePictureInPicture></video>
+  </div>
+  <h2 class="now-title" id="nowTitle"></h2>
+  <div class="video-desc" id="videoDesc">
+    <div class="desc-en">
+      <p>Fluency in a language has less to do with the amount of vocabulary learned and more to do with the degree to which the essential elements of grammar are acquired and maneuvered to legibly communicate thoughts clearly and engage in sustained dialogue. These &ldquo;FluentSee&rdquo; videos depict the elements of grammar in distinct visual forms to help the student identify patterns of placement and use in modern English conversation.</p>
+    </div>
+    <div class="desc-es">
+      <p>La fluidez en un idioma tiene menos que ver con la cantidad de vocabulario aprendido y más con el grado en que se adquieren y se manejan los elementos esenciales de la gramática para comunicar pensamientos de forma clara y participar en un diálogo sostenido.</p>
+      <p>Estos vídeos de &ldquo;FluentSee&rdquo; representan los elementos de la gramática mediante formas visuales diferenciadas para ayudar al estudiante a identificar patrones de colocación y uso en el inglés conversacional moderno.</p>
+    </div>
+  </div>
+</div>
 
 <script>
 /* ============================================================
-   EDIT HERE: this is the full list of videos shown in the
-   left column. "poster" is the still shown before playback.
-   Runtime and tags are free text -- update as needed.
+   EDIT HERE: the REEL (lives in the light grey column).
+   Point src/poster at your reel file.
+   ============================================================ */
+const REEL = {
+  id: "reel",
+  title: "Reel",
+  src: "videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
+  poster: "video playlist buttons/REEL3.jpg",
+  runtime: "",
+  tags: ["Reel"],
+  description: "Stephen Wade Thomson — video &amp; edit reel."
+};
+
+/* ============================================================
+   EDIT HERE: all videos.
+   NEWEST shows them in THIS order — put the newest at the top.
    ============================================================ */
 const videos = [
-  {
-    id: "bernie-listen-science",
-    title: "Excerpt: Bernie Sanders / Listen to the Science",
-    src: "videos/BernieSanders-ListenToScience-41mb.mp4",
-    poster: "posters/BernieSanders-ListenToScience-still.jpg",
-    runtime: "1:09",
-    tags: ["Excerpt"],
-    description: "Placeholder description for Bernie Sanders / Listen to the Science. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "portada",
-    title: "Portada",
-    src: "videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4",
-    poster: "posters/webportada-still.png",
-    runtime: "--:--",
-    tags: ["Intro"],
-    description: "Placeholder description for Portada. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "palestina",
-    title: "Palestina",
-    src: "videos/Palestina-94mb.mp4",
-    poster: "posters/Palestina-still.png",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Palestina. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "crematorium",
-    title: "Excerpt: The Crematorium / Mountain Top Removal",
-    src: "videos/(Excerpt) The Crematorium (BW).mp4",
-    poster: "posters/CremaBWstill.jpg",
-    runtime: "--:--",
-    tags: ["Excerpt"],
-    description: "Placeholder description for The Crematorium. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "crematorium-abridged",
-    title: "The Crematorium",
-    src: "videos/CREMA-ABRIDGED-072023a-2160-YT-FINAL1-103x-pitch_2.mp4",
-    poster: "posters/CrematoriumStill.jpg",
-    runtime: "--:--",
-    tags: ["Abridged"],
-    description: "Placeholder description for The Crematorium (Abridged). Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "e3-excerpt",
-    title: "Carlos Yescas @ World Cheese Awards",
-    titleNote: "(spanish)",
-    src: "videos/E3-under3 MIN EXCERPT for YTshortsAndSWT-lumetri_downsizeforGithub.mp4",
-    poster: "posters/CarlosBern.png",
-    runtime: "--:--",
-    tags: ["Excerpt"],
-    description: "Placeholder description for E3 (Excerpt). Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "media-distorts-climate-science",
-    title: "Media Distorts Climate Science",
-    src: "videos/MEDIADISTORTSCLIMATESCIENCE_1.mp4",
-    poster: "posters/stephenschneider-videostill11c.jpg",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Media Distorts Climate Science. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "bernie-sanders-maybe-just-maybe",
-    title: "Bernie Sanders: Maybe, Just Maybe",
-    src: "videos/BernieSanders-MaybeJustMaybe.mp4",
-    poster: "posters/poster-BernisSandersMaybeJustMaybe.png",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Bernie Sanders: Maybe, Just Maybe. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "fluentsee-empieza-aqui",
-    title: "¿Quieres aprender inglés? Empieza aquí",
-    titleNote: "(spanish)",
-    src: "videos/Fluentsee 1 - Intro.mp4",
-    poster: "",
-    runtime: "6:01",
-    tags: ["Fluentsee"],
-    description: "Placeholder description for ¿Quieres aprender inglés? Empieza aquí. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "fluentsee-2-two-way-street",
-    title: "Fluentsee 2: 2-Way Street",
-    titleNote: "(spanish)",
-    src: "videos/Fluentsee2-2WayStreet-Spanish-640x320.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Fluentsee"],
-    description: "Placeholder description for Fluentsee 2: 2-Way Street. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "fluentsee-3-conjugacion-aaa",
-    title: "Fluentsee 3: Conjugación AAA",
-    titleNote: "(spanish)",
-    src: "videos/Fluentsee3-ConjugacionAAA.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Fluentsee"],
-    description: "Placeholder description for Fluentsee 3: Conjugación AAA. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "fluentsee-5-negativo",
-    title: "Fluentsee 5: Negativo",
-    titleNote: "(spanish)",
-    src: "videos/Fluentsee5-Negativo.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Fluentsee"],
-    description: "Placeholder description for Fluentsee 5: Negativo. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "bombogenesis-boston-2018",
-    title: "Bombogenesis: Boston 2018",
-    src: "videos/bombogenesis-boston-2018_compressed.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Bombogenesis: Boston 2018. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "bernie-21st-century-bill-of-rights",
-    title: "Bernie Sanders: 21st Century Bill of Rights",
-    src: "videos/BernieSanders-21stCenturyBillOfRights.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Bernie Sanders: 21st Century Bill of Rights. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "bernie-what-patriotism",
-    title: "Bernie Sanders: What Patriotism",
-    src: "videos/BernieSanders-WhatPatriotism.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Documentary"],
-    description: "Placeholder description for Bernie Sanders: What Patriotism. Replace this text with the real summary of the video's content."
-  },
-  {
-    id: "fluentsee-exclamativa",
-    title: "Fluentsee: Exclamativa",
-    titleNote: "(spanish)",
-    src: "videos/Fluentsee-EXCLAMATIVA.mp4",
-    poster: "",
-    runtime: "--:--",
-    tags: ["Fluentsee"],
-    description: "Placeholder description for Fluentsee: Exclamativa. Replace this text with the real summary of the video's content."
-  }
+  { id:"bernie-listen-science", title:"Excerpt: Bernie Sanders / Listen to the Science", src:"videos/BernieSanders-ListenToScience-41mb.mp4", poster:"posters/BernieSanders-ListenToScience-still.jpg", runtime:"1:09", tags:["Excerpt","Bernie"], description:"Placeholder description for Bernie Sanders / Listen to the Science." },
+  { id:"portada", title:"Portada", src:"videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4", poster:"posters/webportada-still.png", runtime:"", tags:["Intro","Misc"], description:"Placeholder description for Portada." },
+  { id:"palestina", title:"Palestina", src:"videos/Palestina-94mb.mp4", poster:"posters/Palestina-still.png", runtime:"", tags:["Documentary","Misc"], description:"Placeholder description for Palestina." },
+  { id:"crematorium", title:"Excerpt: The Crematorium / Mountain Top Removal", src:"videos/(Excerpt) The Crematorium (BW).mp4", poster:"posters/CremaBWstill.jpg", runtime:"", tags:["Excerpt","Environment"], description:"Placeholder description for The Crematorium." },
+  { id:"crematorium-abridged", title:"The Crematorium", src:"videos/CREMA-ABRIDGED-072023a-2160-YT-FINAL1-103x-pitch_2.mp4", poster:"posters/CrematoriumStill.jpg", runtime:"", tags:["Abridged","Environment"], description:"Placeholder description for The Crematorium (Abridged)." },
+  { id:"e3-excerpt", title:"Carlos Yescas @ World Cheese Awards", titleNote:"(spanish)", src:"videos/E3-under3 MIN EXCERPT for YTshortsAndSWT-lumetri_downsizeforGithub.mp4", poster:"posters/CarlosBern.png", runtime:"", tags:["Excerpt","Misc"], description:"Placeholder description for E3 (Excerpt)." },
+  { id:"media-distorts-climate-science", title:"Media Distorts Climate Science", src:"videos/MEDIADISTORTSCLIMATESCIENCE_1.mp4", poster:"posters/stephenschneider-videostill11c.jpg", runtime:"", tags:["Documentary","Environment"], description:"Placeholder description for Media Distorts Climate Science." },
+  { id:"bernie-sanders-maybe-just-maybe", title:"Bernie Sanders: Maybe, Just Maybe", src:"videos/BernieSanders-MaybeJustMaybe.mp4", poster:"posters/poster-BernisSandersMaybeJustMaybe.png", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: Maybe, Just Maybe." },
+  { id:"fluentsee-empieza-aqui", title:"¿Quieres aprender inglés? Empieza aquí", titleNote:"(spanish)", src:"videos/Fluentsee 1 - Intro.mp4", poster:"", runtime:"6:01", tags:["Fluentsee"], description:"Placeholder description for ¿Quieres aprender inglés? Empieza aquí." },
+  { id:"fluentsee-2-two-way-street", title:"Fluentsee 2: 2-Way Street", titleNote:"(spanish)", src:"videos/Fluentsee2-2WayStreet-Spanish-640x320.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 2: 2-Way Street." },
+  { id:"fluentsee-3-conjugacion-aaa", title:"Fluentsee 3: Conjugación AAA", titleNote:"(spanish)", src:"videos/Fluentsee3-ConjugacionAAA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 3: Conjugación AAA." },
+  { id:"fluentsee-5-negativo", title:"Fluentsee 5: Negativo", titleNote:"(spanish)", src:"videos/Fluentsee5-Negativo.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 5: Negativo." },
+  { id:"bombogenesis-boston-2018", title:"Bombogenesis: Boston 2018", src:"videos/bombogenesis-boston-2018_compressed.mp4", poster:"", runtime:"", tags:["Documentary","Environment"], description:"Placeholder description for Bombogenesis: Boston 2018." },
+  { id:"bernie-21st-century-bill-of-rights", title:"Bernie Sanders: 21st Century Bill of Rights", src:"videos/BernieSanders-21stCenturyBillOfRights.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: 21st Century Bill of Rights." },
+  { id:"bernie-what-patriotism", title:"Bernie Sanders: What Patriotism", src:"videos/BernieSanders-WhatPatriotism.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: What Patriotism." },
+  { id:"fluentsee-exclamativa", title:"Fluentsee: Exclamativa", titleNote:"(spanish)", src:"videos/Fluentsee-EXCLAMATIVA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee: Exclamativa." }
 ];
 
 /* ============================================================
-   EDIT HERE: playlists shown as icons in the left rail.
-   - PLAYLISTS: order, label, and icon image for each playlist.
-   - PLAYLIST_MEMBERS: which video ids (from the list above)
-     belong to each playlist. A video can appear in more than
-     one playlist; a video in none simply won't show.
+   EDIT HERE: FAVORITE tab — video ids, in the order to show them.
    ============================================================ */
-const PLAYLISTS = [
-  { key: "reel3",     label: "Reel 3",     icon: "video playlist buttons/REEL3.jpg" },
-  { key: "fluentsee", label: "Fluentsee",  icon: "video playlist buttons/fluentsee.jpg" },
-  { key: "climate",   label: "Climate",    icon: "video playlist buttons/climatechange copy.png" },
-  { key: "bernie",    label: "Bernie",     icon: "video playlist buttons/Bernie.jpg" },
-  { key: "palestina", label: "Palestina",  icon: "video playlist buttons/Palestina.jpg" },
-  { key: "misc",      label: "Misc",       icon: "video playlist buttons/MISC button3.jpg" }
+const FAVORITES = ["palestina", "crematorium-abridged", "bernie-listen-science", "fluentsee-empieza-aqui"];
+
+/* ============================================================
+   EDIT HERE: extra sorting tabs revealed by MORE OPTIONS.
+   A video shows under a tab when its "tags" include that tab's tag.
+   ============================================================ */
+const EXTRA_TABS = [
+  { label:"BERNIE SANDERS", tag:"Bernie" },
+  { label:"FLUENTSEE",      tag:"Fluentsee" },
+  { label:"ENVIRONMENT",    tag:"Environment" },
+  { label:"MISC",           tag:"Misc" }
 ];
-const PLAYLIST_MEMBERS = {
-  palestina: ["palestina"],
-  bernie:    ["bernie-listen-science", "bernie-sanders-maybe-just-maybe", "bernie-21st-century-bill-of-rights", "bernie-what-patriotism"],
-  climate:   ["crematorium", "crematorium-abridged", "media-distorts-climate-science", "bombogenesis-boston-2018"],
-  fluentsee: ["fluentsee-empieza-aqui", "fluentsee-2-two-way-street", "fluentsee-3-conjugacion-aaa", "fluentsee-5-negativo", "fluentsee-exclamativa"],
-  misc:      ["portada", "e3-excerpt"],
-  reel3:     []   /* add the video ids that belong in the Reel 3 tab, e.g. "portada" */
-};
 
-/* Optional intro text shown under the title buttons when a playlist is active.
-   Add other playlists here the same way if you want blurbs for them too. */
-const PLAYLIST_INTRO = {
-  fluentsee:
-    '<p>Fluency in a language has less to do with the amount of vocabulary learned and more to do with the degree to which the essential elements of grammar are acquired and maneuvered to legibly communicate thoughts clearly and engage in sustained dialogue. These “FluentSee” videos depict the elements of grammar in distinct visual forms to help the student identify patterns of placement and use in modern English conversation.</p>' +
-    '<p>La fluidez en un idioma tiene menos que ver con la cantidad de vocabulario aprendido y más con el grado en que se adquieren y se manejan los elementos esenciales de la gramática para comunicar pensamientos de forma clara y participar en un diálogo sostenido.</p>' +
-    '<p>Estos vídeos de “FluentSee” representan los elementos de la gramática mediante formas visuales diferenciadas para ayudar al estudiante a identificar patrones de colocación y uso en el inglés conversacional moderno.</p>'
-};
-
-function playlistVideos(key){
-  const ids = PLAYLIST_MEMBERS[key] || [];
-  return ids
-    .map(function(id){ return videos.find(function(v){ return v.id === id; }); })
-    .filter(function(v){ return !!v; });
-}
-function playlistOf(id){
-  for (let i = 0; i < PLAYLISTS.length; i++) {
-    if ((PLAYLIST_MEMBERS[PLAYLISTS[i].key] || []).indexOf(id) !== -1) return PLAYLISTS[i].key;
-  }
-  return PLAYLISTS[0].key;
-}
-
-const MOBILE_BREAKPOINT = 700;
-
-const iconRail = document.getElementById("iconRail");
-const titleList = document.getElementById("titleList");
-const searchBox = document.getElementById("searchBox");
-const playerCol = document.getElementById("playerCol");
+/* ============================================================ */
+const panel = document.getElementById("panel");
+const track = document.getElementById("track");
+const arrowNext = document.getElementById("arrowNext");
+const arrowBack = document.getElementById("arrowBack");
 const video = document.getElementById("video");
-const videoArea = document.getElementById("videoArea");
-const playBadge = document.getElementById("playBadge");
-const timeline = document.getElementById("timeline");
-const progressFill = document.getElementById("progressFill");
+const stage = document.getElementById("stage");
+const nowTitle = document.getElementById("nowTitle");
 const videoDesc = document.getElementById("videoDesc");
+const slots = { left: document.getElementById("slotLeft"), right: document.getElementById("slotRight") };
+const moreBtn = document.getElementById("moreBtn");
+const tabsEl = document.querySelector(".tabs");
 
-/* Show the bilingual blurb below the viewer only while the FluentSee tab is active. */
-function updateVideoDesc(){
-  videoDesc.classList.toggle("show", activePlaylist === "fluentsee");
+let sortMode = "newest";
+let activeId = null;
+let narrowTimer = null;
+
+function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]; }); }
+
+function tileHTML(item){
+  const note = item.titleNote ? ' <span class="note">' + esc(item.titleNote) + '</span>' : '';
+  const meta = [item.runtime, (item.tags || []).join(" · ")].filter(Boolean).join("  |  ");
+  return (item.poster ? '<img src="' + esc(item.poster) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
+    '<span class="label">' + esc(item.title) + note + '</span>' +
+    '<span class="info"><strong>' + esc(item.title) + note + '</strong>' +
+    (meta ? '<span class="meta">' + esc(meta) + '</span>' : '') +
+    item.description + '</span>';
 }
 
-const params = new URLSearchParams(window.location.search);
-const startId = params.get("id") || videos[0].id;
+function currentList(){
+  if (sortMode === "newest") return videos.slice();
+  if (sortMode === "favorite")
+    return FAVORITES.map(function(id){ return videos.find(function(v){ return v.id === id; }); }).filter(Boolean);
+  return videos.filter(function(v){ return (v.tags || []).indexOf(sortMode) !== -1; });
+}
 
-let activeId = null;
-let openId = null;
-let seeking = false;
-let activePlaylist = PLAYLISTS[0].key;
+function renderTrack(){
+  const list = currentList();
+  track.innerHTML = "";
+  if (!list.length){
+    track.innerHTML = '<div class="empty">No videos here yet.</div>';
+  }
+  list.forEach(function(item){
+    const b = document.createElement("button");
+    b.className = "tile" + (activeId === item.id ? " active" : "");
+    b.innerHTML = tileHTML(item);
+    b.addEventListener("click", function(){ play(item, "right"); });
+    track.appendChild(b);
+  });
+  track.scrollLeft = 0;
+  updateArrows();
+}
 
-function loadVideo(item, autoplay){
+function updateArrows(){
+  const max = track.scrollWidth - track.clientWidth;
+  arrowNext.disabled = track.scrollLeft >= max - 4;
+  arrowBack.classList.toggle("show", track.scrollLeft > 4);
+}
+function page(dir){
+  const gap = parseFloat(getComputedStyle(track).columnGap) || 0;
+  track.scrollBy({ left: dir * (track.clientWidth + gap), behavior: "smooth" });
+}
+arrowNext.addEventListener("click", function(){ page(1); });
+arrowBack.addEventListener("click", function(){ page(-1); });
+track.addEventListener("scroll", updateArrows, { passive:true });
+window.addEventListener("resize", updateArrows);
+
+/* ---------- Curtain modes ---------- */
+function setMode(mode){
+  clearTimeout(narrowTimer);
+  if (mode === "browse"){
+    panel.classList.remove("narrow");      // widen tiles back out as the curtain opens
+    panel.dataset.mode = "browse";
+    requestAnimationFrame(updateArrows);
+    setTimeout(updateArrows, 600);
+  } else {
+    const wasOpen = panel.dataset.mode !== "browse";
+    panel.dataset.mode = mode;
+    if (wasOpen) panel.classList.add("narrow");
+    else narrowTimer = setTimeout(function(){ panel.classList.add("narrow"); }, 520);   // squish first, then restack
+  }
+}
+
+function play(item, side){
+  activeId = item.id;
+  const slot = slots[side];
+  slot.appendChild(stage);
+  slot.appendChild(nowTitle);
+  slot.appendChild(videoDesc);
+  nowTitle.innerHTML = esc(item.title) + (item.titleNote ? ' <span style="font-size:.6em;color:#4caf7d">' + esc(item.titleNote) + '</span>' : '');
+  videoDesc.classList.toggle("show", (item.tags || []).indexOf("Fluentsee") !== -1);
   video.pause();
   video.poster = item.poster || "";
   video.src = item.src;
   video.load();
-  if (autoplay) {
-    video.play();
-  }
+  video.play().catch(function(){});
+  setMode(side);
+  document.querySelectorAll(".tile.active").forEach(function(t){ t.classList.remove("active"); });
+  renderTrackActive();
+  if (window.innerWidth <= 700) slot.parentElement.scrollIntoView({ behavior:"smooth", block:"start" });
 }
-
-function selectTitle(item){
-  activeId = item.id;
-  document.body.classList.add("playing");   // slide the player in, gallery scoots left
-  loadVideo(item, true);                     // autoplay (the tile click is a user gesture)
-  renderList();
-  maybeScrollToPlayer();
+function renderTrackActive(){
+  const list = currentList();
+  Array.prototype.forEach.call(track.children, function(el, i){
+    if (list[i]) el.classList.toggle("active", list[i].id === activeId);
+  });
 }
-
-function enterGallery(){
-  document.body.classList.remove("playing");
+function backToBrowse(){
   video.pause();
+  activeId = null;
+  renderTrackActive();
+  setMode("browse");
 }
+document.querySelectorAll("[data-back]").forEach(function(b){ b.addEventListener("click", backToBrowse); });
 
-function maybeScrollToPlayer(){
-  if (window.innerWidth <= MOBILE_BREAKPOINT) {
-    playerCol.scrollIntoView({ behavior: "smooth", block: "start" });
-  }
-}
+/* REEL: the curtain goes RIGHT */
+const reelTile = document.getElementById("reelTile");
+reelTile.innerHTML = tileHTML(REEL);
+reelTile.addEventListener("click", function(){ play(REEL, "left"); });
+document.getElementById("reelHeading").addEventListener("click", function(){ play(REEL, "left"); });
+document.getElementById("tabReel").addEventListener("click", function(){ play(REEL, "left"); });
 
-function matchesSearch(item, query){
-  if (!query) return true;
-  const haystack = (
-    item.title + " " +
-    (item.titleNote || "") + " " +
-    item.description + " " +
-    item.tags.join(" ")
-  ).toLowerCase();
-  return haystack.indexOf(query) !== -1;
-}
-
-function renderList(){
-  titleList.innerHTML = "";
-  const query = searchBox.value.trim().toLowerCase();
-  const visible = playlistVideos(activePlaylist).filter(function(item){
-    return matchesSearch(item, query);
+/* Sorting tabs (NEWEST, FAVORITE + the MORE OPTIONS ones) — the reel column stays put */
+const extraTabs = document.getElementById("extraTabs");
+EXTRA_TABS.forEach(function(t){
+  const b = document.createElement("button");
+  b.className = "tab";
+  b.dataset.sort = t.tag;
+  b.textContent = t.label;
+  extraTabs.appendChild(b);
+});
+document.querySelectorAll("[data-sort]").forEach(function(b){
+  b.addEventListener("click", function(){
+    sortMode = b.dataset.sort;
+    document.querySelectorAll("[data-sort]").forEach(function(x){ x.classList.toggle("active", x === b); });
+    renderTrack();
   });
-
-  if (visible.length === 0) {
-    const empty = document.createElement("div");
-    empty.className = "no-results";
-    empty.textContent = query ? "No videos match your search." : "No videos in this category yet.";
-    titleList.appendChild(empty);
-    return;
-  }
-
-  visible.forEach(function(item){
-    const btn = document.createElement("button");
-    btn.className = "title-btn" + (activeId === item.id ? " active" : "");
-    btn.innerHTML = item.title +
-      (item.titleNote ? ' <span class="title-note">' + item.titleNote + '</span>' : '');
-    btn.addEventListener("click", function(){ selectTitle(item); });
-    titleList.appendChild(btn);
-  });
-}
-
-function appendIntro(){
-  const html = PLAYLIST_INTRO[activePlaylist];
-  if (!html) return;
-  const intro = document.createElement("div");
-  intro.className = "playlist-intro";
-  intro.innerHTML = html;
-  titleList.appendChild(intro);
-}
-
-function renderRail(){
-  iconRail.innerHTML = "";
-  PLAYLISTS.forEach(function(pl){
-    const btn = document.createElement("button");
-    btn.className = "pl-btn" + (activePlaylist === pl.key ? " active" : "");
-    btn.title = pl.label;
-    btn.innerHTML =
-      '<img class="pl-thumb" src="' + pl.icon + '" alt="' + pl.label + '">' +
-      '<span class="pl-label">' + pl.label + '</span>';
-    btn.addEventListener("click", function(){
-      selectPlaylist(pl.key);
-    });
-    iconRail.appendChild(btn);
-  });
-}
-
-function selectPlaylist(key){
-  activePlaylist = key;
-  updateVideoDesc();
-  searchBox.value = "";
-  document.body.classList.remove("playing");   // show the full gallery for this category
-  video.pause();
-  renderRail();
-  renderList();
-}
-
-searchBox.addEventListener("input", function(){
-  renderList();
 });
 
-/* Collapsible search: click the magnifier to open the compact bar; it
-   collapses again when you click away and it's empty. */
-const searchWrap = document.getElementById("searchWrap");
-const searchToggle = document.getElementById("searchToggle");
-searchToggle.addEventListener("click", function(){
-  const opening = !searchWrap.classList.contains("open");
-  searchWrap.classList.toggle("open", opening);
-  if (opening) {
-    searchBox.focus();
-  } else {
-    if (searchBox.value) { searchBox.value = ""; renderList(); }
+/* MORE OPTIONS: reveal / hide the extra tabs */
+moreBtn.addEventListener("click", function(){
+  const open = !tabsEl.classList.contains("expanded");
+  tabsEl.classList.toggle("expanded", open);
+  moreBtn.setAttribute("aria-expanded", open);
+  moreBtn.textContent = open ? "FEWER OPTIONS" : "MORE OPTIONS";
+  if (!open && EXTRA_TABS.some(function(t){ return t.tag === sortMode; })){
+    document.querySelector('[data-sort="newest"]').click();   // hidden tab was active: fall back to NEWEST
   }
 });
-searchBox.addEventListener("blur", function(){
-  if (!searchBox.value.trim()) searchWrap.classList.remove("open");
-});
 
-document.getElementById("backBtn").addEventListener("click", enterGallery);
-
-/* Playback, seeking, and fullscreen are all handled by the browser's native
-   <video controls> UI now — no custom controls or fullscreen button. */
-
-/* Start in the full-screen gallery. Default to the first category that has
-   videos so the opening view isn't empty. If a specific ?id= is requested,
-   open straight into that video's player. */
-function firstNonEmptyPlaylist(){
-  for (let i = 0; i < PLAYLISTS.length; i++){
-    if (playlistVideos(PLAYLISTS[i].key).length) return PLAYLISTS[i].key;
-  }
-  return PLAYLISTS[0].key;
-}
-
-const requestedId = params.get("id");
-const requested = requestedId ? videos.find(function(v){ return v.id === requestedId; }) : null;
-
-if (requested) {
-  activePlaylist = playlistOf(requested.id);
-  renderRail();
-  renderList();
-  updateVideoDesc();
-  selectTitle(requested);
-} else {
-  activePlaylist = firstNonEmptyPlaylist();
-  renderRail();
-  renderList();
-  updateVideoDesc();
+/* Start */
+renderTrack();
+const params = new URLSearchParams(location.search);
+const startId = params.get("id");
+if (startId === "reel") play(REEL, "left");
+else if (startId){
+  const v = videos.find(function(x){ return x.id === startId; });
+  if (v) play(v, "right");
 }
 </script>
-
 </body>
 </html>
