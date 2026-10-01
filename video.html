@@ -397,34 +397,36 @@ const REEL = {
 /* ============================================================
    EDIT HERE: all videos.
    NEWEST shows them in THIS order — put the newest at the top.
+   Add  newest:false  to a video to keep it OUT of NEWEST (it still shows in its category).
    ============================================================ */
 const videos = [
   /* NEW (Oct 2026) */
-  { id:"ed-sheeran-full", title:"Fluentsee: Ed Sheeran", src:"videos/EdSheeran-Full-Subs-1080x1920-ffmpeg75MB.mp4", poster:"video category thumbnails/EdSheeranAbridged-thumbnail.png", runtime:"4:17", year:"2026", tags:["Fluentsee"], description:"Pickled Ed Sheeran" },
-  { id:"ed-sheeran-hater", title:"Fluentsee: Ed Sheeran (Extended)", src:"videos/EdSheeran-justHaterComp-1080x1920-ffmpeg35MB.mp4", poster:"video category thumbnails/EdSheeranExtended-thumbnail.png", runtime:"1:07", year:"2026", tags:["Fluentsee"], description:"Is this the end of Ed Sheeran?" },
+  { id:"ed-sheeran-full", title:"Fluentsee: Ed Sheeran", src:"videos/FLUENTSEE/EdSheeran-Full-Subs-1080x1920-ffmpeg75MB.mp4", poster:"video category thumbnails/EdSheeranAbridged-thumbnail.png", runtime:"4:17", year:"2026", tags:["Fluentsee"], description:"Pickled Ed Sheeran" },
+  { id:"ed-sheeran-hater", title:"Fluentsee: Ed Sheeran (Extended)", src:"videos/FLUENTSEE/EdSheeran-justHaterComp-1080x1920-ffmpeg35MB.mp4", poster:"video category thumbnails/EdSheeranExtended-thumbnail.png", runtime:"1:07", year:"2026", tags:["Fluentsee"], description:"Is this the end of Ed Sheeran?" },
   { id:"los-16-tiempos-verbales", title:"Los 16 tiempos verbales en inglés", titleNote:"(spanish)", src:"videos/DlFrYT-Los 16 tiempos verbales en Inglés.mp4", poster:"", runtime:"6:28", tags:["Fluentsee"], description:"Placeholder description for Los 16 tiempos verbales en inglés." },
-  { id:"fluentsee-7-imperativa", title:"Fluentsee 7: Imperativa", titleNote:"(spanish)", src:"videos/Fluentsee7-Imperativa.mp4", poster:"", runtime:"5:05", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 7: Imperativa." },
+  { id:"fluentsee-7-imperativa", title:"Fluentsee 7: Imperativa", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee7-Imperativa.mp4", poster:"", runtime:"5:05", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 7: Imperativa." },
   { id:"palestina-huelga-general-1", title:"Palestina: Huelga General 1", src:"videos/Palestina-HuelgaGeneral-1-101525.mp4", poster:"", runtime:"1:18", tags:[], description:"Placeholder description for Palestina: Huelga General 1." },
   { id:"palestina-huelga-general-2", title:"Palestina: Huelga General 2", src:"videos/Palestina-HuelgaGeneral-2-101525.mp4", poster:"", runtime:"1:02", tags:[], description:"Placeholder description for Palestina: Huelga General 2." },
   { id:"palestina-huelga-general-3", title:"Palestina: Huelga General 3", src:"videos/Palestina-HuelgaGeneral-3-101525.mp4", poster:"", runtime:"2:11", tags:[], description:"Placeholder description for Palestina: Huelga General 3." },
   { id:"palestina-huelga-general-4", title:"Palestina: Huelga General 4", src:"videos/Palestina-HuelgaGeneral-4-101525.mp4", poster:"", runtime:"1:56", tags:[], description:"Placeholder description for Palestina: Huelga General 4." },
-  { id:"fluentsee-4-estructura", title:"Fluentsee 4: Estructura", titleNote:"(spanish)", src:"videos/FLUENTSEE4-4AESTRUCTURA-YOUTUBE.mov", poster:"", runtime:"3:00", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 4: Estructura." },
-  { id:"bernie-listen-science", title:"Excerpt: Bernie Sanders / Listen to the Science", src:"videos/BernieSanders-ListenToScience-41mb.mp4", poster:"posters/BernieSanders-ListenToScience-still.jpg", runtime:"1:09", tags:["Excerpt","Bernie"], description:"Placeholder description for Bernie Sanders / Listen to the Science." },
+  { id:"fluentsee-4-estructura", title:"Fluentsee 4: Estructura", titleNote:"(spanish)", src:"videos/FLUENTSEE/FLUENTSEE4-4AESTRUCTURA-YOUTUBE.mov", poster:"", runtime:"3:00", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 4: Estructura." },
+  { id:"bernie-listen-science", title:"Excerpt: Bernie Sanders / Listen to the Science", src:"videos/BERNIE/BernieSanders-ListenToScience-41mb.mp4", poster:"posters/BernieSanders-ListenToScience-still.jpg", runtime:"1:09", tags:["Excerpt","Bernie"], description:"Placeholder description for Bernie Sanders / Listen to the Science." },
   { id:"portada", title:"Portada", src:"videos/FINAL WEB PORTADA VIDEO SQUARE_1.mp4", poster:"posters/webportada-still.png", runtime:"", tags:["Intro","Misc"], description:"Placeholder description for Portada." },
   { id:"palestina", title:"Palestina", src:"videos/Palestina-94mb.mp4", poster:"posters/Palestina-still.png", runtime:"", tags:["Documentary","Misc"], description:"Placeholder description for Palestina." },
   { id:"crematorium", title:"Excerpt: The Crematorium / Mountain Top Removal", src:"videos/(Excerpt) The Crematorium (BW).mp4", poster:"posters/CremaBWstill.jpg", runtime:"", tags:["Excerpt","Environment"], description:"Placeholder description for The Crematorium." },
   { id:"crematorium-abridged", title:"The Crematorium", src:"videos/CREMA-ABRIDGED-072023a-2160-YT-FINAL1-103x-pitch_2.mp4", poster:"posters/CrematoriumStill.jpg", runtime:"", tags:["Abridged","Environment"], description:"Placeholder description for The Crematorium (Abridged)." },
   { id:"e3-excerpt", title:"Carlos Yescas @ World Cheese Awards", titleNote:"(spanish)", src:"videos/E3-under3 MIN EXCERPT for YTshortsAndSWT-lumetri_downsizeforGithub.mp4", poster:"posters/CarlosBern.png", runtime:"", tags:["Excerpt","Misc"], description:"Placeholder description for E3 (Excerpt)." },
   { id:"media-distorts-climate-science", title:"Media Distorts Climate Science", src:"videos/MEDIADISTORTSCLIMATESCIENCE_1.mp4", poster:"posters/stephenschneider-videostill11c.jpg", runtime:"", tags:["Documentary","Environment"], description:"Placeholder description for Media Distorts Climate Science." },
-  { id:"bernie-sanders-maybe-just-maybe", title:"Bernie Sanders: Maybe, Just Maybe", src:"videos/BernieSanders-MaybeJustMaybe.mp4", poster:"posters/poster-BernisSandersMaybeJustMaybe.png", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: Maybe, Just Maybe." },
-  { id:"fluentsee-empieza-aqui", title:"¿Quieres aprender inglés? Empieza aquí", titleNote:"(spanish)", src:"videos/Fluentsee 1 - Intro.mp4", poster:"", runtime:"6:01", tags:["Fluentsee"], description:"Placeholder description for ¿Quieres aprender inglés? Empieza aquí." },
-  { id:"fluentsee-2-two-way-street", title:"Fluentsee 2: 2-Way Street", titleNote:"(spanish)", src:"videos/Fluentsee2-2WayStreet-Spanish-640x320.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 2: 2-Way Street." },
-  { id:"fluentsee-3-conjugacion-aaa", title:"Fluentsee 3: Conjugación AAA", titleNote:"(spanish)", src:"videos/Fluentsee3-ConjugacionAAA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 3: Conjugación AAA." },
-  { id:"fluentsee-5-negativo", title:"Fluentsee 5: Negativo", titleNote:"(spanish)", src:"videos/Fluentsee5-Negativo.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 5: Negativo." },
+  { id:"bernie-sanders-maybe-just-maybe", title:"Bernie Sanders: Maybe, Just Maybe", src:"videos/BERNIE/BernieSanders-MaybeJustMaybe.mp4", poster:"posters/poster-BernisSandersMaybeJustMaybe.png", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: Maybe, Just Maybe." },
+  { id:"fluentsee-empieza-aqui", title:"¿Quieres aprender inglés? Empieza aquí", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee 1 - Intro.mp4", poster:"", runtime:"6:01", tags:["Fluentsee"], description:"Placeholder description for ¿Quieres aprender inglés? Empieza aquí." },
+  { id:"fluentsee-2-two-way-street", title:"Fluentsee 2: 2-Way Street", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee2-2WayStreet-Spanish-640x320.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 2: 2-Way Street." },
+  { id:"fluentsee-3-conjugacion-aaa", title:"Fluentsee 3: Conjugación AAA", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee3-ConjugacionAAA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 3: Conjugación AAA." },
+  { id:"fluentsee-5-negativo", title:"Fluentsee 5: Negativo", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee5-Negativo.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 5: Negativo." },
   { id:"bombogenesis-boston-2018", title:"Bombogenesis: Boston 2018", src:"videos/bombogenesis-boston-2018_compressed.mp4", poster:"", runtime:"", tags:["Documentary","Environment"], description:"Placeholder description for Bombogenesis: Boston 2018." },
-  { id:"bernie-21st-century-bill-of-rights", title:"Bernie Sanders: 21st Century Bill of Rights", src:"videos/BernieSanders-21stCenturyBillOfRights.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: 21st Century Bill of Rights." },
-  { id:"bernie-what-patriotism", title:"Bernie Sanders: What Patriotism", src:"videos/BernieSanders-WhatPatriotism.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: What Patriotism." },
-  { id:"fluentsee-exclamativa", title:"Fluentsee: Exclamativa", titleNote:"(spanish)", src:"videos/Fluentsee-EXCLAMATIVA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee: Exclamativa." }
+  { id:"bernie-21st-century-bill-of-rights", title:"Bernie Sanders: 21st Century Bill of Rights", src:"videos/BERNIE/BernieSanders-21stCenturyBillOfRights.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: 21st Century Bill of Rights." },
+  { id:"bernie-what-patriotism", title:"Bernie Sanders: What Patriotism", src:"videos/BERNIE/BernieSanders-WhatPatriotism.mp4", poster:"", runtime:"", tags:["Documentary","Bernie"], description:"Placeholder description for Bernie Sanders: What Patriotism." },
+  { id:"bernie-old-man-hope", title:"Bernie Sanders: Old Man Hope", src:"videos/BERNIE/OldManHope.mp4", poster:"", runtime:"3:28", year:"2016", newest:false, tags:["Bernie"], description:"Bernie's defeat does not stop him from fighting for the working class." },
+  { id:"fluentsee-exclamativa", title:"Fluentsee: Exclamativa", titleNote:"(spanish)", src:"videos/FLUENTSEE/Fluentsee-EXCLAMATIVA.mp4", poster:"", runtime:"", tags:["Fluentsee"], description:"Placeholder description for Fluentsee: Exclamativa." }
 ];
 
 /* ============================================================
@@ -478,7 +480,7 @@ function tileHTML(item){
 }
 
 function currentList(){
-  if (sortMode === "newest") return videos.slice();
+  if (sortMode === "newest") return videos.filter(function(v){ return v.newest !== false; });
   if (sortMode === "favorite")
     return FAVORITES.map(function(id){ return videos.find(function(v){ return v.id === id; }); }).filter(Boolean);
   return videos.filter(function(v){ return (v.tags || []).indexOf(sortMode) !== -1; });
