@@ -184,7 +184,7 @@ button{ font:inherit; color:inherit; }
 
 /* Row of tiles + arrow */
 .row{
-  flex:1 1 auto; min-height:0;
+  flex:0 1 67%; min-height:0;   /* tiles are ~2/3 of the available height (was flex:1 1 auto = full height) */
   display:flex; align-items:stretch;
   position:relative;
 }
@@ -306,14 +306,19 @@ button{ font:inherit; color:inherit; }
   .browse, .panel.narrow .browse{ padding:20px 16px; }
   .tabs, .tabs.expanded{ height:auto; padding:0 0 16px; gap:14px 18px; flex-wrap:wrap; }
   .tabs.expanded .extra-tabs{ flex-wrap:wrap; gap:14px 18px; }
-  .row{ height:60vh; }
+  .row{ height:40vh; }
   .track{ grid-auto-columns:calc((100% - var(--gap)) / 2.3); --gap:12px; }
-  .panel.narrow .row{ height:60vh; overflow:visible; }
+  .panel.narrow .row{ height:40vh; overflow:visible; }
   .panel.narrow .track{ grid-auto-flow:column; grid-template-columns:none; grid-auto-columns:calc((100% - 12px) / 2.3); overflow-x:auto; }
   .panel.narrow .tile{ height:100%; aspect-ratio:auto; }
   .arrow{ display:none; }
   .video-desc.show{ flex-direction:column; gap:12px; }
 }
+
+/* ---------- REEL switch: when SHOW_REEL is false the panel gets .no-reel ---------- */
+.panel.no-reel .reel-col,
+.panel.no-reel .tab-reel,
+.panel.no-reel #paneLeft{ display:none !important; }
 </style>
 </head>
 <body>
@@ -382,7 +387,11 @@ button{ font:inherit; color:inherit; }
 /* ============================================================
    EDIT HERE: the REEL (lives in the light grey column).
    Point src/poster at your reel file.
+   REEL IS HIDDEN FOR NOW: set SHOW_REEL to true to bring it back
+   (after pointing src/poster at the real reel).
    ============================================================ */
+const SHOW_REEL = false;
+if (!SHOW_REEL) document.getElementById("panel").classList.add("no-reel");
 const REEL = {
   id: "reel",
   title: "Reel",
@@ -586,7 +595,7 @@ moreBtn.addEventListener("click", function(){
 renderTrack();
 const params = new URLSearchParams(location.search);
 const startId = params.get("id");
-if (startId === "reel") play(REEL, "left");
+if (startId === "reel"){ if (SHOW_REEL) play(REEL, "left"); }
 else if (startId){
   const v = videos.find(function(x){ return x.id === startId; });
   if (v) play(v, "right");
