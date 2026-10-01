@@ -400,8 +400,8 @@ const REEL = {
    ============================================================ */
 const videos = [
   /* NEW (Oct 2026) */
-  { id:"ed-sheeran-full", title:"Fluentsee: Ed Sheeran", src:"videos/EdSheeran-Full-Subs-1080x1920-ffmpeg75MB.mp4", poster:"", runtime:"4:17", tags:["Fluentsee"], description:"Placeholder description for Fluentsee: Ed Sheeran." },
-  { id:"ed-sheeran-hater", title:"Fluentsee: Ed Sheeran (Extended)", src:"videos/EdSheeran-justHaterComp-1080x1920-ffmpeg35MB.mp4", poster:"", runtime:"1:07", tags:["Fluentsee"], description:"Placeholder description for Fluentsee: Ed Sheeran (Extended)." },
+  { id:"ed-sheeran-full", title:"Fluentsee: Ed Sheeran", src:"videos/EdSheeran-Full-Subs-1080x1920-ffmpeg75MB.mp4", poster:"video category thumbnails/EdSheeranAbridged-thumbnail.png", runtime:"4:17", year:"2026", tags:["Fluentsee"], description:"Pickled Ed Sheeran" },
+  { id:"ed-sheeran-hater", title:"Fluentsee: Ed Sheeran (Extended)", src:"videos/EdSheeran-justHaterComp-1080x1920-ffmpeg35MB.mp4", poster:"video category thumbnails/EdSheeranExtended-thumbnail.png", runtime:"1:07", year:"2026", tags:["Fluentsee"], description:"Is this the end of Ed Sheeran?" },
   { id:"los-16-tiempos-verbales", title:"Los 16 tiempos verbales en inglés", titleNote:"(spanish)", src:"videos/DlFrYT-Los 16 tiempos verbales en Inglés.mp4", poster:"", runtime:"6:28", tags:["Fluentsee"], description:"Placeholder description for Los 16 tiempos verbales en inglés." },
   { id:"fluentsee-7-imperativa", title:"Fluentsee 7: Imperativa", titleNote:"(spanish)", src:"videos/Fluentsee7-Imperativa.mp4", poster:"", runtime:"5:05", tags:["Fluentsee"], description:"Placeholder description for Fluentsee 7: Imperativa." },
   { id:"palestina-huelga-general-1", title:"Palestina: Huelga General 1", src:"videos/Palestina-HuelgaGeneral-1-101525.mp4", poster:"", runtime:"1:18", tags:[], description:"Placeholder description for Palestina: Huelga General 1." },
@@ -469,7 +469,7 @@ function esc(s){ return String(s).replace(/[&<>"]/g, function(c){ return {"&":"&
 
 function tileHTML(item){
   const note = item.titleNote ? ' <span class="note">' + esc(item.titleNote) + '</span>' : '';
-  const meta = [item.runtime, (item.tags || []).join(" · ")].filter(Boolean).join("  |  ");
+  const meta = [item.runtime, item.year, (item.tags || []).join(" · ")].filter(Boolean).join("  |  ");
   return (item.poster ? '<img src="' + esc(item.poster) + '" alt="" loading="lazy" onerror="this.remove()">' : '') +
     '<span class="label">' + esc(item.title) + note + '</span>' +
     '<span class="info"><strong>' + esc(item.title) + note + '</strong>' +
