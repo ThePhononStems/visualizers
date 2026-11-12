@@ -33,7 +33,7 @@
     -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
   .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
   .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}
-  .circle img.media,.circle canvas.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
+  .circle img.media,.circle canvas.media,.circle video.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
   /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
   .circle.frozen .media{filter:grayscale(1) contrast(0.7094) brightness(1.17)}  /* B&W with blacks at 17% grey */
   .node:hover .circle .media{transform:scale(1.06)}
@@ -122,34 +122,35 @@
      title / titleHTML / titleImg / media
      + children (another row of circles) | items (gallery) | href (link)
    ===================================================================== */
-const GIF = 'https://thephononstems.github.io/visualizers/assets/gifs/';   // button GIFs on GitHub Pages
+const GIF  = 'https://thephononstems.github.io/visualizers/assets/gifs/';    // button GIFs on GitHub Pages
+const LOOP = 'https://thephononstems.github.io/visualizers/assets/loops/';   // the same buttons as looping videos (pause on the exact frame, far smaller)
 const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${String(i+1).padStart(2,'0')}`, type:'video' }));
 
 const TREE = {
   title: 'Home',
   children: [
-    { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'image', src: GIF + 'multimedia-x-rotating.gif' },
+    { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'video', src: LOOP + 'multimedia-x-rotating.mp4' },
       children: [
-        { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'image', src: GIF + 'btn-photo.gif' },
+        { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'video', src: LOOP + 'btn-photo.mp4' },
           children: [
             { title: 'Street',    items: demo('Street', 9) },     // PLACEHOLDER
             { title: 'Portraits', items: demo('Portrait', 6) },   // PLACEHOLDER
             { title: 'Photoshop', items: demo('Edit', 6) }        // PLACEHOLDER
           ] },
-        { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>', media: { type:'image', src: GIF + 'btn-video.gif' },
+        { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>', media: { type:'video', src: LOOP + 'btn-video.mp4' },
           children: [
             { title: 'Fluentsee',   items: demo('Fluentsee', 10) },
             { title: 'Bernie',      items: demo('Bernie', 8) },
             { title: 'Environment', items: demo('Environment', 6) },
             { title: 'Misc',        items: demo('Misc', 5) }
           ] },
-        { title: 'Motion GFX', titleHTML: '<span class="t-gfx"><b>motion</b><i>GFX</i></span>', media: { type:'image', src: GIF + 'btn-motiongfx.gif' },
+        { title: 'Motion GFX', titleHTML: '<span class="t-gfx"><b>motion</b><i>GFX</i></span>', media: { type:'video', src: LOOP + 'btn-motiongfx.mp4' },
           children: [
             { title: 'Titles',    items: demo('Titles', 6) },     // PLACEHOLDER
             { title: 'Animation', items: demo('Animation', 6) },  // PLACEHOLDER
             { title: 'Logos',     items: demo('Logo', 6) }        // PLACEHOLDER
           ] },
-        { title: 'Audio', titleHTML: '<span class="t-audio"><b>music&amp;</b><i>AUDIO</i></span>', media: { type:'image', src: GIF + 'btn-music.gif' },
+        { title: 'Audio', titleHTML: '<span class="t-audio"><b>music&amp;</b><i>AUDIO</i></span>', media: { type:'video', src: LOOP + 'btn-music.mp4' },
           children: [
             { title: 'Music',        items: demo('Track', 6) },   // PLACEHOLDER
             { title: 'Sound Design', items: demo('Sound', 6) },   // PLACEHOLDER
