@@ -132,26 +132,26 @@ const TREE = {
   children: [
     { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'image', src: GIF + 'multimedia-plus.gif' },
       children: [
-        { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>',
+        { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'image', src: GIF + 'btn-photo.gif' },
           children: [
             { title: 'Street',    items: demo('Street', 9) },     // PLACEHOLDER
             { title: 'Portraits', items: demo('Portrait', 6) },   // PLACEHOLDER
             { title: 'Photoshop', items: demo('Edit', 6) }        // PLACEHOLDER
           ] },
-        { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>',
+        { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>', media: { type:'image', src: GIF + 'btn-video.gif' },
           children: [
             { title: 'Fluentsee',   items: demo('Fluentsee', 10) },
             { title: 'Bernie',      items: demo('Bernie', 8) },
             { title: 'Environment', items: demo('Environment', 6) },
             { title: 'Misc',        items: demo('Misc', 5) }
           ] },
-        { title: 'Motion GFX', titleHTML: '<span class="t-gfx"><b>motion</b><i>GFX</i></span>',
+        { title: 'Motion GFX', titleHTML: '<span class="t-gfx"><b>motion</b><i>GFX</i></span>', media: { type:'image', src: GIF + 'btn-motiongfx.gif' },
           children: [
             { title: 'Titles',    items: demo('Titles', 6) },     // PLACEHOLDER
             { title: 'Animation', items: demo('Animation', 6) },  // PLACEHOLDER
             { title: 'Logos',     items: demo('Logo', 6) }        // PLACEHOLDER
           ] },
-        { title: 'Audio', titleHTML: '<span class="t-audio"><b>music&amp;</b><i>AUDIO</i></span>',
+        { title: 'Audio', titleHTML: '<span class="t-audio"><b>music&amp;</b><i>AUDIO</i></span>', media: { type:'image', src: GIF + 'btn-music.gif' },
           children: [
             { title: 'Music',        items: demo('Track', 6) },   // PLACEHOLDER
             { title: 'Sound Design', items: demo('Sound', 6) },   // PLACEHOLDER
@@ -171,7 +171,7 @@ const LINK_TARGET = '_top';
 /* circle sizes: the top row is full size (1), the second row is SECOND_ROW_SIZE.
    After that, a row keeps the size of the row above it, and only shrinks (by SHRINK)
    if it has more than MAX_SAME_SIZE circles. */
-const SECOND_ROW_SIZE = .8;
+const SECOND_ROW_SIZE = .92;
 const MAX_SAME_SIZE = 4;
 const SHRINK = .82;
 /* timing (milliseconds) */
