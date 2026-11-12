@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>SWT Home Cascade</title>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=Exo+2:ital,wght@1,800&family=IM+Fell+English+SC&family=Inter:wght@400;600&family=Lobster&family=Montserrat:wght@800;900&family=Nunito:wght@900&family=Oswald:wght@200&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#ffffff; --ink:#111; --muted:#9a9a9a; --accent:#77c4d1;
+    --base:clamp(110px,15vw,240px);
+    --gap:clamp(16px,3vw,44px);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--bg);color:var(--ink);font-family:Inter,system-ui,sans-serif}
+  #main{padding:24px 16px 75vh}
+
+  /* ---------- floating "back to top" button ---------- */
+  #toTop{all:unset;position:fixed;right:20px;top:0;z-index:20;width:52px;height:52px;border-radius:50%;cursor:pointer;
+    display:grid;place-items:center;color:#fff;background:rgba(17,17,17,.5);
+    -webkit-backdrop-filter:blur(6px);backdrop-filter:blur(6px);
+    opacity:0;pointer-events:none;transition:opacity .3s ease-out,background .2s}
+  #toTop.show{opacity:1;pointer-events:auto}
+  #toTop:hover{background:rgba(17,17,17,.8)}
+  #toTop:focus-visible{outline:3px solid var(--accent);outline-offset:3px}
+  #toTop svg{width:22px;height:22px}
+
+  /* ---------- rows ---------- */
+  .row{--circle:calc(var(--base) * var(--k,1));display:flex;flex-wrap:wrap;justify-content:center;gap:var(--gap);width:100%;
+    padding-top:clamp(28px,4vw,48px)}
+  .row:first-child{padding-top:0}
+  .node{all:unset;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;width:var(--circle);
+    -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
+  .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
+  .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1)}
+  .circle img.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
+  .node:hover .circle .media{transform:scale(1.06)}
+  .node:focus-visible .circle{outline:3px solid var(--accent);outline-offset:5px}
+  /* "off" = a sibling of the open circle: black & white, dimmed */
+  .node.off .circle{filter:grayscale(1);opacity:.45}
+  .node.off .title{opacity:.35}
+  .node.off:hover .circle{opacity:.75}
+  .node.off:hover .title{opacity:.7}
+  .ph{display:grid;place-items:center;color:rgba(255,255,255,.35);font-family:'Archivo Black',sans-serif;
+    font-size:calc(var(--circle)*.48);line-height:1;user-select:none}
+  .title{margin-top:calc(var(--circle)*.07);font-family:'Archivo Black',sans-serif;font-size:calc(var(--circle)*.13);
+    letter-spacing:.01em;text-transform:uppercase;text-align:center;line-height:1;white-space:nowrap}
+  .title img{display:block;max-width:100%;max-height:calc(var(--circle)*.4);margin:0 auto}
+  .title.custom{font-size:16px;text-transform:none;letter-spacing:0}
+  .title.custom b,.title.custom i,.title.custom em{display:block;font-weight:inherit;font-style:normal}
+
+  /* ---------- custom titles ---------- */
+  .t-mm{font-family:'Exo 2',sans-serif;font-style:italic;font-weight:800;font-size:calc(var(--circle)*.13);letter-spacing:.06em;
+    background:linear-gradient(180deg,#2b2b2b 0%,#6d6d6d 48%,#1a1a1a 52%,#555 100%);-webkit-background-clip:text;background-clip:text;color:transparent;padding:0 .1em}
+  .t-esl{font-family:'IM Fell English SC',serif;font-size:calc(var(--circle)*.2);letter-spacing:.1em;color:#1d1b18;filter:url(#scan)}
+  .t-photo{font-family:'Lobster',cursive;line-height:.9}
+  .t-photo b{font-size:calc(var(--circle)*.25);-webkit-text-stroke:.02em currentColor}
+  .t-photo i{font-size:calc(var(--circle)*.14);-webkit-text-stroke:.015em currentColor;margin-top:-.05em}
+  .t-video{line-height:.85}
+  .t-video b{font-family:'Archivo Black',sans-serif;font-size:calc(var(--circle)*.21);letter-spacing:-.03em}
+  .t-video i{font-family:'Oswald',sans-serif;font-weight:200;font-size:calc(var(--circle)*.17);margin-top:-.28em;letter-spacing:-.01em}
+  .t-video i em{display:inline;font-family:'Archivo Black',sans-serif;font-size:.5em;margin-right:.15em;vertical-align:.12em}
+  .t-gfx{line-height:.85}
+  .t-gfx b{font-family:'Nunito',sans-serif;font-weight:900;font-size:calc(var(--circle)*.14);letter-spacing:-.01em}
+  .t-gfx i{font-family:'Permanent Marker',cursive;font-size:calc(var(--circle)*.19);margin-top:-.28em;transform:skewX(-8deg);
+    -webkit-text-stroke:.05em currentColor;letter-spacing:.02em}
+  .t-audio{font-family:'Montserrat',sans-serif;line-height:.88}
+  .t-audio b{font-weight:800;font-size:calc(var(--circle)*.11);letter-spacing:-.01em}
+  .t-audio i{font-weight:900;font-size:calc(var(--circle)*.2);letter-spacing:-.03em}
+
+  /* ---------- gallery row ---------- */
+  .gallery{padding-top:clamp(28px,4vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(150px,16vw,260px),1fr));
+    gap:clamp(12px,1.6vw,24px);max-width:1400px;margin:0 auto}
+  .tile{all:unset;cursor:pointer;display:block;min-width:0}
+  .thumb{position:relative;aspect-ratio:16/9;overflow:hidden;border-radius:6px;background:#1a1a1a}
+  .thumb .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s cubic-bezier(.22,1,.36,1)}
+  .thumb .ph{font-size:clamp(28px,3vw,48px)}
+  .tile:hover .thumb .media{transform:scale(1.045)}
+  .tile:focus-visible .thumb{outline:3px solid var(--accent);outline-offset:3px}
+  .play{position:absolute;right:10px;bottom:10px;width:34px;height:34px;border-radius:50%;background:rgba(0,0,0,.55);
+    display:grid;place-items:center;z-index:2;transition:background .25s}
+  .play svg{width:13px;height:13px;margin-left:2px;fill:#fff}
+  .tile:hover .play{background:rgba(0,0,0,.85)}
+  .cap{margin-top:9px;font:600 13px/1.3 Inter,sans-serif;letter-spacing:.03em;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+
+  /* ---------- media viewer ---------- */
+  #lb{position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.92);display:none;align-items:center;justify-content:center;
+    flex-direction:column;padding:56px 16px 24px}
+  #lb.open{display:flex}
+  #lb .stageMedia{max-width:min(92vw,1400px);max-height:80vh;width:100%;display:flex;justify-content:center}
+  #lb video,#lb img{max-width:100%;max-height:80vh;border-radius:4px;background:#000}
+  #lb iframe{width:min(92vw,1400px);aspect-ratio:16/9;max-height:80vh;border:0;border-radius:4px;background:#000}
+  #lb .lbcap{color:#ddd;margin-top:14px;font:600 14px Inter,sans-serif;letter-spacing:.06em;text-align:center}
+  #lb .empty{color:#aaa;font:600 15px Inter,sans-serif;letter-spacing:.06em;padding:80px 0}
+  #lb .x{all:unset;cursor:pointer;position:absolute;top:12px;right:16px;color:#fff;font-size:34px;line-height:1;padding:6px 10px}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <filter id="scan" x="-5%" y="-15%" width="110%" height="130%">
+    <feTurbulence type="fractalNoise" baseFrequency="0.8" numOctaves="2" seed="4" result="edge"/>
+    <feDisplacementMap in="SourceGraphic" in2="edge" scale="2.2" xChannelSelector="R" yChannelSelector="G" result="ragged"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.4" numOctaves="1" seed="11" result="speck"/>
+    <feColorMatrix in="speck" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -6 0 0 0 4.4" result="speckMask"/>
+    <feTurbulence type="fractalNoise" baseFrequency="1.1 0.012" numOctaves="1" seed="2" result="scratch"/>
+    <feColorMatrix in="scratch" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  -7 0 0 0 5.2" result="scratchMask"/>
+    <feComposite in="speckMask" in2="scratchMask" operator="in" result="wear"/>
+    <feComposite in="ragged" in2="wear" operator="in"/>
+  </filter>
+</svg>
+
+<button id="toTop" type="button" aria-label="Back to top"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg></button>
+<div id="viewProbe" style="position:fixed;inset:0;pointer-events:none;visibility:hidden"></div>
+<div id="main"></div>
+<div id="lb" role="dialog" aria-modal="true" aria-label="Media viewer">
+  <button class="x" aria-label="Close">×</button>
+  <div class="stageMedia"></div>
+  <div class="lbcap"></div>
+</div>
+
+<script>
+/* =====================================================================
+   EDIT YOUR CATEGORIES HERE
+     title / titleHTML / titleImg / media
+     + children (another row of circles) | items (gallery) | href (link)
+   ===================================================================== */
+const GIF = 'https://thephononstems.github.io/visualizers/assets/gifs/';   // button GIFs on GitHub Pages
+const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${String(i+1).padStart(2,'0')}`, type:'video' }));
+
+const TREE = {
+  title: 'Home',
+  children: [
+    { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'image', src: GIF + 'multimedia-plus.gif' },
+      children: [
+        { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>',
+          children: [
+            { title: 'Street',    items: demo('Street', 9) },     // PLACEHOLDER
+            { title: 'Portraits', items: demo('Portrait', 6) },   // PLACEHOLDER
+            { title: 'Photoshop', items: demo('Edit', 6) }        // PLACEHOLDER
+          ] },
+        { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>',
+          children: [
+            { title: 'Fluentsee',   items: demo('Fluentsee', 10) },
+            { title: 'Bernie',      items: demo('Bernie', 8) },
+            { title: 'Environment', items: demo('Environment', 6) },
+            { title: 'Misc',        items: demo('Misc', 5) }
+          ] },
+        { title: 'Motion GFX', titleHTML: '<span class="t-gfx"><b>motion</b><i>GFX</i></span>',
+          children: [
+            { title: 'Titles',    items: demo('Titles', 6) },     // PLACEHOLDER
+            { title: 'Animation', items: demo('Animation', 6) },  // PLACEHOLDER
+            { title: 'Logos',     items: demo('Logo', 6) }        // PLACEHOLDER
+          ] },
+        { title: 'Audio', titleHTML: '<span class="t-audio"><b>music&amp;</b><i>AUDIO</i></span>',
+          children: [
+            { title: 'Music',        items: demo('Track', 6) },   // PLACEHOLDER
+            { title: 'Sound Design', items: demo('Sound', 6) },   // PLACEHOLDER
+            { title: 'Voice',        items: demo('Voice', 6) }    // PLACEHOLDER
+          ] }
+      ] },
+    { title: 'ESL', titleHTML: '<span class="t-esl">ESL</span>',
+      children: [
+        { title: 'Lessons',   items: demo('Lesson', 8) },         // PLACEHOLDER
+        { title: 'Resources', href: '' },                          // PLACEHOLDER
+        { title: 'About',     href: '' }                           // PLACEHOLDER
+      ] }
+  ]
+};
+
+const LINK_TARGET = '_top';
+/* circle sizes: the top row is full size (1), the second row is SECOND_ROW_SIZE.
+   After that, a row keeps the size of the row above it, and only shrinks (by SHRINK)
+   if it has more than MAX_SAME_SIZE circles. */
+const SECOND_ROW_SIZE = .8;
+const MAX_SAME_SIZE = 4;
+const SHRINK = .82;
+/* timing (milliseconds) */
+const STEP_MS = 90;        // gap between circles popping in
+const TILE_STEP_MS = 35;   // gap between thumbnails popping in
+const SCROLL_DELAY = 120;  // pause before the new row starts appearing
+/* ===================================================================== */
+
+const main = document.getElementById('main');
+const toTop = document.getElementById('toTop');
+const lb = document.getElementById('lb');
+const rows = [];     // rows[d] = element showing level d
+const sel = [];      // sel[d]  = the open node in row d
+let busy = false;
+const PLAY = '<svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg>';
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+/* placeholder circles get a colour so the colour / black-and-white switch is visible */
+function placeholderBg(t){
+  let h = 7; for (const ch of t) h = (h*31 + ch.charCodeAt(0)) >>> 0;
+  const hue = h % 360, a = (h >> 3) % 360;
+  return `radial-gradient(circle at ${25+h%50}% ${25+(h>>6)%50}%, hsl(${hue} 55% 62%) 0%, transparent 65%),
+          linear-gradient(${a}deg, hsl(${hue} 45% 22%), hsl(${(hue+40)%360} 50% 42%))`;
+}
+function makeMedia(m, label, phText){
+  if (m && m.src){
+    if (m.type === 'video'){
+      const v = document.createElement('video');
+      v.muted = true; v.loop = true; v.autoplay = true; v.playsInline = true;
+      v.setAttribute('muted',''); v.setAttribute('playsinline','');
+      if (m.poster) v.poster = m.poster;
+      v.src = m.src; v.className = 'media'; v.play().catch(()=>{});
+      return v;
+    }
+    const i = document.createElement('img');
+    i.src = m.src; i.alt = ''; i.className = 'media'; i.draggable = false;
+    return i;
+  }
+  const d = document.createElement('div');
+  d.className = 'media ph'; d.style.background = placeholderBg(label); d.textContent = phText;
+  return d;
+}
+function makeTitle(n){
+  const t = document.createElement('div');
+  t.className = 'title';
+  if (n.titleImg){ const im = document.createElement('img'); im.src = n.titleImg; im.alt = n.title; t.appendChild(im); }
+  else if (n.titleHTML){ t.classList.add('custom'); t.innerHTML = n.titleHTML; }
+  else t.textContent = n.title;
+  return t;
+}
+
+function buildRow(parent, depth){
+  const r = document.createElement('div');
+  r.className = 'row';
+  let k = 1;
+  if (depth === 1) k = SECOND_ROW_SIZE;
+  else if (depth > 1){
+    k = rows[depth - 1]._k;
+    if (parent.children.length > MAX_SAME_SIZE) k *= SHRINK;
+  }
+  r._k = k;
+  r.style.setProperty('--k', k);
+  parent.children.forEach(n => {
+    const isLink = !n.children && !n.items && n.href;
+    const el = document.createElement(isLink ? 'a' : 'button');
+    el.className = 'node';
+    if (isLink){ el.href = n.href; el.target = LINK_TARGET; } else el.type = 'button';
+    el.setAttribute('aria-label', n.title);
+    const c = document.createElement('div'); c.className = 'circle';
+    c.appendChild(makeMedia(n.media, n.title, n.title[0]));
+    el.append(c, makeTitle(n));
+    el._node = n;
+    el.addEventListener('click', e => pick(e, depth, n, el));
+    r.appendChild(el);
+  });
+  return r;
+}
+
+function buildGallery(n){
+  const g = document.createElement('div');
+  g.className = 'gallery';
+  n.items.forEach((it, i) => {
+    const b = document.createElement('button');
+    b.className = 'tile'; b.type = 'button';
+    b.setAttribute('aria-label', it.title || `Item ${i+1}`);
+    const th = document.createElement('div'); th.className = 'thumb';
+    let m;
+    if (it.type === 'video' && it.src){
+      m = document.createElement('video');
+      m.muted = true; m.loop = true; m.playsInline = true; m.preload = 'metadata'; m.setAttribute('playsinline','');
+      if (it.poster) m.poster = it.poster;
+      m.src = it.src; m.className = 'media';
+      b.addEventListener('mouseenter', () => m.play().catch(()=>{}));
+      b.addEventListener('mouseleave', () => m.pause());
+    } else if (it.poster || (it.type === 'image' && it.src)){
+      m = makeMedia({type:'image', src: it.poster || it.src}, '', '');
+    } else {
+      m = makeMedia(null, (it.title || '') + i, String(i+1).padStart(2,'0'));
+    }
+    th.appendChild(m);
+    if (it.type === 'video' || it.embed){ const p = document.createElement('div'); p.className = 'play'; p.innerHTML = PLAY; th.appendChild(p); }
+    const cap = document.createElement('div'); cap.className = 'cap'; cap.textContent = it.title || '';
+    b.append(th, cap);
+    b.addEventListener('click', () => openLightbox(it));
+    g.appendChild(b);
+  });
+  return g;
+}
+
+/* mark the open circle in a row (colour) and its siblings (black & white) */
+function markRow(depth){
+  const r = rows[depth];
+  if (!r || !r.classList.contains('row')) return;
+  [...r.children].forEach(el => {
+    const open = sel[depth];
+    el.classList.toggle('off', !!open && el._node !== open);
+  });
+}
+
+/* remove every row below `depth` (cut) */
+function closeBelow(depth){
+  while (rows.length > depth + 1) rows.pop().remove();
+  sel.length = depth;
+}
+
+/* Bring a row to the top of the browser window. This also scrolls the Google Sites page itself
+   (past the blue band), not just the inside of the embed box. */
+function scrollToRow(el){
+  const target = el.firstElementChild || el;   // top of the circles, not the row's spacing above them
+  target.style.scrollMarginTop = '24px';
+  target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+async function popInSequence(els, step){
+  for (let i = 0; i < els.length; i++){
+    if (i) await wait(step);
+    els[i].style.visibility = '';
+  }
+}
+
+async function pick(e, depth, n, el){
+  const isLink = !n.children && !n.items && n.href;
+  if (isLink) return;                    // follow the link normally
+  e.preventDefault();
+  if (busy) return;
+  if (!n.children && !n.items) return;   // nothing to open yet
+
+  // clicking the open circle again closes its rows
+  if (sel[depth] === n){
+    closeBelow(depth); markRow(depth); updateTopButton();
+    scrollToRow(rows[depth]);
+    return;
+  }
+
+  busy = true;
+  closeBelow(depth);
+  sel[depth] = n;
+  markRow(depth);
+
+  const next = n.children ? buildRow(n, depth + 1) : buildGallery(n);
+  const parts = [...next.children];
+  parts.forEach(p => p.style.visibility = 'hidden');
+  main.appendChild(next);
+  rows.push(next);
+  updateTopButton();
+
+  scrollToRow(rows[depth]);   // the row you clicked moves to the top, the new row opens beneath it
+  await wait(SCROLL_DELAY);
+  await popInSequence(parts, n.children ? STEP_MS : TILE_STEP_MS);
+  busy = false;
+}
+
+/* ---------- floating "back to top" button ----------
+   Shows once something is open. It stays in the bottom-right corner of the browser window,
+   even though this page lives inside the Google Sites embed box: it tracks which part of the
+   box is on screen and sits at the bottom of that part. */
+const BTN = 52, MARGIN = 20;
+let visibleBottom = innerHeight;
+function placeTopButton(){
+  toTop.style.top = Math.max(MARGIN, Math.min(innerHeight, visibleBottom) - BTN - MARGIN) + 'px';
+}
+function updateTopButton(){ toTop.classList.toggle('show', sel.length > 0); }
+const steps = Array.from({length: 401}, (_, i) => i / 400);
+new IntersectionObserver(entries => {
+  const e = entries[entries.length - 1];
+  visibleBottom = e.intersectionRatio > 0 ? e.intersectionRect.bottom : innerHeight;
+  placeTopButton();
+}, { threshold: steps }).observe(document.getElementById('viewProbe'));
+addEventListener('resize', placeTopButton);
+placeTopButton();
+toTop.addEventListener('click', () => scrollToRow(rows[0]));
+
+/* ---------- media viewer ---------- */
+function openLightbox(it){
+  const box = lb.querySelector('.stageMedia');
+  box.innerHTML = '';
+  if (it.embed){
+    const f = document.createElement('iframe');
+    f.src = it.embed; f.allow = 'autoplay; fullscreen; picture-in-picture'; f.allowFullscreen = true; box.appendChild(f);
+  } else if (it.src && it.type === 'video'){
+    const v = document.createElement('video');
+    v.src = it.src; v.controls = true; v.autoplay = true; v.playsInline = true;
+    if (it.poster) v.poster = it.poster;
+    box.appendChild(v);
+  } else if (it.src){
+    const im = document.createElement('img'); im.src = it.src; im.alt = it.title || ''; box.appendChild(im);
+  } else {
+    const e = document.createElement('div'); e.className = 'empty'; e.textContent = 'Media not added yet'; box.appendChild(e);
+  }
+  lb.querySelector('.lbcap').textContent = it.title || '';
+  lb.classList.add('open');
+  lb.querySelector('.x').focus();
+}
+function closeLightbox(){
+  lb.classList.remove('open');
+  lb.querySelector('.stageMedia').innerHTML = '';
+}
+lb.querySelector('.x').onclick = closeLightbox;
+lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
+document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox(); });
+
+/* ---------- first row ---------- */
+const first = buildRow(TREE, 0);
+main.appendChild(first);
+rows.push(first);
+</script>
+</body>
+</html>
