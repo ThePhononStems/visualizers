@@ -32,10 +32,11 @@
   .node{all:unset;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;width:var(--circle);
     -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
   .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
-  .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}
+  .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .25s ease}
   .circle img.media,.circle canvas.media,.circle video.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
   /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
-  .circle.frozen .media{filter:grayscale(1) contrast(0.7094) brightness(1.17)}  /* B&W with blacks at 17% grey */
+  .circle.held .media{filter:brightness(1.18)}   /* hover / arrow focus: frozen on the current frame and brightened */
+  .circle.frozen .media{filter:grayscale(1) contrast(0.7094) brightness(1.17);transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}  /* clicked: B&W, blacks at 17% grey */
   .node:hover .circle .media{transform:scale(1.06)}
   .node:focus{outline:none}
   .node:focus-visible .circle .media{transform:scale(1.06)}   /* arrow-key focus behaves like hover */
@@ -295,7 +296,9 @@ function buildGallery(n){
 /* hold = stop the GIF on its current frame, still in colour (on hover / arrow-key focus) */
 function hold(el){
   const c = el.querySelector('.circle');
-  if (!c || c.querySelector('canvas.still')) return;
+  if (!c) return;
+  c.classList.add('held');
+  if (c.querySelector('canvas.still')) return;
   const img = c.querySelector('img.media');
   if (img && img.complete && img.naturalWidth){
     const cv = document.createElement('canvas');
@@ -310,6 +313,7 @@ function hold(el){
 function release(el){
   const c = el.querySelector('.circle');
   if (!c || c.classList.contains('frozen')) return;
+  c.classList.remove('held');
   c.querySelectorAll('canvas.still').forEach(x => x.remove());
   const img = c.querySelector('img.media'); if (img) img.style.visibility = '';
   const v = c.querySelector('video.media'); if (v) v.play().catch(()=>{});
