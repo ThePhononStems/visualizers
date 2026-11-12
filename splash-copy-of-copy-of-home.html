@@ -35,9 +35,10 @@
   .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}
   .circle img.media,.circle canvas.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
   /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
-  .circle.frozen .media{filter:grayscale(1) contrast(.875) brightness(1.0667)}  /* B&W with blacks lifted to 17/255 */
+  .circle.frozen .media{filter:grayscale(1) contrast(0.7094) brightness(1.17)}  /* B&W with blacks at 17% grey */
   .node:hover .circle .media{transform:scale(1.06)}
-  .node:focus-visible .circle{outline:3px solid var(--accent);outline-offset:5px}
+  .node:focus{outline:none}
+  .node:focus-visible .circle .media{transform:scale(1.06)}   /* arrow-key focus behaves like hover */
   .ph{display:grid;place-items:center;color:rgba(0,0,0,.18);font-family:'Archivo Black',sans-serif;
     font-size:calc(var(--circle)*.48);line-height:1;user-select:none}
   .title{margin-top:calc(var(--circle)*.07);font-family:'Archivo Black',sans-serif;font-size:calc(var(--circle)*.13);
@@ -249,6 +250,10 @@ function buildRow(parent, depth){
       else requestAnimationFrame(() => freeze(el));
     }
     el.addEventListener('click', e => pick(e, depth, n, el));
+    el.addEventListener('mouseenter', () => { el._hover = true;  hoverState(el); });
+    el.addEventListener('mouseleave', () => { el._hover = false; hoverState(el); });
+    el.addEventListener('focus',      () => { el._focus = true;  hoverState(el); });
+    el.addEventListener('blur',       () => { el._focus = false; hoverState(el); });
     r.appendChild(el);
   });
   return r;
@@ -286,9 +291,10 @@ function buildGallery(n){
 }
 
 /* freeze a circle's GIF on its current frame and dissolve it to black & white */
-function freeze(el){
+/* hold = stop the GIF on its current frame, still in colour (on hover / arrow-key focus) */
+function hold(el){
   const c = el.querySelector('.circle');
-  if (!c || c.classList.contains('frozen')) return;
+  if (!c || c.querySelector('canvas.still')) return;
   const img = c.querySelector('img.media');
   if (img && img.complete && img.naturalWidth){
     const cv = document.createElement('canvas');
@@ -298,9 +304,24 @@ function freeze(el){
     c.appendChild(cv);
   }
   const v = c.querySelector('video.media'); if (v) v.pause();
-  void c.offsetWidth;            // let the still frame appear in colour first, then fade
+}
+/* release = back to the moving GIF (when the pointer / focus leaves), unless it has been clicked */
+function release(el){
+  const c = el.querySelector('.circle');
+  if (!c || c.classList.contains('frozen')) return;
+  c.querySelectorAll('canvas.still').forEach(x => x.remove());
+  const img = c.querySelector('img.media'); if (img) img.style.visibility = '';
+  const v = c.querySelector('video.media'); if (v) v.play().catch(()=>{});
+}
+/* freeze = clicked: keep the held frame and dissolve it to black & white for good */
+function freeze(el){
+  const c = el.querySelector('.circle');
+  if (!c || c.classList.contains('frozen')) return;
+  hold(el);
+  void c.offsetWidth;            // let the still frame show in colour first, then fade
   c.classList.add('frozen');
 }
+function hoverState(el){ (el._hover || el._focus) ? hold(el) : release(el); }
 /* explored circles: the one you open freezes in black & white and stays that way,
    so visitors can see where they've been. Unexplored circles keep playing in colour. */
 function markRow(depth){
@@ -421,7 +442,10 @@ function moveFocus(dir){
   const items = [...main.querySelectorAll('.node,.tile')].filter(e => e.style.visibility !== 'hidden');
   if (!items.length) return;
   const cur = document.activeElement;
-  if (!items.includes(cur)){ items[0].focus(); return; }
+  if (!items.includes(cur)){                 // resting above the menu (banner area)
+    if (dir === 'down' || dir === 'right' || dir === 'left'){ items[0].focus({ preventScroll: true }); items[0].scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+    return;
+  }
   const r = cur.getBoundingClientRect(), cx = r.left + r.width/2;
   const box = e => e.getBoundingClientRect();
   let pick = null;
@@ -444,6 +468,9 @@ function moveFocus(dir){
     const d = rows.indexOf(cur.parentElement);
     if (d > 0) pick = [...rows[d-1].children].find(el => el._node === sel[d-1]) || pick;
   }
+  if (!pick && dir === 'up' && rows[0] && cur.parentElement === rows[0]){   // up from the top row: back to rest
+    cur.blur(); rows[0].scrollIntoView({ behavior:'smooth', block:'end' }); return;   // banner back in view
+  }
   if (pick){
     pick.focus({ preventScroll: true });
     pick.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
@@ -460,6 +487,7 @@ document.addEventListener('keydown', e => {
 const first = buildRow(TREE, 0);
 main.appendChild(first);
 rows.push(first);
+try { window.focus(); } catch(e){}   // so arrow keys work straight away (browsers may require a first click)
 </script>
 </body>
 </html>
