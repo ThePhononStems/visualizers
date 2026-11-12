@@ -35,7 +35,7 @@
   .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}
   .circle img.media,.circle canvas.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
   /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
-  .circle.frozen .media{filter:grayscale(1)}
+  .circle.frozen .media{filter:grayscale(1) contrast(.875) brightness(1.0667)}  /* B&W with blacks lifted to 17/255 */
   .node:hover .circle .media{transform:scale(1.06)}
   .node:focus-visible .circle{outline:3px solid var(--accent);outline-offset:5px}
   .ph{display:grid;place-items:center;color:rgba(0,0,0,.18);font-family:'Archivo Black',sans-serif;
