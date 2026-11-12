@@ -35,7 +35,7 @@
   .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .25s ease}
   .circle img.media,.circle canvas.media,.circle video.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
   /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
-  .circle.held .media{filter:brightness(1.18)}   /* hover / arrow focus: frozen on the current frame and brightened */
+  .circle.held .media{filter:contrast(.88) brightness(1.3) saturate(1.15)}   /* hover / arrow focus: frozen on the current frame and brightened */
   .circle.frozen .media{filter:grayscale(1) contrast(0.7094) brightness(1.17);transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}  /* clicked: B&W, blacks at 17% grey */
   .node:hover .circle .media{transform:scale(1.06)}
   .node:focus{outline:none}
@@ -326,6 +326,13 @@ function freeze(el){
   void c.offsetWidth;            // let the still frame show in colour first, then fade
   c.classList.add('frozen');
 }
+/* thaw = undo a click: back to colour and motion (when its rows are closed again) */
+function thaw(el){
+  const c = el.querySelector('.circle');
+  if (!c) return;
+  c.classList.remove('frozen');
+  hoverState(el);                // still under the pointer: stays held (colour, brightened); otherwise plays again
+}
 function hoverState(el){ (el._hover || el._focus) ? hold(el) : release(el); }
 /* explored circles: the one you open freezes in black & white and stays that way,
    so visitors can see where they've been. Unexplored circles keep playing in colour. */
@@ -368,6 +375,7 @@ async function pick(e, depth, n, el){
 
   // clicking the open circle again closes its rows
   if (sel[depth] === n){
+    n._visited = false; thaw(el);        // closing a circle returns it to colour and motion
     closeBelow(depth); markRow(depth); updateTopButton();
     scrollToRow(rows[depth]);
     return;
