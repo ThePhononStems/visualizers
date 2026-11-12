@@ -38,11 +38,6 @@
   .circle.frozen .media{filter:grayscale(1)}
   .node:hover .circle .media{transform:scale(1.06)}
   .node:focus-visible .circle{outline:3px solid var(--accent);outline-offset:5px}
-  /* "off" = a sibling of the open circle: black & white, dimmed */
-  .node.off .circle{filter:grayscale(1);opacity:.45}
-  .node.off .title{opacity:.35}
-  .node.off:hover .circle{opacity:.75}
-  .node.off:hover .title{opacity:.7}
   .ph{display:grid;place-items:center;color:rgba(0,0,0,.18);font-family:'Archivo Black',sans-serif;
     font-size:calc(var(--circle)*.48);line-height:1;user-select:none}
   .title{margin-top:calc(var(--circle)*.07);font-family:'Archivo Black',sans-serif;font-size:calc(var(--circle)*.13);
@@ -248,6 +243,11 @@ function buildRow(parent, depth){
     c.appendChild(makeMedia(n.media, n.title, ''));   // no letter on placeholder circles
     el.append(c, makeTitle(n));
     el._node = n;
+    if (n._visited){                 // explored earlier: show it frozen in black & white again
+      const img = c.querySelector('img.media');
+      if (img && !img.complete) img.addEventListener('load', () => freeze(el), {once:true});
+      else requestAnimationFrame(() => freeze(el));
+    }
     el.addEventListener('click', e => pick(e, depth, n, el));
     r.appendChild(el);
   });
@@ -301,24 +301,14 @@ function freeze(el){
   void c.offsetWidth;            // let the still frame appear in colour first, then fade
   c.classList.add('frozen');
 }
-/* back to the live GIF in colour (when its row is closed again) */
-function unfreeze(el){
-  const c = el.querySelector('.circle');
-  if (!c || !c.classList.contains('frozen')) return;
-  c.classList.remove('frozen');
-  c.querySelectorAll('canvas.still').forEach(x => x.remove());
-  const img = c.querySelector('img.media'); if (img) img.style.visibility = '';
-  const v = c.querySelector('video.media'); if (v) v.play().catch(()=>{});
-}
-
-/* mark the open circle in a row (frozen, black & white) and its siblings (dimmed, black & white) */
+/* explored circles: the one you open freezes in black & white and stays that way,
+   so visitors can see where they've been. Unexplored circles keep playing in colour. */
 function markRow(depth){
   const r = rows[depth];
   if (!r || !r.classList.contains('row')) return;
+  const open = sel[depth];
   [...r.children].forEach(el => {
-    const open = sel[depth];
-    el.classList.toggle('off', !!open && el._node !== open);
-    if (open && el._node === open) freeze(el); else unfreeze(el);
+    if (open && el._node === open){ open._visited = true; freeze(el); }
   });
 }
 
