@@ -414,6 +414,48 @@ lb.querySelector('.x').onclick = closeLightbox;
 lb.addEventListener('click', e => { if (e.target === lb) closeLightbox(); });
 document.addEventListener('keydown', e => { if (e.key === 'Escape' && lb.classList.contains('open')) closeLightbox(); });
 
+/* ---------- keyboard: arrow keys move between circles (and thumbnails), Enter opens ----------
+   Left/Right = along a row, Down = the row below, Up = the row above.
+   Works by position on screen, so wrapped rows and thumbnail grids behave naturally. */
+function moveFocus(dir){
+  const items = [...main.querySelectorAll('.node,.tile')].filter(e => e.style.visibility !== 'hidden');
+  if (!items.length) return;
+  const cur = document.activeElement;
+  if (!items.includes(cur)){ items[0].focus(); return; }
+  const r = cur.getBoundingClientRect(), cx = r.left + r.width/2;
+  const box = e => e.getBoundingClientRect();
+  let pick = null;
+  if (dir === 'left' || dir === 'right'){
+    const same = items.filter(e => e !== cur && Math.abs(box(e).top - r.top) < r.height/2);
+    const side = same.filter(e => dir === 'right' ? box(e).left > r.left : box(e).left < r.left);
+    side.sort((a,b) => Math.abs(box(a).left - r.left) - Math.abs(box(b).left - r.left));
+    pick = side[0];
+  } else {
+    const cand = items.filter(e => dir === 'down' ? box(e).top >= r.bottom - 2 : box(e).bottom <= r.top + 2);
+    if (cand.length){
+      const edge = dir === 'down' ? Math.min(...cand.map(e => box(e).top)) : Math.max(...cand.map(e => box(e).top));
+      const row = cand.filter(e => Math.abs(box(e).top - edge) < 20);
+      row.sort((a,b) => Math.abs(box(a).left + box(a).width/2 - cx) - Math.abs(box(b).left + box(b).width/2 - cx));
+      pick = row[0];
+    }
+  }
+  // going up out of a row returns to the circle that opened it (its parent), not just the nearest one
+  if (dir === 'up' && pick && pick.parentElement !== cur.parentElement){
+    const d = rows.indexOf(cur.parentElement);
+    if (d > 0) pick = [...rows[d-1].children].find(el => el._node === sel[d-1]) || pick;
+  }
+  if (pick){
+    pick.focus({ preventScroll: true });
+    pick.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+}
+const ARROWS = { ArrowLeft:'left', ArrowRight:'right', ArrowUp:'up', ArrowDown:'down' };
+document.addEventListener('keydown', e => {
+  if (!ARROWS[e.key] || lb.classList.contains('open') || e.altKey || e.metaKey || e.ctrlKey) return;
+  e.preventDefault();
+  moveFocus(ARROWS[e.key]);
+});
+
 /* ---------- first row ---------- */
 const first = buildRow(TREE, 0);
 main.appendChild(first);
