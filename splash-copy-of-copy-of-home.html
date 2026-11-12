@@ -32,8 +32,10 @@
   .node{all:unset;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;width:var(--circle);
     -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
   .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
-  .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1)}
-  .circle img.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
+  .circle .media{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .7s cubic-bezier(.22,1,.36,1),filter .9s ease}
+  .circle img.media,.circle canvas.media{transform:scale(1.03)}  /* hides the button GIFs' thin white rim */
+  /* an open circle: its GIF freezes on the current frame and dissolves to black & white */
+  .circle.frozen .media{filter:grayscale(1)}
   .node:hover .circle .media{transform:scale(1.06)}
   .node:focus-visible .circle{outline:3px solid var(--accent);outline-offset:5px}
   /* "off" = a sibling of the open circle: black & white, dimmed */
@@ -41,7 +43,7 @@
   .node.off .title{opacity:.35}
   .node.off:hover .circle{opacity:.75}
   .node.off:hover .title{opacity:.7}
-  .ph{display:grid;place-items:center;color:rgba(255,255,255,.35);font-family:'Archivo Black',sans-serif;
+  .ph{display:grid;place-items:center;color:rgba(0,0,0,.18);font-family:'Archivo Black',sans-serif;
     font-size:calc(var(--circle)*.48);line-height:1;user-select:none}
   .title{margin-top:calc(var(--circle)*.07);font-family:'Archivo Black',sans-serif;font-size:calc(var(--circle)*.13);
     letter-spacing:.01em;text-transform:uppercase;text-align:center;line-height:1;white-space:nowrap}
@@ -130,7 +132,7 @@ const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${
 const TREE = {
   title: 'Home',
   children: [
-    { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'image', src: GIF + 'multimedia-plus.gif' },
+    { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'image', src: GIF + 'multimedia-x.gif' },
       children: [
         { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'image', src: GIF + 'btn-photo.gif' },
           children: [
@@ -190,7 +192,9 @@ const PLAY = '<svg viewBox="0 0 10 12"><path d="M0 0l10 6-10 6z"/></svg>';
 const wait = ms => new Promise(r => setTimeout(r, ms));
 
 /* placeholder circles get a colour so the colour / black-and-white switch is visible */
+const PLACEHOLDER_GREY = '#efefef';   // temporary: every placeholder is a plain light grey
 function placeholderBg(t){
+  return PLACEHOLDER_GREY;
   let h = 7; for (const ch of t) h = (h*31 + ch.charCodeAt(0)) >>> 0;
   const hue = h % 360, a = (h >> 3) % 360;
   return `radial-gradient(circle at ${25+h%50}% ${25+(h>>6)%50}%, hsl(${hue} 55% 62%) 0%, transparent 65%),
@@ -241,7 +245,7 @@ function buildRow(parent, depth){
     if (isLink){ el.href = n.href; el.target = LINK_TARGET; } else el.type = 'button';
     el.setAttribute('aria-label', n.title);
     const c = document.createElement('div'); c.className = 'circle';
-    c.appendChild(makeMedia(n.media, n.title, n.title[0]));
+    c.appendChild(makeMedia(n.media, n.title, ''));   // no letter on placeholder circles
     el.append(c, makeTitle(n));
     el._node = n;
     el.addEventListener('click', e => pick(e, depth, n, el));
@@ -281,13 +285,40 @@ function buildGallery(n){
   return g;
 }
 
-/* mark the open circle in a row (colour) and its siblings (black & white) */
+/* freeze a circle's GIF on its current frame and dissolve it to black & white */
+function freeze(el){
+  const c = el.querySelector('.circle');
+  if (!c || c.classList.contains('frozen')) return;
+  const img = c.querySelector('img.media');
+  if (img && img.complete && img.naturalWidth){
+    const cv = document.createElement('canvas');
+    cv.width = img.naturalWidth; cv.height = img.naturalHeight; cv.className = 'media still';
+    try { cv.getContext('2d').drawImage(img, 0, 0); } catch(e){}
+    img.style.visibility = 'hidden';
+    c.appendChild(cv);
+  }
+  const v = c.querySelector('video.media'); if (v) v.pause();
+  void c.offsetWidth;            // let the still frame appear in colour first, then fade
+  c.classList.add('frozen');
+}
+/* back to the live GIF in colour (when its row is closed again) */
+function unfreeze(el){
+  const c = el.querySelector('.circle');
+  if (!c || !c.classList.contains('frozen')) return;
+  c.classList.remove('frozen');
+  c.querySelectorAll('canvas.still').forEach(x => x.remove());
+  const img = c.querySelector('img.media'); if (img) img.style.visibility = '';
+  const v = c.querySelector('video.media'); if (v) v.play().catch(()=>{});
+}
+
+/* mark the open circle in a row (frozen, black & white) and its siblings (dimmed, black & white) */
 function markRow(depth){
   const r = rows[depth];
   if (!r || !r.classList.contains('row')) return;
   [...r.children].forEach(el => {
     const open = sel[depth];
     el.classList.toggle('off', !!open && el._node !== open);
+    if (open && el._node === open) freeze(el); else unfreeze(el);
   });
 }
 
