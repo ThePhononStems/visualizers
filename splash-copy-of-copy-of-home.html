@@ -73,6 +73,12 @@
   .t-gfx b{font-family:'Nunito',sans-serif;font-weight:900;font-size:calc(var(--circle)*.14);letter-spacing:-.01em}
   .t-gfx i{font-family:'Permanent Marker',cursive;font-size:calc(var(--circle)*.19);margin-top:-.28em;transform:skewX(-8deg);
     -webkit-text-stroke:.05em currentColor;letter-spacing:.02em}
+  .t-event{display:block;white-space:normal;line-height:1.15;width:calc(var(--circle)*1.15);margin:0 auto}
+  .t-event b{font:700 max(10px,calc(var(--circle)*.068))/1.15 Inter,sans-serif;color:#d93a2b;letter-spacing:.02em;text-transform:uppercase}
+  .t-event i{font:600 max(10px,calc(var(--circle)*.064))/1.2 Inter,sans-serif;color:#111;margin-top:.25em}
+  /* a player (e.g. the slideshow) opened inside the cascade */
+  .embedRow{padding-top:clamp(28px,4vw,48px);display:flex;justify-content:center}
+  .embedRow iframe{width:min(100%,1000px);aspect-ratio:4/3;border:0;background:#fff}
   .t-audio{font-family:'Montserrat',sans-serif;line-height:.88}
   .t-audio b{font-weight:800;font-size:calc(var(--circle)*.11);letter-spacing:-.01em}
   .t-audio i{font-weight:900;font-size:calc(var(--circle)*.2);letter-spacing:-.03em}
@@ -140,6 +146,36 @@ const SITE = 'https://www.swtmedia.com';
 const FAVORITES_ALBUM = '72177720334848092';   // Flickr album the Slideshow button plays (same as the slideshow page)
 const FLICKR_KEY = '93e2c36e6750f5f66de8c917ce5b5db0';
    // the same buttons as looping videos (pause on the exact frame, far smaller)
+const PHOTO_DATA = 'https://thephononstems.github.io/visualizers/assets/data/photo-data.json';   // events + galleries, taken from the site's pages
+let photoData;
+const getPhotoData = () => photoData = photoData || fetch(PHOTO_DATA).then(r => r.json());
+const sized = (u, w) => u.includes('googleusercontent') ? u + '=w' + w : u;
+const esc = t => String(t).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const photoItems = list => list.map(u => ({ type:'image', src: sized(u, 1600), poster: sized(u, 500) }));
+async function loadAlbum(n, album){        // a Flickr album, fetched live so new photos show up by themselves
+  let page = 1, pages = 1, all = [];
+  do {
+    const j = await (await fetch('https://api.flickr.com/services/rest/?method=flickr.photosets.getPhotos&api_key=' + FLICKR_KEY
+      + '&photoset_id=' + album + '&per_page=500&page=' + page + '&extras=url_n,url_z,url_c,url_l,url_b&format=json&nojsoncallback=1')).json();
+    if (j.stat !== 'ok') break;
+    all = all.concat(j.photoset.photo); pages = j.photoset.pages; page++;
+  } while (page <= pages);
+  n.items = all.map(p => ({ type:'image', src: p.url_b || p.url_l || p.url_c || p.url_z, poster: p.url_n || p.url_z || p.url_c }));
+}
+async function loadEvents(n){
+  const d = await getPhotoData();
+  n.children = d.events.map(e => ({
+    title: e.name,
+    titleHTML: `<span class="t-event"><b>${esc(e.name)}</b><i>${esc(e.place)}</i></span>`,
+    media: { type:'image', src: sized(e.cover, 500) },
+    items: e.photos ? photoItems(e.photos) : undefined,
+    load: e.album ? (m => loadAlbum(m, e.album)) : undefined
+  }));
+}
+async function loadGalleries(n){
+  const d = await getPhotoData();
+  n.children = d.galleries.map(g => ({ title: g.name, media: { type:'image', src: sized(g.photos[0], 500) }, items: photoItems(g.photos) }));
+}
 const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${String(i+1).padStart(2,'0')}`, type:'video' }));
 
 const TREE = {
@@ -149,9 +185,9 @@ const TREE = {
       children: [
         { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'video', src: LOOP + 'btn-photo.mp4' },
           children: [
-            { title: 'Slideshow', slideshow: FAVORITES_ALBUM, href: SITE + '/home_2/photography-slideshow' },   // a live slideshow, as a rectangle
-            { title: 'Events',    media: { type:'image', src: THUMB + 'photo-events.jpg' },    href: SITE + '/home_2/photography-slideshow/events' },
-            { title: 'Galleries', media: { type:'scroll', src: THUMB + 'photo-galleries-strip.jpg' }, href: SITE + '/home_2/photography-slideshow/galleries' }
+            { title: 'Slideshow', slideshow: FAVORITES_ALBUM, embed: 'https://thephononstems.github.io/visualizers/slideshow.html?v=6' },  // opens the slideshow player below
+            { title: 'Events',    media: { type:'image', src: THUMB + 'photo-events.jpg' },             load: loadEvents },     // opens every event below
+            { title: 'Galleries', media: { type:'scroll', src: THUMB + 'photo-galleries-strip.jpg' }, load: loadGalleries }   // opens the galleries below
           ] },
         { title: 'Video', titleHTML: '<span class="t-video"><b>VIDEO</b><i><em>&amp;</em>EDIT</i></span>', media: { type:'video', src: LOOP + 'btn-video.mp4' },
           children: [
@@ -229,7 +265,7 @@ function makeMedia(m, label, phText){
       return d;
     }
     const i = document.createElement('img');
-    i.src = m.src; i.alt = ''; i.className = 'media'; i.draggable = false;
+    i.loading = 'lazy'; i.src = m.src; i.alt = ''; i.className = 'media'; i.draggable = false;
     return i;
   }
   const d = document.createElement('div');
@@ -280,6 +316,13 @@ function buildRow(parent, depth){
     r.appendChild(el);
   });
   return r;
+}
+
+function buildEmbed(n){
+  const w = document.createElement('div'); w.className = 'embedRow';
+  const f = document.createElement('iframe'); f.src = n.embed; f.allow = 'fullscreen'; f.allowFullscreen = true; f.title = n.title;
+  w.appendChild(f);
+  return w;
 }
 
 function buildGallery(n){
@@ -373,7 +416,7 @@ async function startSlideshow(c, album){
     await show(urls[0]);
     bg.remove();
     while (c.isConnected){
-      await wait(2700);
+      await wait(900);                    // quick: just enough to read as a slideshow
       if (!c.isConnected) break;
       while (c.classList.contains('held') && c.isConnected) await wait(200);   // paused while hovered
       k = (k + 1) % urls.length;
@@ -419,7 +462,12 @@ async function pick(e, depth, n, el){
   if (isLink) return;                    // follow the link normally
   e.preventDefault();
   if (busy) return;
-  if (!n.children && !n.items) return;   // nothing to open yet
+  if (n.load && !n._loaded){             // fetch its contents the first time it's opened
+    busy = true;
+    try { await n.load(n); } catch(err){}
+    n._loaded = true; busy = false;
+  }
+  if (!n.children && !n.items && !n.embed) return;   // nothing to open yet
 
   // clicking the open circle again closes its rows
   if (sel[depth] === n){
@@ -434,7 +482,7 @@ async function pick(e, depth, n, el){
   sel[depth] = n;
   markRow(depth);
 
-  const next = n.children ? buildRow(n, depth + 1) : buildGallery(n);
+  const next = n.children ? buildRow(n, depth + 1) : n.items ? buildGallery(n) : buildEmbed(n);
   const parts = [...next.children];
   parts.forEach(p => p.style.visibility = 'hidden');
   main.appendChild(next);
