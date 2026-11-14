@@ -84,6 +84,11 @@
   .t-audio i{font-weight:900;font-size:calc(var(--circle)*.2);letter-spacing:-.03em}
 
   /* ---------- gallery row ---------- */
+  .gallery.justified{display:flex;flex-wrap:wrap;gap:4px;align-content:flex-start}
+  .tile.jt{position:relative;overflow:hidden;background:#eee;flex:none}
+  .tile.jt img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transition:transform .6s cubic-bezier(.22,1,.36,1),filter .25s ease}
+  .tile.jt:hover img{transform:scale(1.03);filter:brightness(1.08)}
+  .tile.jt:focus-visible{outline:3px solid var(--accent);outline-offset:-3px}
   .gallery{padding-top:clamp(28px,4vw,48px);display:grid;grid-template-columns:repeat(auto-fill,minmax(clamp(150px,16vw,260px),1fr));
     gap:clamp(12px,1.6vw,24px);max-width:1400px;margin:0 auto}
   .tile{all:unset;cursor:pointer;display:block;min-width:0}
@@ -160,7 +165,8 @@ async function loadAlbum(n, album){        // a Flickr album, fetched live so ne
     if (j.stat !== 'ok') break;
     all = all.concat(j.photoset.photo); pages = j.photoset.pages; page++;
   } while (page <= pages);
-  n.items = all.map(p => ({ type:'image', src: p.url_b || p.url_l || p.url_c || p.url_z, poster: p.url_n || p.url_z || p.url_c }));
+  n.items = all.map(p => ({ type:'image', src: p.url_b || p.url_l || p.url_c || p.url_z, poster: p.url_c || p.url_z || p.url_n,
+    w: +(p.width_c || p.width_z || p.width_n) || 0, h: +(p.height_c || p.height_z || p.height_n) || 0 }));
 }
 async function loadEvents(n){
   const d = await getPhotoData();
@@ -173,8 +179,10 @@ async function loadEvents(n){
   }));
 }
 async function loadGalleries(n){
-  const d = await getPhotoData();
-  n.children = d.galleries.map(g => ({ title: g.name, media: { type:'image', src: sized(g.photos[0], 500) }, items: photoItems(g.photos) }));
+  const fav = { title: 'Favorites', justified: true };          // Flickr-style "brick" rows
+  await loadAlbum(fav, FAVORITES_ALBUM);
+  fav.media = { type:'image', src: fav.items[0].poster };
+  n.children = [fav];
 }
 const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${String(i+1).padStart(2,'0')}`, type:'video' }));
 
@@ -325,7 +333,50 @@ function buildEmbed(n){
   return w;
 }
 
+/* Flickr-style rows: every photo keeps its shape, each row is scaled to fill the full width */
+function buildJustified(n){
+  const g = document.createElement('div');
+  g.className = 'gallery justified';
+  const GAP = 4;
+  const tiles = n.items.map((it, i) => {
+    const b = document.createElement('button');
+    b.className = 'tile jt'; b.type = 'button'; b.setAttribute('aria-label', it.title || `Photo ${i+1}`);
+    const im = document.createElement('img'); im.loading = 'lazy'; im.src = it.poster || it.src; im.alt = ''; im.draggable = false;
+    b.appendChild(im);
+    b.addEventListener('click', () => openLightbox(it));
+    g.appendChild(b);
+    return b;
+  });
+  let lastW = 0;
+  const layout = () => {
+    const W = g.clientWidth; if (!W || W === lastW) return; lastW = W;
+    const target = Math.max(150, Math.min(320, W / 4.2));      // row height to aim for
+    let row = [], sum = 0;
+    const place = (h, stretch) => {
+      let used = 0;
+      row.forEach((o, j) => {
+        let w = Math.floor(o.r * h);
+        if (stretch && j === row.length - 1) w = W - used;      // last photo closes the row exactly
+        o.t.style.width = w + 'px'; o.t.style.height = Math.round(h) + 'px';
+        used += w + GAP;
+      });
+      row = []; sum = 0;
+    };
+    n.items.forEach((it, i) => {
+      const r = it.w && it.h ? it.w / it.h : 1.5;
+      row.push({ t: tiles[i], r }); sum += r;
+      const free = W - GAP * (row.length - 1);
+      if (sum * target >= free) place(free / sum, true);
+    });
+    if (row.length) place(target, false);                       // last, unfinished row stays at normal height
+  };
+  requestAnimationFrame(layout);
+  new ResizeObserver(layout).observe(g);
+  return g;
+}
+
 function buildGallery(n){
+  if (n.justified) return buildJustified(n);
   const g = document.createElement('div');
   g.className = 'gallery';
   n.items.forEach((it, i) => {
