@@ -164,10 +164,10 @@ async function loadAlbum(n, album){        // a Flickr album, fetched live so ne
 }
 async function loadEvents(n){
   const d = await getPhotoData();
-  n.children = d.events.map(e => ({
+  n.children = d.events.map((e, k) => ({
     title: e.name,
     titleHTML: `<span class="t-event"><b>${esc(e.name)}</b><i>${esc(e.place)}</i></span>`,
-    media: { type:'image', src: sized(e.cover, 500) },
+    media: { type:'image', src: THUMB + 'events/event-' + String(k + 1).padStart(2, '0') + '.jpg' },   // saved copies of the Events page photos
     items: e.photos ? photoItems(e.photos) : undefined,
     load: e.album ? (m => loadAlbum(m, e.album)) : undefined
   }));
