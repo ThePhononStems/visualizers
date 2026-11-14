@@ -77,8 +77,8 @@
   .t-event b{font:700 max(10px,calc(var(--circle)*.068))/1.15 Inter,sans-serif;color:#d93a2b;letter-spacing:.02em;text-transform:uppercase}
   .t-event i{font:600 max(10px,calc(var(--circle)*.064))/1.2 Inter,sans-serif;color:#111;margin-top:.25em}
   /* a player (e.g. the slideshow) opened inside the cascade */
-  .embedRow{padding-top:clamp(28px,4vw,48px);display:flex;justify-content:center}
-  .embedRow iframe{width:min(100%,1000px);aspect-ratio:4/3;border:0;background:#fff}
+  .embedRow{padding-top:clamp(28px,4vw,48px);display:flex;justify-content:center;margin:0 -16px}   /* full width of the embed, edge to edge */
+  .embedRow iframe{width:100%;height:clamp(380px,52vw,760px);border:0;background:#000;display:block}
   .t-audio{font-family:'Montserrat',sans-serif;line-height:.88}
   .t-audio b{font-weight:800;font-size:calc(var(--circle)*.11);letter-spacing:-.01em}
   .t-audio i{font-weight:900;font-size:calc(var(--circle)*.2);letter-spacing:-.03em}
