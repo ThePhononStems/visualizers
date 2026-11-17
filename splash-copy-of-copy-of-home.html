@@ -32,7 +32,11 @@
   .node{all:unset;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;width:var(--circle);
     -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
   .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
-  .node.small{--circle:calc(var(--base) * var(--k,1) * var(--s));margin-top:calc(var(--base) * var(--k,1) * (1 - var(--s)) / 2)}   /* smaller circle, centred on the row */
+  .row{position:relative}
+  /* smaller circle (PROJECTS): sits to the left of the centred pair without moving it, vertically centred on it */
+  .node.small{--circle:calc(var(--base) * var(--k,1) * var(--s));position:absolute;
+    right:calc(50% + var(--base) * var(--k,1) + var(--gap) * 1.5);top:calc(var(--base) * var(--k,1) * (1 - var(--s)) / 2)}
+  @media (max-width:560px){ .node.small{position:static;margin-top:calc(var(--base) * var(--k,1) * (1 - var(--s)) / 2)} }   /* phones: back in the row, so it never runs off the edge */
   .node.wide{width:calc(var(--circle)*1.5)}
   .circle.rect{width:calc(var(--circle)*1.5);border-radius:8px}
   .circle.rect{background:#fff}
