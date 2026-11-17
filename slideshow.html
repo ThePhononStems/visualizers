@@ -811,7 +811,7 @@ async function loadFlickrAlbum(userId, photosetId){
       + "&user_id=" + encodeURIComponent(resolvedUserId)
       + "&per_page=" + perPage
       + "&page=" + page
-      + "&extras=url_z,url_c,url_m,url_l,url_o";
+      + "&extras=url_z,url_c,url_m,url_l,url_h,url_k";
     const data = await flickrJsonp(url);
     if (data.stat !== "ok") {
       throw new Error("Flickr API error: " + (data.message || data.stat));
@@ -826,7 +826,8 @@ async function loadFlickrAlbum(userId, photosetId){
 
   return allPhotos
     .map(function(p){
-      const display = p.url_o || p.url_l || p.url_c || p.url_z || p.url_m;
+      /* largest size Flickr will serve; originals (url_o) are no longer viewable, so they're not used */
+      const display = p.url_k || p.url_h || p.url_l || p.url_c || p.url_z || p.url_m;
       if (!display) return null;
       return { src: normalizeUrl(display), id: p.id, secret: p.secret };
     })
