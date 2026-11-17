@@ -232,7 +232,7 @@ const TREE = {
   ]
 };
 
-const LINK_TARGET = '_top';
+const LINK_TARGET = '_blank';   // Google Sites embeds may open new tabs but can't navigate the page they sit in
 /* circle sizes: the top row is full size (1), the second row is SECOND_ROW_SIZE.
    After that, a row keeps the size of the row above it, and only shrinks (by SHRINK)
    if it has more than MAX_SAME_SIZE circles. */
@@ -310,7 +310,7 @@ function buildRow(parent, depth){
     const isLink = !n.children && !n.items && n.href;
     const el = document.createElement(isLink ? 'a' : 'button');
     el.className = 'node';
-    if (isLink){ el.href = n.href; el.target = LINK_TARGET; } else el.type = 'button';
+    if (isLink){ el.href = n.href; el.target = LINK_TARGET; el.rel = 'noopener'; } else el.type = 'button';
     el.setAttribute('aria-label', n.title);
     const c = document.createElement('div'); c.className = 'circle';
     if (n.size){ el.classList.add('small'); el.style.setProperty('--s', n.size); }
