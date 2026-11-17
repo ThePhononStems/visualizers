@@ -32,6 +32,7 @@
   .node{all:unset;position:relative;cursor:pointer;display:flex;flex-direction:column;align-items:center;width:var(--circle);
     -webkit-tap-highlight-color:transparent;text-decoration:none;color:inherit}
   .circle{position:relative;width:var(--circle);height:var(--circle);border-radius:50%;overflow:hidden;background:#1a1a1a;isolation:isolate;flex:none}
+  .node.small{--circle:calc(var(--base) * var(--k,1) * var(--s));margin-top:calc(var(--base) * var(--k,1) * (1 - var(--s)) / 2)}   /* smaller circle, centred on the row */
   .node.wide{width:calc(var(--circle)*1.5)}
   .circle.rect{width:calc(var(--circle)*1.5);border-radius:8px}
   .circle.rect{background:#fff}
@@ -189,6 +190,7 @@ const demo = (name, n) => Array.from({length:n}, (_, i) => ({ title: `${name} ${
 const TREE = {
   title: 'Home',
   children: [
+    { title: 'Projects', href: 'https://sites.google.com/view/stepthos/home/projects', size: .6, fill: '#000' },   // small black circle, links to the Projects page
     { title: 'Multimedia', titleHTML: '<span class="t-mm">MULTIMEDIA</span>', media: { type:'video', src: LOOP + 'multimedia-x-rotating.mp4' },
       children: [
         { title: 'Photo', titleHTML: '<span class="t-photo"><b>Photo</b><i>&amp; Photoshop</i></span>', media: { type:'video', src: LOOP + 'btn-photo.mp4' },
@@ -307,7 +309,9 @@ function buildRow(parent, depth){
     if (isLink){ el.href = n.href; el.target = LINK_TARGET; } else el.type = 'button';
     el.setAttribute('aria-label', n.title);
     const c = document.createElement('div'); c.className = 'circle';
-    if (n.slideshow){ c.classList.add('rect'); el.classList.add('wide'); startSlideshow(c, n.slideshow); }
+    if (n.size){ el.classList.add('small'); el.style.setProperty('--s', n.size); }
+    if (n.fill){ const f = document.createElement('div'); f.className = 'media'; f.style.background = n.fill; c.appendChild(f); }
+    else if (n.slideshow){ c.classList.add('rect'); el.classList.add('wide'); startSlideshow(c, n.slideshow); }
     else c.appendChild(makeMedia(n.media, n.title, ''));   // no letter on placeholder circles
     el.append(c, makeTitle(n));
     el._node = n;
@@ -603,7 +607,10 @@ function moveFocus(dir){
   if (!items.length) return;
   const cur = document.activeElement;
   if (!items.includes(cur)){                 // resting above the menu (banner area)
-    if (dir === 'down' || dir === 'right' || dir === 'left'){ items[0].focus({ preventScroll: true }); items[0].scrollIntoView({ behavior:'smooth', block:'nearest' }); }
+    if (dir === 'down' || dir === 'right' || dir === 'left'){
+      const start = items.find(e => !e.classList.contains('small')) || items[0];   // land on MULTIMEDIA, not the small PROJECTS circle
+      start.focus({ preventScroll: true }); start.scrollIntoView({ behavior:'smooth', block:'nearest' });
+    }
     return;
   }
   const r = cur.getBoundingClientRect(), cx = r.left + r.width/2;
